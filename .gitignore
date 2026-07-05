@@ -25,9 +25,6 @@ data/output/*
 # Logs
 logs/*.log
 
-# ML models (downloaded at runtime)
-models/
-
 # OS
 .DS_Store
 Thumbs.db

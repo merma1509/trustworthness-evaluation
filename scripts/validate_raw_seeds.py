@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""validate_raw_seeds.py
-Validate raw seed files (before expansion).
+"""Validate raw seed files
 Reads from data/raw/*.jsonl.
 Checks: duplicates, label integrity, distribution, coverage.
 
@@ -60,15 +59,15 @@ def print_stats(stats: dict):
 
     if stats["missing_fields"]:
         for field, count in stats["missing_fields"].items():
-            print(f"  ⚠️  Missing '{field}': {count} seeds")
+            print(f"  Missing '{field}': {count} seeds")
 
     # Warnings
     if stats["exact_duplicates"] > 0:
-        print(f"  ⚠️  Found {stats['exact_duplicates']} exact duplicate(s)")
+        print(f"  Found {stats['exact_duplicates']} exact duplicate(s)")
     if stats["duplicate_ids"] > 0:
-        print(f"  ⚠️  Found {stats['duplicate_ids']} duplicate ID(s)")
+        print(f"  Found {stats['duplicate_ids']} duplicate ID(s)")
 
-    print(f"✅ Validation complete")
+    print(f"Validation complete")
 
 
 def print_summary(all_stats: list):
@@ -118,8 +117,7 @@ def main():
         all_stats.append(stats)
 
     print_summary(all_stats)
-    print(f"\n✅ All seed files validated successfully!")
-    print("   Ready for Phase 2: Template Expansion.")
+    print(f"\nAll seed files validated successfully!")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,14 @@
+MultiTrustScore — Model Manifest
+Date: 2026-07-05 16:17:30
+
+Models:
+  - gemma3:4b
+  - llama3.1:8b
+
+Inference Settings:
+  temperature: 0.0 (deterministic)
+  max_retries: 3
+  timeout: 60s
+
+Reproduction Command:
+  python3 run_evaluation.py --models gemma3:4b,llama3.1:8b --output results_20260705_161730
