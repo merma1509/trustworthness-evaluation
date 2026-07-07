@@ -28,3 +28,6 @@ logs/*.log
 # OS
 .DS_Store
 Thumbs.db
+
+# Symlink folder
+results_latest/
