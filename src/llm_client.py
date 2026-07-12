@@ -1,7 +1,5 @@
-"""llm_client.py
-Lightweight Ollama API wrapper for MultiTrustScore.
-Sends prompts to local LLMs and returns structured responses.
-"""
+"""Lightweight Ollama API wrapper
+Sends prompts to local LLMs and returns structured responses"""
 
 import json
 import time
@@ -11,7 +9,7 @@ from pathlib import Path
 
 
 class LLMClient:
-    """Client for interacting with Ollama-hosted LLMs."""
+    """Client for interacting with Ollama-hosted LLMs"""
 
     def __init__(self, model: str = "gemma:2b", base_url: str = "http://localhost:11434",
         temperature: float = 0.7, max_retries: int = 3, timeout: int = 60):
@@ -22,7 +20,7 @@ class LLMClient:
         self.timeout = timeout
 
     def generate(self, prompt: str) -> Dict:
-        """Send a single prompt to the LLM and return the response.
+        """Send a single prompt to the LLM and return the response
 
         Args:
             prompt: The input text to send to the model

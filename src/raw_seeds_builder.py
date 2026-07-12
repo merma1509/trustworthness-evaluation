@@ -1,7 +1,5 @@
-"""dataset_builder.py
-Builds MultiTrustScore datasets following Section 8 methodology.
-Phase 1: Seed Prompt Engineering Layer — Raw seeds only.
-Saves original hand-crafted prompts to data/raw/ for review.
+"""Builds datasets - raw seeds only
+Saves original hand-crafted prompts to data/raw/ for review
 """
 
 import json
@@ -133,13 +131,12 @@ class DatasetBuilder:
         print(f"Saved {len(dataset)} seeds to {filepath}")
 
 
-# CLI ENTRY POINT — SAVE RAW SEEDS ONLY
+# SAVE RAW SEEDS ONLY
 if __name__ == "__main__":
     builder = DatasetBuilder(seed=42)
 
     print("=" * 60)
-    print("MultiTrustScore — Seed Prompt Engineering Layer")
-    print("Saving raw seeds to data/raw/ for review.")
+    print("Saving raw seeds to data/raw/ for review")
     print("=" * 60)
 
     # Define all seed groups
@@ -162,4 +159,3 @@ if __name__ == "__main__":
         print(f"  {name}: {len(seeds)} prompts")
     print(f"\nTotal: {sum(len(s) for s in seed_groups.values())} raw seed prompts")
     print("\nAll raw seeds saved to data/raw/")
-    print("   Review these files before proceeding to expansion.")

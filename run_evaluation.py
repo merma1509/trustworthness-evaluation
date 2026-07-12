@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Main entry point for Trustworthness aluation pipeline
+"""Main entry point for Trustworthness evaluation pipeline
 Usage:
     python3 run_evaluation.py --models gemma3:4b,llama3.1:8b --output results/
 Runs the full evaluation pipeline:
@@ -20,7 +20,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from src.llm_client import LLMClient
 from src.safety import evaluate_safety
-from src.hallucination import evaluate_truthfulness
+from src.truthfulness import evaluate_truthfulness
 from src.consistency import evaluate_consistency
 from src.trustscore import compute_trustscore
 from src.utils import save_jsonl, DEFAULT_WEIGHT_CONFIGS

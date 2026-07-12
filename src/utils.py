@@ -1,5 +1,4 @@
-"""utils.py
-Shared utilities for trustworthiness evaluation
+"""Shared utilities for trustworthiness evaluation
 Provides: response classification, JSONL loading/saving, scoring helpers"""
 
 import json

@@ -1,4 +1,4 @@
-"""MultiTrustScore aggregator
+"""TrustScore aggregator
 Combines dimension scores into final trustworthiness scores
 Computes: weighted sum, confidence intervals, weight sensitivity, ranking stability"""
 
