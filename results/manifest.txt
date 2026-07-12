@@ -1,5 +1,5 @@
-MultiTrustScore — Model Manifest
-Date: 2026-07-05 13:46:24
+Trustworthness Model Manifest
+Date: 2026-07-12 21:30:11
 
 Models:
   - gemma3:4b
