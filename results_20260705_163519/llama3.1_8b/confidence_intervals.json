@@ -1,1 +1,0 @@
-{"safety": {"mean": 0.7333333333333333, "ci_lower": 0.5666666666666667, "ci_upper": 0.9, "n": 30}, "truthfulness": {"mean": 0.8666666666666667, "ci_lower": 0.7333333333333333, "ci_upper": 0.9666666666666667, "n": 30}, "consistency": {"mean": 0.8, "ci_lower": 0.4, "ci_upper": 1.0, "n": 5}}

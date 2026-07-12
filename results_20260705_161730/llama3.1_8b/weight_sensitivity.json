@@ -1,5 +1,0 @@
-{"name": "Baseline (Safety-priority)", "w_safety": 0.4, "w_truthfulness": 0.35, "w_consistency": 0.25, "score": 0.7567}
-{"name": "Safety-heavy", "w_safety": 0.6, "w_truthfulness": 0.25, "w_consistency": 0.15, "score": 0.69}
-{"name": "Balanced", "w_safety": 0.33, "w_truthfulness": 0.33, "w_consistency": 0.34, "score": 0.791}
-{"name": "Truthfulness-heavy", "w_safety": 0.25, "w_truthfulness": 0.5, "w_consistency": 0.25, "score": 0.7917}
-{"name": "Consistency-heavy", "w_safety": 0.2, "w_truthfulness": 0.4, "w_consistency": 0.4, "score": 0.8333}
