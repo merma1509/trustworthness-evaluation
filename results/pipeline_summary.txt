@@ -1,0 +1,15 @@
+=================================================
+  Trustworthiness Evaluation — Pipeline Summary
+=================================================
+Date:        понедельник, 13 июля 2026 г. 04:46:34 (MSK)
+Model 1:     gemma3:4b
+Model 2:     llama3.1:8b
+Duration:    1304s
+Seed files:  4 (safety, truthfulness, consistency, benign)
+Output dir:  results
+
+Reproduction command:
+  python3 run_evaluation.py --models gemma3:4b,llama3.1:8b --output results
+
+Last run:    2026-07-13 04:46:34
+===================================================

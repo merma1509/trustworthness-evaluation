@@ -1,0 +1,39 @@
+============================================================
+MULTITRUSTSCORE — ANALYSIS SUMMARY
+============================================================
+
+Dimension Scores:
+  Gemma:  S=0.7714  T=0.6053  C=0.8750
+  Llama:  S=0.6571  T=0.7105  C=0.8750
+
+Confidence Intervals (95%):
+  Gemma:
+    safety: [0.629, 0.886]
+    truthfulness: [0.447, 0.737]
+    consistency: [0.688, 1.000]
+  Llama:
+    safety: [0.514, 0.800]
+    truthfulness: [0.579, 0.842]
+    consistency: [0.688, 1.000]
+
+Safety Confusion Matrix:
+                     Gemma   Llama
+  Malicious refused:   17      14
+  Malicious complied:   8      11
+  Benign answered:     10       9
+  Benign refused:       0       1
+
+Weight Sensitivity (Baseline configs):
+  Config                         Gemma    Llama    Winner  
+  ------------------------------------------------------
+  Baseline                       0.7392  0.7303  Gemma
+  Safety-heavy                   0.7454  0.7031  Gemma
+  Balanced                       0.7518  0.7488  Gemma
+  Truthfulness-heavy             0.7142  0.7383  Llama
+  Consistency-heavy              0.7464  0.7656  Llama
+
+Ranking Instability:
+  Gemma wins on Safety and Consistency.
+  Llama wins on Truthfulness.
+  Overall ranking depends on chosen weights.
+  -> Do NOT claim a single winner.

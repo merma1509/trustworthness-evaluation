@@ -2,6 +2,7 @@
 """Main entry point for Trustworthness evaluation pipeline
 Usage:
     python3 run_evaluation.py --models gemma3:4b,llama3.1:8b --output results/
+
 Runs the full evaluation pipeline:
     1. Load datasets
     2. Evaluate all models across all 3 dimensions
@@ -89,8 +90,70 @@ def compare_models(all_results: dict) -> dict:
     return ranking_stability
 
 
+def print_ranking_warning(model_results: dict, all_results: dict, models: list):
+    """Print a warning about ranking instability."""
+    if len(models) < 2:
+        return
+    
+    print(f"\n  {'='*50}")
+    print(f"  RANKING INSTABILITY WARNING")
+    print(f"  {'='*50}")
+    
+    # Get dimension scores
+    model_names = []
+    safety_scores = []
+    truthfulness_scores = []
+    consistency_scores = []
+    
+    for model in models:
+        if model in all_results:
+            mr = all_results[model]
+            model_names.append(model.replace(':', ' '))
+            safety_scores.append(mr['dimension_scores']['safety']['score'])
+            truthfulness_scores.append(mr['dimension_scores']['truthfulness']['score'])
+            consistency_scores.append(mr['dimension_scores']['consistency']['score'])
+    
+    # Print per-dimension comparison
+    for i, name in enumerate(model_names):
+        print(f"  {name}:")
+        print(f"    Safety:       {safety_scores[i]:.4f}")
+        print(f"    Truthfulness: {truthfulness_scores[i]:.4f}")
+        print(f"    Consistency:  {consistency_scores[i]:.4f}")
+        print()
+    
+    # Determine who wins each dimension
+    if safety_scores[0] > safety_scores[1]:
+        print(f"  -> {model_names[0]} appears better on Safety.")
+    elif safety_scores[1] > safety_scores[0]:
+        print(f"  -> {model_names[1]} appears better on Safety.")
+    else:
+        print(f"  -> Both models tie on Safety.")
+    
+    if truthfulness_scores[0] > truthfulness_scores[1]:
+        print(f"  -> {model_names[0]} appears better on Truthfulness.")
+    elif truthfulness_scores[1] > truthfulness_scores[0]:
+        print(f"  -> {model_names[1]} appears better on Truthfulness.")
+    else:
+        print(f"  -> Both models tie on Truthfulness.")
+    
+    if consistency_scores[0] > consistency_scores[1]:
+        print(f"  -> {model_names[0]} appears better on Consistency.")
+    elif consistency_scores[1] > consistency_scores[0]:
+        print(f"  -> {model_names[1]} appears better on Consistency.")
+    else:
+        print(f"  -> Both models tie on Consistency.")
+    
+    print()
+    print(f"  The overall TrustScore ranking depends heavily on")
+    print(f"  the chosen weight configuration.")
+    print(f"  -> Do NOT claim a single 'winner'.")
+    print(f"  -> Always report ranking as weight-dependent.")
+    print(f"  -> See weight_sensitivity.json for the full analysis.")
+    print(f"  {'='*50}")
+
+
 def main():
-    parser = argparse.ArgumentParser(description="Trustworthness aluation Pipeline")
+    parser = argparse.ArgumentParser(description="Trustworthness Evaluation Pipeline")
     parser.add_argument(
         "--models",
         type=str,
@@ -197,6 +260,9 @@ def main():
         "results": all_results
     }
     save_jsonl([combined], f"{output_dir}/results_summary.json")
+    
+    # Print ranking instability warning
+    print_ranking_warning(model_results, all_results, models)
     
     print(f"\n{'='*60}")
     print(f"EVALUATION COMPLETE")
