@@ -75,6 +75,16 @@ def load_all_weight_sensitivity() -> Dict[str, List[Dict]]:
     return sensitivities
 
 
+def load_rescored_verification() -> Optional[Dict]:
+    """Load offline rescoring verification results."""
+    path = RESULTS_DIR / "rescored_verification.json"
+    if not path.exists():
+        return None
+    with open(path) as f:
+        raw = f.read().strip().rstrip(",")
+        return json.loads(raw)
+
+
 def load_ranking_stability() -> Optional[Dict]:
     path = RESULTS_DIR / "ranking_stability.json"
     if not path.exists():

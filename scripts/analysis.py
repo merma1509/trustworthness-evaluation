@@ -112,10 +112,10 @@ def generate_ranking_plots():
         print("Weight Sensitivity Analysis")
         print(f"{'=' * 60}")
         print(
-            f"Gemma scores:  S={g['safety']:.4f}, T={g['truthfulness']:.4f}, C={g['consistency']:.4f}"
+            f"Gemma scores:  S={g['safety']:.4f}, T={g['truthfulness']:.4f}, C={g['consistency']:.4f}"  # noqa: E501
         )
         print(
-            f"Llama scores:  S={l_score['safety']:.4f}, T={l_score['truthfulness']:.4f}, C={l_score['consistency']:.4f}"
+            f"Llama scores:  S={l_score['safety']:.4f}, T={l_score['truthfulness']:.4f}, C={l_score['consistency']:.4f}"  # noqa: E501
         )
         print()
 
@@ -129,7 +129,7 @@ def generate_ranking_plots():
             w_t = remaining * 0.35 / 0.6  # Keep T:C ratio from baseline
             w_c = remaining * 0.25 / 0.6
             gemma_trust.append(compute_trustscore(g, w_s, w_t, w_c))
-            llama_trust.append(compute_trustscore(l, w_s, w_t, w_c))
+            llama_trust.append(compute_trustscore(l_score, w_s, w_t, w_c))
 
         fig, ax = plt.subplots(figsize=(10, 6))
         ax.plot(w_s_range, gemma_trust, "b-", linewidth=2, label="Gemma 3 4B")
@@ -149,7 +149,7 @@ def generate_ranking_plots():
             w_t = remaining * 0.35 / 0.6
             w_c = remaining * 0.25 / 0.6
             g_score = compute_trustscore(g, w_s, w_t, w_c)
-            l_score = compute_trustscore(l, w_s, w_t, w_c)
+            l_score = compute_trustscore(l_score, w_s, w_t, w_c)
             ax.plot(w_s, g_score, "b" + marker, markersize=8)
             ax.plot(w_s, l_score, "r" + marker, markersize=8)
 
@@ -161,7 +161,7 @@ def generate_ranking_plots():
 
         # Text box
         s_text = f"Gemma: S={g['safety']:.2f}, T={g['truthfulness']:.2f}, C={g['consistency']:.2f}"
-        l_text = f"Llama: S={l_score['safety']:.2f}, T={l_score['truthfulness']:.2f}, C={l_score['consistency']:.2f}"
+        l_text = f"Llama: S={l_score['safety']:.2f}, T={l_score['truthfulness']:.2f}, C={l_score['consistency']:.2f}"  # noqa: E501
         props = dict(boxstyle="round", facecolor="wheat", alpha=0.5)
         ax.text(
             0.02,
@@ -189,7 +189,7 @@ def generate_ranking_plots():
                 w_t = remaining * t_share
                 w_c = remaining * (1.0 - t_share)
                 g_score = compute_trustscore(g, w_s, w_t, w_c)
-                l_score = compute_trustscore(l, w_s, w_t, w_c)
+                l_score = compute_trustscore(l_score, w_s, w_t, w_c)
                 diff[i, j] = g_score - l_score  # Positive = Gemma wins
 
         fig, ax = plt.subplots(figsize=(10, 7))
@@ -263,10 +263,10 @@ def generate_summary():
     lines.append("")
     lines.append("Dimension Scores:")
     lines.append(
-        f"  Gemma:  S={g_dims['safety']['score']:.4f}  T={g_dims['truthfulness']['score']:.4f}  C={g_dims['consistency']['score']:.4f}"
+        f"  Gemma:  S={g_dims['safety']['score']:.4f}  T={g_dims['truthfulness']['score']:.4f}  C={g_dims['consistency']['score']:.4f}"  # noqa: E501
     )
     lines.append(
-        f"  Llama:  S={l_dims['safety']['score']:.4f}  T={l_dims['truthfulness']['score']:.4f}  C={l_dims['consistency']['score']:.4f}"
+        f"  Llama:  S={l_dims['safety']['score']:.4f}  T={l_dims['truthfulness']['score']:.4f}  C={l_dims['consistency']['score']:.4f}"  # noqa: E501
     )
     lines.append("")
 
@@ -283,16 +283,16 @@ def generate_summary():
     lines.append("Safety Confusion Matrix:")
     lines.append("                     Gemma   Llama")
     lines.append(
-        f"  Malicious refused:  {g_cm.get('malicious_refused', 0):3d}     {l_cm.get('malicious_refused', 0):3d}"
+        f"  Malicious refused:  {g_cm.get('malicious_refused', 0):3d}     {l_cm.get('malicious_refused', 0):3d}"  # noqa: E501
     )
     lines.append(
-        f"  Malicious complied: {g_cm.get('malicious_complied', 0):3d}     {l_cm.get('malicious_complied', 0):3d}"
+        f"  Malicious complied: {g_cm.get('malicious_complied', 0):3d}     {l_cm.get('malicious_complied', 0):3d}"  # noqa: E501
     )
     lines.append(
-        f"  Benign answered:    {g_cm.get('benign_answered', 0):3d}     {l_cm.get('benign_answered', 0):3d}"
+        f"  Benign answered:    {g_cm.get('benign_answered', 0):3d}     {l_cm.get('benign_answered', 0):3d}"  # noqa: E501
     )
     lines.append(
-        f"  Benign refused:     {g_cm.get('benign_refused', 0):3d}     {l_cm.get('benign_refused', 0):3d}"
+        f"  Benign refused:     {g_cm.get('benign_refused', 0):3d}     {l_cm.get('benign_refused', 0):3d}"  # noqa: E501
     )
     lines.append("")
 
@@ -310,7 +310,7 @@ def generate_summary():
     ]
     for name, w_s, w_t, w_c in configs:
         gs = compute_trustscore(g, w_s, w_t, w_c)
-        ls = compute_trustscore(l, w_s, w_t, w_c)
+        ls = compute_trustscore(l_score, w_s, w_t, w_c)
         winner = "Gemma" if gs > ls else "Llama" if ls > gs else "Tie"
         lines.append(f"  {name:30} {gs:.4f}  {ls:.4f}  {winner}")
     lines.append("")

@@ -1,4 +1,4 @@
-.PHONY: help setup run clean lint audit dashboard eval
+.PHONY: help setup run clean lint audit dashboard eval offlinescore
 
 SHELL := /bin/bash
 RESULTS := results
@@ -8,13 +8,14 @@ help:
 	@echo "Trustworthiness Evaluation - Makefile"
 	@echo ""
 	@echo "Usage:"
-	@echo "  make setup      Install dependencies via uv"
-	@echo "  make run        Run full evaluation pipeline + dashboard"
-	@echo "  make eval       Run evaluation only (no dashboard)"
-	@echo "  make dashboard  Launch Streamlit dashboard only"
-	@echo "  make clean      Remove generated results"
-	@echo "  make lint       Check code quality with ruff"
-	@echo "  make audit      Generate manual audit file"
+	@echo "  make setup        Install dependencies via uv"
+	@echo "  make run          Run full evaluation pipeline + dashboard"
+	@echo "  make eval         Run evaluation only (no dashboard)"
+	@echo "  make dashboard    Launch Streamlit dashboard only"
+	@echo "  make offlinescore Run offline rescoring"
+	@echo "  make clean        Remove generated results"
+	@echo "  make lint         Check code quality with ruff"
+	@echo "  make audit        Generate manual audit file"
 
 setup:
 	@echo "Installing dependencies with uv..."
@@ -29,10 +30,16 @@ run:
 eval:
 	@echo "Running evaluation only..."
 	python3 run_evaluation.py --models $(MODELS) --output $(RESULTS)
-	python3 scripts/manual_audit_consistency.py
 	python3 scripts/analysis.py
-	python3 scripts/score_saved_outputs.py --input "$(RESULTS)/raw_outputs/*.jsonl" --output "$(RESULTS)/rescored_verification.json" --dimension all
 	@echo "Evaluation complete"
+
+offlinescore:
+	@echo "Offline rescoring saved outputs..."
+	python3 scripts/score_saved_outputs.py \
+		--input "$(RESULTS)/raw_outputs/*.jsonl" \
+		--output "$(RESULTS)/rescored_verification.json" \
+		--dimension all
+	@echo "Offline rescoring complete"
 
 dashboard:
 	@echo "Launching Streamlit dashboard..."

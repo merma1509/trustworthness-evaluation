@@ -8,7 +8,7 @@
     "results/raw_outputs/llama3.1_8b_safety.jsonl",
     "results/raw_outputs/llama3.1_8b_truthfulness.jsonl"
   ],
-  "timestamp": "2026-07-13T04:49:01.502296",
+  "timestamp": "2026-07-27T01:31:31.532685",
   "results": {
     "gemma3_4b": {
       "consistency": {
@@ -1329,7 +1329,7 @@
           "truthfulness": {
             "mean": 0.6052631578947368,
             "ci_lower": 0.4473684210526316,
-            "ci_upper": 0.7368421052631579,
+            "ci_upper": 0.7631578947368421,
             "n": 38
           },
           "consistency": {

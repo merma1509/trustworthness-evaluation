@@ -40,6 +40,7 @@ from app.data_loader import (  # noqa: E402
     load_all_confidence_intervals,
     load_all_scores,
     load_all_weight_sensitivity,
+    load_rescored_verification,
     load_scores,
     models_available,
 )
@@ -77,9 +78,8 @@ st.markdown("*A Lightweight Validation Study of Open-Source LLMs*")
 
 if not available:
     st.warning(
-        """### No results found\n\nRun the full pipeline first:\n```bash\n./demo.sh\n```\nThen refresh this dashboard."""
-    )
     st.stop()
+    )
 
 # Load all data
 all_scores = load_all_scores()
@@ -93,14 +93,14 @@ gemma_cm = get_confusion_matrix(gemma_scores)
 llama_cm = get_confusion_matrix(llama_scores)
 
 
-# ─── Tabs ───────────────────────────────────────────────────
-tab_overview, tab_dimensions, tab_confusion, tab_weights, tab_audit, tab_raw = st.tabs(
+tab_overview, tab_dimensions, tab_confusion, tab_weights, tab_audit, tab_verification, tab_raw = st.tabs(  # noqa: E501
     [
         "Overview",
         "Dimensions",
         "Confusion Matrix",
         "Weight Sensitivity",
         "Manual Audit",
+        "Verification",
         "Raw Outputs",
     ]
 )
@@ -168,7 +168,7 @@ with tab_overview:
             dim_winners.append(f"**{d.capitalize()}** tie ({gs:.4f})")
     instab_msg = "\n".join(["- " + w for w in dim_winners])
     instab_msg += "\n- The overall ranking **depends on the chosen weights**"
-    instab_msg += "\n- All confidence intervals **overlap** \u2014 differences are not statistically significant"
+    instab_msg += "\n- All confidence intervals **overlap** \u2014 differences are not statistically significant"  # noqa: E501
     warning_icon = chr(0x26A0) + chr(0xFE0F)
     st.warning(f"{warning_icon} **Ranking Instability Warning**\n\n{instab_msg}")
 
@@ -375,7 +375,79 @@ with tab_weights:
 with tab_audit:
     display_audit_editor()
 
-# ─── TAB 6: Raw Outputs ─────────────────────────────────────
+# ─── TAB 6: Verification ──────────────────────────────────
+with tab_verification:
+    st.markdown('## Offline Rescoring Verification')
+
+    rescored = load_rescored_verification()
+    if not rescored:
+        st.info("No verification data found. Run `make offlinescore` first.")
+        st.stop()
+
+    st.markdown(
+        'Compares the **offline rescoring** (recomputed scores'
+        ' from saved raw outputs) with the **original pipeline scores**.'
+        ' If they match, the scoring methodology is **reproducible**.'
+    )
+
+    orig_scores = load_all_scores()
+
+    for model_key in available:
+        model_label = MODEL_NAMES.get(model_key, model_key)
+        rescored_model = rescored.get('results', {}).get(model_key, {})
+        st.markdown(f'### {model_label}')
+
+        cols = st.columns(3)
+        all_match = True
+        for i, dim in enumerate(DIMENSIONS):
+            with cols[i]:
+                orig_val = get_dimension_score(orig_scores.get(model_key, {}), dim)
+                rescored_val = rescored_model.get(dim, {}).get('score', 0)
+                match = abs(orig_val - rescored_val) < 0.0001
+                if not match:
+                    all_match = False
+                delta_text = 'Match' if match else f'MISMATCH - orig: {orig_val:.4f}'
+                st.metric(dim.capitalize(), f'{rescored_val:.4f}', delta=delta_text)
+
+        rt = rescored_model.get('trust_score', {})
+        if isinstance(rt, dict):
+            ts_val = rt.get('trustworthiness_score', 0)
+            orig_ts = orig_scores.get(model_key, {}).get('trustworthiness_score', 0)
+            ts_match = abs(orig_ts - ts_val) < 0.0001
+            if not ts_match:
+                all_match = False
+
+        if all_match:
+            st.success('All scores match the original pipeline!')
+        else:
+            st.warning('Some scores differ from the original.')
+
+        with st.expander('Per-Prompt Details', expanded=False):
+            dim_sel = st.selectbox(
+                'Select dimension', DIMENSIONS,
+                format_func=lambda d: d.capitalize(),
+                key=f'rescored_{model_key}',
+            )
+            records = rescored_model.get(dim_sel, {}).get('results', [])
+            st.caption(f'{len(records)} records')
+            for rec in records[:10]:
+                pid = rec.get('prompt_id', '?')
+                sc = rec.get('is_correct', rec.get('score', '?'))
+                att = rec.get('attack_type', '')
+                exp = rec.get('scorer_explanation', '')
+                status = 'CORRECT' if sc else 'INCORRECT'
+                st.markdown(f'**{pid}** ({att}) [{status}]: {exp}')
+
+    st.markdown('---')
+    st.markdown('### Verification Metadata')
+    st.json({
+        'pipeline': rescored.get('pipeline'),
+        'timestamp': rescored.get('timestamp'),
+        'input_files': rescored.get('input_files'),
+    })
+
+
+# ─── TAB 7: Raw Outputs
 with tab_raw:
     st.markdown("## Raw Outputs")
 
@@ -426,6 +498,6 @@ with tab_raw:
 # ─── Footer ─────────────────────────────────────────────────
 st.markdown("---")
 st.markdown(
-    "*Built for the course 'Security and Interpretability of Machine Learning' at Innopolis University. "
+    "*Built for the course 'Security and Interpretability of Machine Learning' at Innopolis University. "  # noqa: E501
     "[GitHub](https://github.com/merma1509/trustworthness-evaluation)*"
 )

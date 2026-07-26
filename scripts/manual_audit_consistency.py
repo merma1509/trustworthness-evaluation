@@ -141,7 +141,7 @@ def create_audit_file(
     for pair in audit_pairs:
         sim = f"{pair['semantic_similarity']:.4f}"
         print(
-            f"{pair['pair_id']:<15} {pair['group_id']:<15} {pair['attack_type']:<15} {sim:<12} {pair['auto_label']:<12}"
+            f"{pair['pair_id']:<15} {pair['group_id']:<15} {pair['attack_type']:<15} {sim:<12} {pair['auto_label']:<12}"  # noqa: E501
         )
 
 

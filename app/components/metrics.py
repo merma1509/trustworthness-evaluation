@@ -7,11 +7,13 @@ from app.config import interpret_score
 
 def display_score_card(label, score, color="#3498db", help_text=""):
     trust_level = interpret_score(score)
+    card_style = f"background-color:{color}15;border:1px solid {color}40;" \
+    f"border-radius:10px;padding:15px;margin:5px 0;text-align:center;"
     st.markdown(
-        f"""<div style="background-color:{color}15;border:1px solid {color}40;border-radius:10px;padding:15px;margin:5px 0;text-align:center;">
+        f'''<div style="{card_style}">
         <div style="font-size:14px;color:#555;margin-bottom:5px;">{label}</div>
         <div style="font-size:36px;font-weight:bold;color:{color};">{score:.4f}</div>
-        <div style="font-size:13px;color:#888;margin-top:5px;">{trust_level}</div></div>""",
+        <div style="font-size:13px;color:#888;margin-top:5px;">{trust_level}</div></div>''',
         unsafe_allow_html=True,
     )
     if help_text:
