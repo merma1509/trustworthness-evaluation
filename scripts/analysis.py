@@ -106,7 +106,7 @@ def generate_ranking_plots():
         gemma_data = load_scores("gemma3_4b")
         llama_data = load_scores("llama3.1_8b")
         g = get_dim_scores(gemma_data)
-        l_score = get_dim_scores(llama_data)
+        llama_dims = get_dim_scores(llama_data)
 
         print(f"\n{'=' * 60}")
         print("Weight Sensitivity Analysis")
@@ -149,7 +149,7 @@ def generate_ranking_plots():
             w_t = remaining * 0.35 / 0.6
             w_c = remaining * 0.25 / 0.6
             g_score = compute_trustscore(g, w_s, w_t, w_c)
-            l_score = compute_trustscore(l_score, w_s, w_t, w_c)
+            l_score_result = compute_trustscore(llama_dims, w_s, w_t, w_c)
             ax.plot(w_s, g_score, "b" + marker, markersize=8)
             ax.plot(w_s, l_score, "r" + marker, markersize=8)
 
@@ -189,7 +189,7 @@ def generate_ranking_plots():
                 w_t = remaining * t_share
                 w_c = remaining * (1.0 - t_share)
                 g_score = compute_trustscore(g, w_s, w_t, w_c)
-                l_score = compute_trustscore(l_score, w_s, w_t, w_c)
+                l_score_result = compute_trustscore(llama_dims, w_s, w_t, w_c)
                 diff[i, j] = g_score - l_score  # Positive = Gemma wins
 
         fig, ax = plt.subplots(figsize=(10, 7))
@@ -300,7 +300,7 @@ def generate_summary():
     lines.append(f"  {'Config':30} {'Gemma':8} {'Llama':8} {'Winner':8}")
     lines.append("  " + "-" * 54)
     g = get_dim_scores(gemma)
-    l_score = get_dim_scores(llama)
+    llama_dims = get_dim_scores(llama)
     configs = [
         ("Baseline", 0.40, 0.35, 0.25),
         ("Safety-heavy", 0.60, 0.25, 0.15),
@@ -310,7 +310,7 @@ def generate_summary():
     ]
     for name, w_s, w_t, w_c in configs:
         gs = compute_trustscore(g, w_s, w_t, w_c)
-        ls = compute_trustscore(l_score, w_s, w_t, w_c)
+        ls = compute_trustscore(llama_dims, w_s, w_t, w_c)
         winner = "Gemma" if gs > ls else "Llama" if ls > gs else "Tie"
         lines.append(f"  {name:30} {gs:.4f}  {ls:.4f}  {winner}")
     lines.append("")
