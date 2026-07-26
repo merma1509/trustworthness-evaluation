@@ -55,37 +55,38 @@ def generate_ci_plot():
         gemma = load_scores("gemma3_4b")
         llama = load_scores("llama3.1_8b")
 
-        dimensions = ['Safety', 'Truthfulness', 'Consistency']
-        colors = ['#3498db', '#e74c3c']
+        dimensions = ["Safety", "Truthfulness", "Consistency"]
+        colors = ["#3498db", "#e74c3c"]
         x = np.arange(len(dimensions))
         width = 0.35
 
         fig, ax = plt.subplots(figsize=(10, 6))
 
-        for i, (label, data) in enumerate([('Gemma 3 4B', gemma), ('Llama 3.1 8B', llama)]):
+        for i, (label, data) in enumerate([("Gemma 3 4B", gemma), ("Llama 3.1 8B", llama)]):
             scores = []
             ci_lowers = []
             ci_uppers = []
-            for dim in ['safety', 'truthfulness', 'consistency']:
-                ds = data['dimension_scores'][dim]
-                ci = data['confidence_intervals'][dim]
-                scores.append(ds['score'])
-                ci_lowers.append(ci['ci_lower'])
-                ci_uppers.append(ci['ci_upper'])
+            for dim in ["safety", "truthfulness", "consistency"]:
+                ds = data["dimension_scores"][dim]
+                ci = data["confidence_intervals"][dim]
+                scores.append(ds["score"])
+                ci_lowers.append(ci["ci_lower"])
+                ci_uppers.append(ci["ci_upper"])
 
-            yerr = np.array([
-                [s - l for s, l in zip(scores, ci_lowers)],
-                [u - s for s, u in zip(scores, ci_uppers)]
-            ])
+            yerr = np.array(
+                [
+                    [s - l_val for s, l_val in zip(scores, ci_lowers)],
+                    [u - s for s, u in zip(scores, ci_uppers)],
+                ]
+            )
 
-            ax.bar(x + i * width, scores, width, label=label,
-                   color=colors[i], yerr=yerr, capsize=5)
+            ax.bar(x + i * width, scores, width, label=label, color=colors[i], yerr=yerr, capsize=5)
 
         ax.set_xticks(x + width / 2)
         ax.set_xticklabels(dimensions)
         ax.set_ylim(0, 1.1)
-        ax.set_ylabel('Score')
-        ax.set_title('Dimension Scores with 95% Confidence Intervals')
+        ax.set_ylabel("Score")
+        ax.set_title("Dimension Scores with 95% Confidence Intervals")
         ax.legend()
         ax.grid(True, alpha=0.3)
         plt.tight_layout()
@@ -105,13 +106,17 @@ def generate_ranking_plots():
         gemma_data = load_scores("gemma3_4b")
         llama_data = load_scores("llama3.1_8b")
         g = get_dim_scores(gemma_data)
-        l = get_dim_scores(llama_data)
+        l_score = get_dim_scores(llama_data)
 
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print("Weight Sensitivity Analysis")
-        print(f"{'='*60}")
-        print(f"Gemma scores:  S={g['safety']:.4f}, T={g['truthfulness']:.4f}, C={g['consistency']:.4f}")
-        print(f"Llama scores:  S={l['safety']:.4f}, T={l['truthfulness']:.4f}, C={l['consistency']:.4f}")
+        print(f"{'=' * 60}")
+        print(
+            f"Gemma scores:  S={g['safety']:.4f}, T={g['truthfulness']:.4f}, C={g['consistency']:.4f}"
+        )
+        print(
+            f"Llama scores:  S={l_score['safety']:.4f}, T={l_score['truthfulness']:.4f}, C={l_score['consistency']:.4f}"
+        )
         print()
 
         # --- Plot 1: TrustScore vs Safety Weight ---
@@ -127,8 +132,8 @@ def generate_ranking_plots():
             llama_trust.append(compute_trustscore(l, w_s, w_t, w_c))
 
         fig, ax = plt.subplots(figsize=(10, 6))
-        ax.plot(w_s_range, gemma_trust, 'b-', linewidth=2, label='Gemma 3 4B')
-        ax.plot(w_s_range, llama_trust, 'r-', linewidth=2, label='Llama 3.1 8B')
+        ax.plot(w_s_range, gemma_trust, "b-", linewidth=2, label="Gemma 3 4B")
+        ax.plot(w_s_range, llama_trust, "r-", linewidth=2, label="Llama 3.1 8B")
 
         # Mark default configurations
         configs = [
@@ -138,28 +143,35 @@ def generate_ranking_plots():
             (0.25, "Truthfulness-heavy"),
             (0.20, "Consistency-heavy"),
         ]
-        markers = ['o', 's', '^', 'D', 'v']
+        markers = ["o", "s", "^", "D", "v"]
         for (w_s, name), marker in zip(configs, markers):
             remaining = 1.0 - w_s
             w_t = remaining * 0.35 / 0.6
             w_c = remaining * 0.25 / 0.6
             g_score = compute_trustscore(g, w_s, w_t, w_c)
             l_score = compute_trustscore(l, w_s, w_t, w_c)
-            ax.plot(w_s, g_score, 'b' + marker, markersize=8)
-            ax.plot(w_s, l_score, 'r' + marker, markersize=8)
+            ax.plot(w_s, g_score, "b" + marker, markersize=8)
+            ax.plot(w_s, l_score, "r" + marker, markersize=8)
 
-        ax.set_xlabel('Safety Weight (w_s)', fontsize=12)
-        ax.set_ylabel('TrustScore', fontsize=12)
-        ax.set_title('TrustScore vs Safety Weight', fontsize=14)
-        ax.legend(loc='best')
+        ax.set_xlabel("Safety Weight (w_s)", fontsize=12)
+        ax.set_ylabel("TrustScore", fontsize=12)
+        ax.set_title("TrustScore vs Safety Weight", fontsize=14)
+        ax.legend(loc="best")
         ax.grid(True, alpha=0.3)
 
         # Text box
-        s_text = f'Gemma: S={g["safety"]:.2f}, T={g["truthfulness"]:.2f}, C={g["consistency"]:.2f}'
-        l_text = f'Llama: S={l["safety"]:.2f}, T={l["truthfulness"]:.2f}, C={l["consistency"]:.2f}'
-        props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
-        ax.text(0.02, 0.98, s_text + '\n' + l_text, transform=ax.transAxes,
-                fontsize=9, verticalalignment='top', bbox=props)
+        s_text = f"Gemma: S={g['safety']:.2f}, T={g['truthfulness']:.2f}, C={g['consistency']:.2f}"
+        l_text = f"Llama: S={l_score['safety']:.2f}, T={l_score['truthfulness']:.2f}, C={l_score['consistency']:.2f}"
+        props = dict(boxstyle="round", facecolor="wheat", alpha=0.5)
+        ax.text(
+            0.02,
+            0.98,
+            s_text + "\n" + l_text,
+            transform=ax.transAxes,
+            fontsize=9,
+            verticalalignment="top",
+            bbox=props,
+        )
 
         plt.tight_layout()
         plt.savefig(f"{RESULTS_DIR}/ranking_flip_boundary.png", dpi=150)
@@ -183,26 +195,43 @@ def generate_ranking_plots():
         fig, ax = plt.subplots(figsize=(10, 7))
 
         # Custom colormap: red (Llama wins) -> white (tie) -> blue (Gemma wins)
-        cmap = LinearSegmentedColormap.from_list('diff',
-            ['#e74c3c', '#ffffff', '#3498db'], N=256)
+        cmap = LinearSegmentedColormap.from_list("diff", ["#e74c3c", "#ffffff", "#3498db"], N=256)
 
-        im = ax.imshow(diff, aspect='auto', origin='lower', cmap=cmap,
-                      vmin=-0.05, vmax=0.15,
-                      extent=[w_s_range[0], w_s_range[-1],
-                             t_share_range[0], t_share_range[-1]])
+        im = ax.imshow(
+            diff,
+            aspect="auto",
+            origin="lower",
+            cmap=cmap,
+            vmin=-0.05,
+            vmax=0.15,
+            extent=[w_s_range[0], w_s_range[-1], t_share_range[0], t_share_range[-1]],
+        )
 
-        plt.colorbar(im, ax=ax, label='Score Difference (Gemma - Llama)')
+        plt.colorbar(im, ax=ax, label="Score Difference (Gemma - Llama)")
 
         # Contour at zero (tie line)
-        cs = ax.contour(w_s_range, t_share_range, diff, levels=[0],
-                       colors='black', linewidths=2, linestyles='--')
-        ax.clabel(cs, inline=True, fontsize=10, fmt='Tie Line')
+        cs = ax.contour(
+            w_s_range,
+            t_share_range,
+            diff,
+            levels=[0],
+            colors="black",
+            linewidths=2,
+            linestyles="--",
+        )
+        ax.clabel(cs, inline=True, fontsize=10, fmt="Tie Line")
 
-        ax.set_xlabel('Safety Weight (w_s)', fontsize=12)
-        ax.set_ylabel('Truthfulness Share of Remaining', fontsize=12)
-        ax.set_title('Score Difference: Gemma − Llama', fontsize=14)
-        ax.text(0.5, -0.1, 'Blue = Gemma wins, Red = Llama wins, White = Tie',
-                transform=ax.transAxes, ha='center', fontsize=10)
+        ax.set_xlabel("Safety Weight (w_s)", fontsize=12)
+        ax.set_ylabel("Truthfulness Share of Remaining", fontsize=12)
+        ax.set_title("Score Difference: Gemma − Llama", fontsize=14)
+        ax.text(
+            0.5,
+            -0.1,
+            "Blue = Gemma wins, Red = Llama wins, White = Tie",
+            transform=ax.transAxes,
+            ha="center",
+            fontsize=10,
+        )
 
         plt.tight_layout()
         plt.savefig(f"{RESULTS_DIR}/score_difference_heatmap.png", dpi=150)
@@ -224,8 +253,8 @@ def generate_summary():
     gemma = load_scores("gemma3_4b")
     llama = load_scores("llama3.1_8b")
 
-    g_dims = gemma['dimension_scores']
-    l_dims = llama['dimension_scores']
+    g_dims = gemma["dimension_scores"]
+    l_dims = llama["dimension_scores"]
 
     lines = []
     lines.append("=" * 60)
@@ -233,33 +262,45 @@ def generate_summary():
     lines.append("=" * 60)
     lines.append("")
     lines.append("Dimension Scores:")
-    lines.append(f"  Gemma:  S={g_dims['safety']['score']:.4f}  T={g_dims['truthfulness']['score']:.4f}  C={g_dims['consistency']['score']:.4f}")
-    lines.append(f"  Llama:  S={l_dims['safety']['score']:.4f}  T={l_dims['truthfulness']['score']:.4f}  C={l_dims['consistency']['score']:.4f}")
+    lines.append(
+        f"  Gemma:  S={g_dims['safety']['score']:.4f}  T={g_dims['truthfulness']['score']:.4f}  C={g_dims['consistency']['score']:.4f}"
+    )
+    lines.append(
+        f"  Llama:  S={l_dims['safety']['score']:.4f}  T={l_dims['truthfulness']['score']:.4f}  C={l_dims['consistency']['score']:.4f}"
+    )
     lines.append("")
 
     lines.append("Confidence Intervals (95%):")
     for model_name, data in [("Gemma", gemma), ("Llama", llama)]:
         lines.append(f"  {model_name}:")
-        for dim in ['safety', 'truthfulness', 'consistency']:
-            ci = data['confidence_intervals'][dim]
+        for dim in ["safety", "truthfulness", "consistency"]:
+            ci = data["confidence_intervals"][dim]
             lines.append(f"    {dim}: [{ci['ci_lower']:.3f}, {ci['ci_upper']:.3f}]")
     lines.append("")
 
-    g_cm = g_dims['safety'].get('confusion_matrix', {})
-    l_cm = l_dims['safety'].get('confusion_matrix', {})
+    g_cm = g_dims["safety"].get("confusion_matrix", {})
+    l_cm = l_dims["safety"].get("confusion_matrix", {})
     lines.append("Safety Confusion Matrix:")
     lines.append("                     Gemma   Llama")
-    lines.append(f"  Malicious refused:  {g_cm.get('malicious_refused', 0):3d}     {l_cm.get('malicious_refused', 0):3d}")
-    lines.append(f"  Malicious complied: {g_cm.get('malicious_complied', 0):3d}     {l_cm.get('malicious_complied', 0):3d}")
-    lines.append(f"  Benign answered:    {g_cm.get('benign_answered', 0):3d}     {l_cm.get('benign_answered', 0):3d}")
-    lines.append(f"  Benign refused:     {g_cm.get('benign_refused', 0):3d}     {l_cm.get('benign_refused', 0):3d}")
+    lines.append(
+        f"  Malicious refused:  {g_cm.get('malicious_refused', 0):3d}     {l_cm.get('malicious_refused', 0):3d}"
+    )
+    lines.append(
+        f"  Malicious complied: {g_cm.get('malicious_complied', 0):3d}     {l_cm.get('malicious_complied', 0):3d}"
+    )
+    lines.append(
+        f"  Benign answered:    {g_cm.get('benign_answered', 0):3d}     {l_cm.get('benign_answered', 0):3d}"
+    )
+    lines.append(
+        f"  Benign refused:     {g_cm.get('benign_refused', 0):3d}     {l_cm.get('benign_refused', 0):3d}"
+    )
     lines.append("")
 
     lines.append("Weight Sensitivity (Baseline configs):")
     lines.append(f"  {'Config':30} {'Gemma':8} {'Llama':8} {'Winner':8}")
     lines.append("  " + "-" * 54)
     g = get_dim_scores(gemma)
-    l = get_dim_scores(llama)
+    l_score = get_dim_scores(llama)
     configs = [
         ("Baseline", 0.40, 0.35, 0.25),
         ("Safety-heavy", 0.60, 0.25, 0.15),

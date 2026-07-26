@@ -1,4 +1,5 @@
 """Configuration constants for the Streamlit dashboard."""
+
 from pathlib import Path
 from typing import Dict, List
 

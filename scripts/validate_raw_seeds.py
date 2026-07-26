@@ -47,9 +47,9 @@ def validate_seed_file(filepath: str) -> dict:
 
 def print_stats(stats: dict):
     """Print formatted statistics for a seed file."""
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"File: {stats['file']}")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print(f"Total seeds:     {stats['total']}")
     print(f"Attack types:    {stats['attack_types']}")
     print(f"Difficulties:    {stats['difficulties']}")
@@ -72,9 +72,9 @@ def print_stats(stats: dict):
 
 def print_summary(all_stats: list):
     """Print an overall summary of all seed files."""
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("OVERALL SUMMARY")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     total = 0
     total_dupes = 0
@@ -82,7 +82,9 @@ def print_summary(all_stats: list):
     print("-" * 85)
     for stats in all_stats:
         classes = len(stats["attack_types"])
-        print(f"{stats['file']:<35} {stats['total']:<8} {stats['exact_duplicates']:<8} {classes:<30}")
+        print(
+            f"{stats['file']:<35} {stats['total']:<8} {stats['exact_duplicates']:<8} {classes:<30}"
+        )
         total += stats["total"]
         total_dupes += stats["exact_duplicates"]
     print("-" * 85)

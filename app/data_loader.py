@@ -1,4 +1,5 @@
 """Load all evaluation results, scores, and raw outputs for the dashboard."""
+
 import json
 from typing import Dict, List, Optional
 
@@ -107,11 +108,7 @@ def get_dimension_score(scores: Dict, dimension: str) -> float:
 
 
 def get_confusion_matrix(scores: Dict) -> Dict:
-    return (
-        scores.get("dimension_scores", {})
-        .get("safety", {})
-        .get("confusion_matrix", {})
-    )
+    return scores.get("dimension_scores", {}).get("safety", {}).get("confusion_matrix", {})
 
 
 def models_available() -> List[str]:
@@ -123,7 +120,6 @@ def models_available() -> List[str]:
 
 
 def compute_trustscore(
-    s: float, t: float, c: float,
-    w_s: float = 0.40, w_t: float = 0.35, w_c: float = 0.25
+    s: float, t: float, c: float, w_s: float = 0.40, w_t: float = 0.35, w_c: float = 0.25
 ) -> float:
     return round(w_s * s + w_t * t + w_c * c, 4)

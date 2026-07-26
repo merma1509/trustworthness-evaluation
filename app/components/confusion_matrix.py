@@ -1,4 +1,5 @@
 """Safety confusion matrix display for the Streamlit dashboard."""
+
 import pandas as pd
 import streamlit as st
 
@@ -41,13 +42,19 @@ def display_confusion_matrix(cm, model_label="Model"):
     benign_total = cm.get("benign_answered", 0) + cm.get("benign_refused", 0)
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        st.metric("Attack Refusal Rate", f"{cm.get('malicious_refused',0)/max(malicious_total,1):.0%}")
+        st.metric(
+            "Attack Refusal Rate", f"{cm.get('malicious_refused', 0) / max(malicious_total, 1):.0%}"
+        )
     with col2:
-        st.metric("Under-refusal Rate", f"{cm.get('malicious_complied',0)/max(malicious_total,1):.0%}")
+        st.metric(
+            "Under-refusal Rate", f"{cm.get('malicious_complied', 0) / max(malicious_total, 1):.0%}"
+        )
     with col3:
-        st.metric("Benign Answered Rate", f"{cm.get('benign_answered',0)/max(benign_total,1):.0%}")
+        st.metric(
+            "Benign Answered Rate", f"{cm.get('benign_answered', 0) / max(benign_total, 1):.0%}"
+        )
     with col4:
-        st.metric("Over-refusal Rate", f"{cm.get('benign_refused',0)/max(benign_total,1):.0%}")
+        st.metric("Over-refusal Rate", f"{cm.get('benign_refused', 0) / max(benign_total, 1):.0%}")
 
 
 def display_confusion_matrix_comparison(cm_gemma, cm_llama):
@@ -55,11 +62,21 @@ def display_confusion_matrix_comparison(cm_gemma, cm_llama):
         "Cell": ["Malicious Refused", "Malicious Complied", "Benign Answered", "Benign Refused"],
         "Gemma 3 4B": [
             cm_gemma.get(k, 0)
-            for k in ["malicious_refused", "malicious_complied", "benign_answered", "benign_refused"]
+            for k in [
+                "malicious_refused",
+                "malicious_complied",
+                "benign_answered",
+                "benign_refused",
+            ]
         ],
         "Llama 3.1 8B": [
             cm_llama.get(k, 0)
-            for k in ["malicious_refused", "malicious_complied", "benign_answered", "benign_refused"]
+            for k in [
+                "malicious_refused",
+                "malicious_complied",
+                "benign_answered",
+                "benign_refused",
+            ]
         ],
     }
     df = pd.DataFrame(comparison_data)

@@ -13,17 +13,21 @@ from src.utils import classify_response, load_jsonl, save_jsonl
 # Global semantic similarity model (loaded once)
 _similarity_model = None
 
+
 def _get_similarity_model():
     """Lazy-load the sentence-transformers model for semantic similarity."""
     global _similarity_model
     if _similarity_model is None:
         try:
             from sentence_transformers import SentenceTransformer
+
             print("    Loading semantic similarity model (all-MiniLM-L6-v2)...")
-            _similarity_model = SentenceTransformer('all-MiniLM-L6-v2')
+            _similarity_model = SentenceTransformer("all-MiniLM-L6-v2")
             print("    Model loaded.")
         except ImportError:
-            print("    sentence-transformers not installed. Install with: pip install sentence-transformers")
+            print(
+                "    sentence-transformers not installed. Install with: pip install sentence-transformers"  # noqa: E501
+            )
             print("    Falling back to label-only consistency.")
             _similarity_model = False  # Sentinel for "not available"
     return _similarity_model
@@ -31,10 +35,10 @@ def _get_similarity_model():
 
 def compute_semantic_similarity(texts: List[str]) -> float:
     """Compute average pairwise cosine similarity between a list of texts.
-    
+
     Args:
         texts: List of response strings to compare
-        
+
     Returns:
         Average cosine similarity (0.0 to 1.0)
     """
@@ -69,22 +73,22 @@ def compute_semantic_similarity(texts: List[str]) -> float:
 def evaluate_consistency(
     client: LLMClient,
     dataset_path: str = "data/final/consistency.jsonl",
-    output_path: str = "results/raw_outputs/consistency_outputs.jsonl"
+    output_path: str = "results/raw_outputs/consistency_outputs.jsonl",
 ) -> Dict:
     """Run consistency evaluation on a model.
-    
+
     Groups prompts by group_id. For each group:
     - Uses label matching for repetition tests (50% weight)
     - Uses semantic similarity for perturbation pairs (50% weight)
     - Benign controls are always consistent
-    
+
     Consistency Score = Consistent Groups / Total Groups
-    
+
     Args:
         client: Initialized LLMClient
         dataset_path: Path to consistency JSONL dataset
         output_path: Path to save raw outputs
-        
+
     Returns:
         Dict with keys: 'score', 'consistent_groups', 'total_groups', 'results'
     """
@@ -115,13 +119,15 @@ def evaluate_consistency(
 
             if not response["success"]:
                 print(f"      Error: {response['error']}")
-                results.append({
-                    "prompt_id": prompt["prompt_id"],
-                    "group_id": group_id,
-                    "error": response["error"],
-                    "is_correct": False,
-                    "group_consistent": False
-                })
+                results.append(
+                    {
+                        "prompt_id": prompt["prompt_id"],
+                        "group_id": group_id,
+                        "error": response["error"],
+                        "is_correct": False,
+                        "group_consistent": False,
+                    }
+                )
                 all_responses_valid = False
                 continue
 
@@ -134,10 +140,10 @@ def evaluate_consistency(
                 "prompt_id": prompt["prompt_id"],
                 "group_id": group_id,
                 "attack_type": attack_type,
-                "prompt_text": prompt["prompt_text"],       # Full prompt
+                "prompt_text": prompt["prompt_text"],  # Full prompt
                 "expected_behavior": prompt["expected_behavior"],
                 "actual_behavior": actual_behavior,
-                "response": response_text                   # Full response
+                "response": response_text,  # Full response
             }
             results.append(result_entry)
 
@@ -178,7 +184,9 @@ def evaluate_consistency(
         total_groups += 1
 
         status = "SUCCESS" if is_consistent else "FAIL"
-        print(f"      {status} Labels: {responses}, Semantic sim: {semantic_similarity:.4f}, Consistent: {is_consistent}")
+        print(
+            f"      {status} Labels: {responses}, Semantic sim: {semantic_similarity:.4f}, Consistent: {is_consistent}"  # noqa: E501
+        )
 
         # Mark consistency in results
         for r in results:
@@ -199,5 +207,5 @@ def evaluate_consistency(
         "score": score,
         "consistent_groups": consistent_groups,
         "total_groups": total_groups,
-        "results": results
+        "results": results,
     }

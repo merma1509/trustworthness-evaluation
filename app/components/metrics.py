@@ -1,4 +1,5 @@
 """Metric cards and score displays for the Streamlit dashboard."""
+
 import streamlit as st
 
 from app.config import interpret_score

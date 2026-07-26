@@ -21,19 +21,19 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-from app.components.charts import (
+from app.components.charts import (  # noqa: E402
     create_confusion_matrix_heatmap,
     create_dimension_bar_chart,
     create_weight_sensitivity_plot,
 )
-from app.components.confusion_matrix import (
+from app.components.confusion_matrix import (  # noqa: E402
     display_confusion_matrix,
     display_confusion_matrix_comparison,
 )
-from app.components.manual_audit import display_audit_editor
-from app.components.metrics import display_pipeline_info, display_score_card
-from app.config import DIMENSION_LABELS, DIMENSIONS, MODEL_NAMES, WEIGHT_CONFIGS
-from app.data_loader import (
+from app.components.manual_audit import display_audit_editor  # noqa: E402
+from app.components.metrics import display_pipeline_info, display_score_card  # noqa: E402
+from app.config import DIMENSION_LABELS, DIMENSIONS, MODEL_NAMES, WEIGHT_CONFIGS  # noqa: E402
+from app.data_loader import (  # noqa: E402
     compute_trustscore,
     get_confusion_matrix,
     get_dimension_score,
@@ -73,12 +73,12 @@ st.sidebar.caption("Pipeline: `./demo.sh` | Models: Gemma 3 4B, Llama 3.1 8B | P
 
 # ─── Main Content ───────────────────────────────────────────
 st.title("Trustworthiness Evaluation")
-st.markdown(
-    "*A Lightweight Validation Study of Open-Source LLMs*"
-)
+st.markdown("*A Lightweight Validation Study of Open-Source LLMs*")
 
 if not available:
-    st.warning("""### No results found\n\nRun the full pipeline first:\n```bash\n./demo.sh\n```\nThen refresh this dashboard.""")
+    st.warning(
+        """### No results found\n\nRun the full pipeline first:\n```bash\n./demo.sh\n```\nThen refresh this dashboard."""
+    )
     st.stop()
 
 # Load all data
@@ -94,14 +94,16 @@ llama_cm = get_confusion_matrix(llama_scores)
 
 
 # ─── Tabs ───────────────────────────────────────────────────
-tab_overview, tab_dimensions, tab_confusion, tab_weights, tab_audit, tab_raw = st.tabs([
-    "Overview",
-    "Dimensions",
-    "Confusion Matrix",
-    "Weight Sensitivity",
-    "Manual Audit",
-    "Raw Outputs",
-])
+tab_overview, tab_dimensions, tab_confusion, tab_weights, tab_audit, tab_raw = st.tabs(
+    [
+        "Overview",
+        "Dimensions",
+        "Confusion Matrix",
+        "Weight Sensitivity",
+        "Manual Audit",
+        "Raw Outputs",
+    ]
+)
 
 # ─── TAB 1: Overview ────────────────────────────────────────
 with tab_overview:
@@ -122,8 +124,11 @@ with tab_overview:
         for i, dim in enumerate(DIMENSIONS):
             with cols[i]:
                 score = get_dimension_score(scores, dim)
-                display_score_card(DIMENSION_LABELS.get(dim, dim), score,
-                                   color=["#3498db", "#e74c3c", "#2ecc71"][i])
+                display_score_card(
+                    DIMENSION_LABELS.get(dim, dim),
+                    score,
+                    color=["#3498db", "#e74c3c", "#2ecc71"][i],
+                )
         with cols[3]:
             trust = scores.get("trustworthiness_score", 0)
             display_score_card("TrustScore", trust, color="#9b59b6")
@@ -181,16 +186,23 @@ with tab_dimensions:
     for model_key, cis in all_cis.items():
         for dim in DIMENSIONS:
             ci = cis.get(dim, {})
-            ci_data.append({
-                "Model": MODEL_NAMES.get(model_key, model_key),
-                "Dimension": dim.capitalize(),
-                "Score": get_dimension_score(all_scores.get(model_key, {}), dim),
-                "CI Lower": ci.get("ci_lower", 0),
-                "CI Upper": ci.get("ci_upper", 0),
-                "Width": ci.get("ci_upper", 0) - ci.get("ci_lower", 0),
-            })
+            ci_data.append(
+                {
+                    "Model": MODEL_NAMES.get(model_key, model_key),
+                    "Dimension": dim.capitalize(),
+                    "Score": get_dimension_score(all_scores.get(model_key, {}), dim),
+                    "CI Lower": ci.get("ci_lower", 0),
+                    "CI Upper": ci.get("ci_upper", 0),
+                    "Width": ci.get("ci_upper", 0) - ci.get("ci_lower", 0),
+                }
+            )
     ci_df = pd.DataFrame(ci_data)
-    st.dataframe(ci_df.style.format({"Score": "{:.4f}", "CI Lower": "{:.4f}", "CI Upper": "{:.4f}", "Width": "{:.4f}"}), width="stretch")
+    st.dataframe(
+        ci_df.style.format(
+            {"Score": "{:.4f}", "CI Lower": "{:.4f}", "CI Upper": "{:.4f}", "Width": "{:.4f}"}
+        ),
+        width="stretch",
+    )
 
     st.caption("All confidence intervals overlap — rankings are not statistically significant")
 
@@ -199,7 +211,9 @@ with tab_dimensions:
     gemma_cons = load_scores("gemma3_4b")
     if gemma_cons:
         ds = gemma_cons.get("dimension_scores", {}).get("consistency", {})
-        st.metric("Consistent Groups", f"{ds.get('consistent_groups', '?')}/{ds.get('total_groups', '?')}")
+        st.metric(
+            "Consistent Groups", f"{ds.get('consistent_groups', '?')}/{ds.get('total_groups', '?')}"
+        )
 
 # ─── TAB 3: Confusion Matrix ────────────────────────────────
 with tab_confusion:
@@ -235,21 +249,39 @@ with tab_confusion:
 
     # Dynamically determine wording based on actual data
     if gemma_mal_ref >= llama_mal_ref:
-        ref_user = "Gemma"; ref_best = gemma_mal_ref; ref_other = "Llama"; ref_worst = llama_mal_ref
+        ref_user = "Gemma"
+        ref_best = gemma_mal_ref
+        ref_other = "Llama"
+        ref_worst = llama_mal_ref
     else:
-        ref_user = "Llama"; ref_best = llama_mal_ref; ref_other = "Gemma"; ref_worst = gemma_mal_ref
+        ref_user = "Llama"
+        ref_best = llama_mal_ref
+        ref_other = "Gemma"
+        ref_worst = gemma_mal_ref
     ref_total = gemma_mal_total  # same for both
 
     if gemma_mal_comp <= llama_mal_comp:
-        und_user = "Gemma"; und_best = gemma_mal_comp; und_other = "Llama"; und_worst = llama_mal_comp
+        und_user = "Gemma"
+        und_best = gemma_mal_comp
+        und_other = "Llama"
+        und_worst = llama_mal_comp
     else:
-        und_user = "Llama"; und_best = llama_mal_comp; und_other = "Gemma"; und_worst = gemma_mal_comp
+        und_user = "Llama"
+        und_best = llama_mal_comp
+        und_other = "Gemma"
+        und_worst = gemma_mal_comp
     und_total = gemma_mal_total
 
     if gemma_ben_ref <= llama_ben_ref:
-        ovr_user = "Gemma"; ovr_best = gemma_ben_ref; ovr_other = "Llama"; ovr_worst = llama_ben_ref
+        ovr_user = "Gemma"
+        ovr_best = gemma_ben_ref
+        ovr_other = "Llama"
+        ovr_worst = llama_ben_ref
     else:
-        ovr_user = "Llama"; ovr_best = llama_ben_ref; ovr_other = "Gemma"; ovr_worst = gemma_ben_ref
+        ovr_user = "Llama"
+        ovr_best = llama_ben_ref
+        ovr_other = "Gemma"
+        ovr_worst = gemma_ben_ref
 
     st.info(
         f"**Key findings:**\n\n"
@@ -282,7 +314,9 @@ with tab_weights:
             s = get_dimension_score(scores, "safety")
             t = get_dimension_score(scores, "truthfulness")
             c = get_dimension_score(scores, "consistency")
-            row[MODEL_NAMES.get(model_key, model_key)] = compute_trustscore(s, t, c, cfg["w_s"], cfg["w_t"], cfg["w_c"])
+            row[MODEL_NAMES.get(model_key, model_key)] = compute_trustscore(
+                s, t, c, cfg["w_s"], cfg["w_t"], cfg["w_c"]
+            )
         ws_data.append(row)
 
     ws_df = pd.DataFrame(ws_data)
@@ -299,8 +333,10 @@ with tab_weights:
                 winners.append("Tie")
         ws_df["Winner"] = winners
 
-    st.dataframe(ws_df.style.format({k: "{:.4f}" for k in ws_df.columns if k not in ["Config", "Winner"]}),
-                width="stretch")
+    st.dataframe(
+        ws_df.style.format({k: "{:.4f}" for k in ws_df.columns if k not in ["Config", "Winner"]}),
+        width="stretch",
+    )
 
     # Detect ranking flips dynamically from actual weight sensitivity data
     flip_msgs = []
@@ -327,9 +363,13 @@ with tab_weights:
         flip_text = "\n".join(["- " + m for m in flip_msgs])
         flip_icon = chr(0x26A0) + chr(0xFE0F)
         st.warning(
-            flip_icon + " **Ranking Flip Detected!**\n\n"
-            + flip_text + "\n"
-            + "**Do NOT claim a single winner** " + chr(0x2014) + " the ranking depends on the weights."
+            flip_icon
+            + " **Ranking Flip Detected!**\n\n"
+            + flip_text
+            + "\n"
+            + "**Do NOT claim a single winner** "
+            + chr(0x2014)
+            + " the ranking depends on the weights."
         )
 # ─── TAB 5: Manual Audit ────────────────────────────────────
 with tab_audit:
@@ -339,7 +379,9 @@ with tab_audit:
 with tab_raw:
     st.markdown("## Raw Outputs")
 
-    selected_dim = st.selectbox("Select Dimension", DIMENSIONS, format_func=lambda d: d.capitalize())
+    selected_dim = st.selectbox(
+        "Select Dimension", DIMENSIONS, format_func=lambda d: d.capitalize()
+    )
 
     raw_files = {
         "gemma3_4b": load_scores("gemma3_4b"),
@@ -350,7 +392,7 @@ with tab_raw:
         model_label = MODEL_NAMES.get(model_key, model_key)
         st.markdown(f"### {model_label} — {selected_dim.capitalize()}")
 
-        from app.data_loader import load_raw_outputs
+        from app.data_loader import load_raw_outputs  # noqa: E402
 
         records = load_raw_outputs(model_key, selected_dim)
         if not records:
@@ -360,7 +402,7 @@ with tab_raw:
         # Summary
         correct = sum(1 for r in records if r.get("is_correct", False))
         total = len(records)
-        st.metric("Score", f"{correct}/{total} ({correct/max(total,1):.2%})")
+        st.metric("Score", f"{correct}/{total} ({correct / max(total, 1):.2%})")
 
         # Show expandable records
         for rec in records[:10]:  # Show first 10
@@ -375,8 +417,10 @@ with tab_raw:
                 st.text(rec.get("response", "")[:1000])
                 if len(rec.get("response", "")) > 1000:
                     st.caption(f"...({len(rec['response'])} total chars)")
-                st.markdown(f"**Expected:** {rec.get('expected_behavior', '?')} | "
-                           f"**Actual:** {rec.get('actual_behavior', '?')}")
+                st.markdown(
+                    f"**Expected:** {rec.get('expected_behavior', '?')} | "
+                    f"**Actual:** {rec.get('actual_behavior', '?')}"
+                )
 
 
 # ─── Footer ─────────────────────────────────────────────────

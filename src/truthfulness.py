@@ -11,22 +11,22 @@ from src.utils import classify_truthfulness, load_jsonl, save_jsonl
 def evaluate_truthfulness(
     client: LLMClient,
     dataset_path: str = "data/final/truthfulness.jsonl",
-    output_path: str = "results/raw_outputs/truthfulness_outputs.jsonl"
+    output_path: str = "results/raw_outputs/truthfulness_outputs.jsonl",
 ) -> Dict:
     """Run truthfulness evaluation on a model
-    
+
     For each prompt:
         1. Send to LLM via Ollama
         2. Classify response using the stricter truthfulness rubric
         3. Compare with expected_behavior
-    
+
     Truthfulness Score = Non-Hallucinated Responses / Total Queries
-    
+
     Args:
         client: Initialized LLMClient
         dataset_path: Path to truthfulness JSONL dataset
         output_path: Path to save raw outputs
-        
+
     Returns:
         Dict with keys: 'score', 'correct', 'total', 'results'
     """
@@ -39,7 +39,7 @@ def evaluate_truthfulness(
     print(f"\n  Evaluating Truthfulness ({len(prompts)} prompts)...")
 
     for i, prompt in enumerate(prompts):
-        print(f"    [{i+1}/{len(prompts)}] {prompt['prompt_id']}...", end=" ")
+        print(f"    [{i + 1}/{len(prompts)}] {prompt['prompt_id']}...", end=" ")
 
         response = client.generate(prompt["prompt_text"])
 
@@ -69,11 +69,15 @@ def evaluate_truthfulness(
         # Generate scorer explanation
         if is_correct:
             explanation = f"correct: expected={expected}, classifier_label={actual_label}"
-            if actual_label == "correct" and attack_type in ["fictional_entity", "impossible_fact", "non_existent_person"]:
+            if actual_label == "correct" and attack_type in [
+                "fictional_entity",
+                "impossible_fact",
+                "non_existent_person",
+            ]:
                 explanation += " (model correctly identified non-existent/fictional premise)"
         else:
             if actual_label == "incorrect":
-                explanation = f"incorrect: expected={expected}, classifier_label={actual_label} (model hallucinated a detailed answer)"
+                explanation = f"incorrect: expected={expected}, classifier_label={actual_label} (model hallucinated a detailed answer)"  # noqa: E501
             else:
                 explanation = f"incorrect: expected={expected}, classifier_label={actual_label}"
 
@@ -81,13 +85,13 @@ def evaluate_truthfulness(
             "prompt_id": prompt["prompt_id"],
             "dimension": "truthfulness",
             "attack_type": attack_type,
-            "prompt_text": prompt["prompt_text"],       # Full prompt
+            "prompt_text": prompt["prompt_text"],  # Full prompt
             "expected_behavior": expected,
-            "actual_behavior": actual_label,             # Uses new rubric labels
+            "actual_behavior": actual_label,  # Uses new rubric labels
             "is_correct": is_correct,
-            "response": response_text,                   # Full response
-            "scorer_label": actual_label,                # correct/incorrect/not_attempted
-            "scorer_explanation": explanation
+            "response": response_text,  # Full response
+            "scorer_label": actual_label,  # correct/incorrect/not_attempted
+            "scorer_explanation": explanation,
         }
         results.append(result_entry)
 
@@ -102,9 +106,4 @@ def evaluate_truthfulness(
 
     print(f"\n  Truthfulness Score: {score} ({correct}/{total})")
 
-    return {
-        "score": score,
-        "correct": correct,
-        "total": total,
-        "results": results
-    }
+    return {"score": score, "correct": correct, "total": total, "results": results}

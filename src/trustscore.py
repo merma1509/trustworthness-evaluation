@@ -19,17 +19,17 @@ def compute_trustscore(
     truthfulness_result: Dict,
     consistency_result: Dict,
     weight_configs: List[Dict] = None,
-    output_dir: str = "results"
+    output_dir: str = "results",
 ) -> Dict:
     """Compute final TrustScore from dimension evaluation results
-    
+
     Args:
         safety_result: Output from evaluate_safety() with confusion_matrix
         truthfulness_result: Output from evaluate_truthfulness()
         consistency_result: Output from evaluate_consistency()
         weight_configs: List of weight configurations for sensitivity analysis
         output_dir: Directory to save results
-        
+
     Returns:
         Dict with complete evaluation results
     """
@@ -50,17 +50,17 @@ def compute_trustscore(
             "score": s,
             "correct": safety_result["correct"],
             "total": safety_result["total"],
-            "confusion_matrix": safety_result.get("confusion_matrix", {})
+            "confusion_matrix": safety_result.get("confusion_matrix", {}),
         },
         "truthfulness": {
             "score": t,
             "correct": truthfulness_result["correct"],
-            "total": truthfulness_result["total"]
+            "total": truthfulness_result["total"],
         },
         "consistency": {
             "score": c,
             "consistent_groups": consistency_result["consistent_groups"],
-            "total_groups": consistency_result["total_groups"]
+            "total_groups": consistency_result["total_groups"],
         },
     }
 
@@ -90,12 +90,7 @@ def compute_trustscore(
 
     # --- Baseline Score ---
     baseline = weight_configs[0]  # First config is baseline
-    trustworthiness = round(
-        baseline["w_s"] * s +
-        baseline["w_t"] * t +
-        baseline["w_c"] * c,
-        4
-    )
+    trustworthiness = round(baseline["w_s"] * s + baseline["w_t"] * t + baseline["w_c"] * c, 4)
 
     # --- Assemble Results ---
     results = {
@@ -103,12 +98,12 @@ def compute_trustscore(
         "baseline_weights": {
             "safety": baseline["w_s"],
             "truthfulness": baseline["w_t"],
-            "consistency": baseline["w_c"]
+            "consistency": baseline["w_c"],
         },
         "dimension_scores": dimension_scores,
         "confidence_intervals": confidence_intervals,
         "weight_sensitivity": weight_sensitivity,
-        "weight_configs_tested": len(weight_configs)
+        "weight_configs_tested": len(weight_configs),
     }
 
     # Save scores

@@ -18,7 +18,8 @@ def display_audit_editor():
     auto_consistent = sum(1 for r in audit_records if r.get("auto_label") == "consistent")
     human_filled = sum(1 for r in audit_records if r.get("human_label") is not None)
     auto_agreement = sum(
-        1 for r in audit_records
+        1
+        for r in audit_records
         if r.get("human_label") is not None and r["human_label"] == r.get("auto_label")
     )
 
@@ -64,9 +65,20 @@ def display_audit_editor():
 
         label_icon = CHECK_MARK if human_label else WHITE_SQUARE
         expander_label = (
-            label_icon + " " + pair_id + " " + EM_DASH + " "
-            + group_id + " (" + attack_type + ") "
-            + "| Auto: " + auto_label + " | Sim: " + f"{similarity:.4f}"
+            label_icon
+            + " "
+            + pair_id
+            + " "
+            + EM_DASH
+            + " "
+            + group_id
+            + " ("
+            + attack_type
+            + ") "
+            + "| Auto: "
+            + auto_label
+            + " | Sim: "
+            + f"{similarity:.4f}"
         )
 
         with st.expander(expander_label, expanded=False):
@@ -76,13 +88,25 @@ def display_audit_editor():
                 st.markdown("**Prompt 1:**")
                 st.code(p1.get("text", ""), language="text")
                 st.markdown("**Response 1:**")
-                st.text_area("Response 1", value=p1.get("response", ""), height=120, key="resp1_" + str(idx), label_visibility="collapsed")
+                st.text_area(
+                    "Response 1",
+                    value=p1.get("response", ""),
+                    height=120,
+                    key="resp1_" + str(idx),
+                    label_visibility="collapsed",
+                )
             with col2:
                 p2 = record.get("prompt_2", {})
                 st.markdown("**Prompt 2:**")
                 st.code(p2.get("text", ""), language="text")
                 st.markdown("**Response 2:**")
-                st.text_area("Response 2", value=p2.get("response", ""), height=120, key="resp2_" + str(idx), label_visibility="collapsed")
+                st.text_area(
+                    "Response 2",
+                    value=p2.get("response", ""),
+                    height=120,
+                    key="resp2_" + str(idx),
+                    label_visibility="collapsed",
+                )
 
             meta_col1, meta_col2, meta_col3, meta_col4 = st.columns(4)
             with meta_col1:

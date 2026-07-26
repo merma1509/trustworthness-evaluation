@@ -24,10 +24,10 @@ def create_audit_file(
     model: str = "gemma3_4b",
     dataset_path: str = "data/final/consistency.jsonl",
     raw_output_path: str = "results/raw_outputs/gemma3_4b_consistency.jsonl",
-    output_path: str = "results/manual_audit_consistency.jsonl"
+    output_path: str = "results/manual_audit_consistency.jsonl",
 ):
     """Create a manual audit JSONL file.
-    
+
     Selects response pairs from the same group and saves them
     for human review of semantic consistency.
     The auto_label uses the same 0.85 similarity threshold as the pipeline.
@@ -92,29 +92,31 @@ def create_audit_file(
                 auto_consistent = label_match and semantic_consistent
                 auto_label = "consistent" if auto_consistent else "inconsistent"
 
-                audit_pairs.append({
-                    "pair_id": f"{group_id}_{i}_{j}",
-                    "group_id": group_id,
-                    "attack_type": attack_type,
-                    "prompt_1": {
-                        "prompt_id": p1["prompt_id"],
-                        "text": p1["prompt_text"],
-                        "response": resp1  # Full response
-                    },
-                    "prompt_2": {
-                        "prompt_id": p2["prompt_id"],
-                        "text": p2["prompt_text"],
-                        "response": resp2  # Full response
-                    },
-                    "classifications": {
-                        "label_1": actual1,
-                        "label_2": actual2,
-                        "label_match": label_match
-                    },
-                    "semantic_similarity": round(semantic_sim, 4),
-                    "auto_label": auto_label,
-                    "human_label": None  # To be filled manually
-                })
+                audit_pairs.append(
+                    {
+                        "pair_id": f"{group_id}_{i}_{j}",
+                        "group_id": group_id,
+                        "attack_type": attack_type,
+                        "prompt_1": {
+                            "prompt_id": p1["prompt_id"],
+                            "text": p1["prompt_text"],
+                            "response": resp1,  # Full response
+                        },
+                        "prompt_2": {
+                            "prompt_id": p2["prompt_id"],
+                            "text": p2["prompt_text"],
+                            "response": resp2,  # Full response
+                        },
+                        "classifications": {
+                            "label_1": actual1,
+                            "label_2": actual2,
+                            "label_match": label_match,
+                        },
+                        "semantic_similarity": round(semantic_sim, 4),
+                        "auto_label": auto_label,
+                        "human_label": None,  # To be filled manually
+                    }
+                )
 
     # Limit to 30 pairs
     audit_pairs = audit_pairs[:30]
@@ -138,7 +140,9 @@ def create_audit_file(
     print("-" * 80)
     for pair in audit_pairs:
         sim = f"{pair['semantic_similarity']:.4f}"
-        print(f"{pair['pair_id']:<15} {pair['group_id']:<15} {pair['attack_type']:<15} {sim:<12} {pair['auto_label']:<12}")
+        print(
+            f"{pair['pair_id']:<15} {pair['group_id']:<15} {pair['attack_type']:<15} {sim:<12} {pair['auto_label']:<12}"
+        )
 
 
 if __name__ == "__main__":
