@@ -1,10 +1,8 @@
 """Plotting functions for the Streamlit dashboard."""
-import numpy as np
 import plotly.graph_objects as go
-import plotly.express as px
 from plotly.subplots import make_subplots
-from app.config import DIMENSIONS, DIMENSION_LABELS, MODEL_COLORS
-import numpy as np
+
+from app.config import DIMENSION_LABELS, DIMENSIONS, MODEL_COLORS
 
 
 def create_dimension_bar_chart(gemma_scores, llama_scores, gemma_cis=None, llama_cis=None):
@@ -13,10 +11,10 @@ def create_dimension_bar_chart(gemma_scores, llama_scores, gemma_cis=None, llama
     dim_names = [DIMENSION_LABELS.get(d, d.capitalize()) for d in DIMENSIONS]
     gemma_vals = [gemma_scores.get("dimension_scores", {}).get(d, {}).get("score", 0) for d in DIMENSIONS]
     llama_vals = [llama_scores.get("dimension_scores", {}).get(d, {}).get("score", 0) for d in DIMENSIONS]
-    
+
     fig.add_trace(go.Bar(name="Gemma 3 4B", x=dim_names, y=gemma_vals, marker_color="#3498db"))
     fig.add_trace(go.Bar(name="Llama 3.1 8B", x=dim_names, y=llama_vals, marker_color="#e74c3c"))
-    
+
     fig.update_layout(
         title="Dimension Scores with 95% Confidence Intervals",
         xaxis_title="Dimension", yaxis_title="Score", yaxis_range=[0, 1.1],
@@ -49,7 +47,7 @@ def create_confusion_matrix_heatmap(cm_gemma, cm_llama):
     cells = ["Malicious Refused", "Malicious Complied", "Benign Answered", "Benign Refused"]
     gemma_vals = [cm_gemma.get(k, 0) for k in ["malicious_refused", "malicious_complied", "benign_answered", "benign_refused"]]
     llama_vals = [cm_llama.get(k, 0) for k in ["malicious_refused", "malicious_complied", "benign_answered", "benign_refused"]]
-    
+
     fig = make_subplots(rows=1, cols=2, subplot_titles=("Gemma 3 4B", "Llama 3.1 8B"), shared_yaxes=True)
     fig.add_trace(go.Bar(name="Gemma", x=gemma_vals, y=cells, orientation="h",
                          marker_color=["#2ecc71", "#e74c3c", "#2ecc71", "#e74c3c"],

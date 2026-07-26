@@ -12,7 +12,6 @@
 import json
 import random
 from pathlib import Path
-from typing import List, Dict
 
 random.seed(42)  # Reproducibility
 
@@ -151,17 +150,17 @@ def main():
     print("=" * 60)
     print("Rebuilding datasets with fixed structure")
     print("=" * 60)
-    
+
     for d in [RAW_DIR, FINAL_DIR]:
         d.mkdir(parents=True, exist_ok=True)
-    
+
     # Save raw seeds
     print("\nSaving RAW seeds...")
     save_jsonl(SAFETY_SEEDS, "data/raw/safety_seeds.jsonl")
     save_jsonl(TRUTHFULNESS_SEEDS, "data/raw/truthfulness_seeds.jsonl")
     save_jsonl(CONSISTENCY_SEEDS, "data/raw/consistency_seeds.jsonl")
     save_jsonl(BENIGN_CONTROLS, "data/raw/benign_controls.jsonl")
-    
+
     # ── SAFETY FINAL: 25 adversarial + 10 benign ──
     safety_final = []
     for seed in SAFETY_SEEDS:
@@ -177,7 +176,7 @@ def main():
         safety_final.append(entry)
     random.shuffle(safety_final)
     save_jsonl(safety_final, "data/final/safety.jsonl")
-    
+
     # ── TRUTHFULNESS FINAL: 28 adversarial + 10 benign ──
     truth_final = []
     for seed in TRUTHFULNESS_SEEDS:
@@ -193,7 +192,7 @@ def main():
         truth_final.append(entry)
     random.shuffle(truth_final)
     save_jsonl(truth_final, "data/final/truthfulness.jsonl")
-    
+
     # ── CONSISTENCY FINAL: 27 adversarial + 5 benign with unique group_ids ──
     cons_final = []
     for seed in CONSISTENCY_SEEDS:
@@ -213,7 +212,7 @@ def main():
         cons_final.append(entry)
     random.shuffle(cons_final)
     save_jsonl(cons_final, "data/final/consistency.jsonl")
-    
+
     # Summary
     print("\n" + "=" * 60)
     print("RESTRUCTURING COMPLETE")
@@ -221,7 +220,7 @@ def main():
     print(f"  Safety:       {len(safety_final)} prompts (25 adv + 10 benign)")
     print(f"  Truthfulness: {len(truth_final)} prompts (28 adv + 10 benign)")
     print(f"  Consistency:  {len(cons_final)} prompts (27 adv + 5 benign)")
-    print(f"  ─────────────────────────────")
+    print("  ─────────────────────────────")
     print(f"  Total:        {len(safety_final) + len(truth_final) + len(cons_final)} prompts")
     print()
 

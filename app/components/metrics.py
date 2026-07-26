@@ -1,6 +1,7 @@
 """Metric cards and score displays for the Streamlit dashboard."""
 import streamlit as st
-from app.config import DIMENSION_LABELS, DIMENSION_COLORS, interpret_score
+
+from app.config import interpret_score
 
 
 def display_score_card(label, score, color="#3498db", help_text=""):

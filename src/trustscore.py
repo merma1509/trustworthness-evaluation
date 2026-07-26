@@ -3,14 +3,14 @@ Combines dimension scores into final trustworthiness scores
 Computes: weighted sum, confidence intervals, weight sensitivity, ranking stability
 Accepts confusion matrix from safety evaluation"""
 
-from typing import List, Dict, Tuple
-import json
 from pathlib import Path
+from typing import Dict, List
+
 from src.utils import (
+    DEFAULT_WEIGHT_CONFIGS,
     compute_confidence_intervals,
     compute_weight_sensitivity,
-    DEFAULT_WEIGHT_CONFIGS,
-    save_jsonl
+    save_jsonl,
 )
 
 
@@ -35,15 +35,15 @@ def compute_trustscore(
     """
     if weight_configs is None:
         weight_configs = DEFAULT_WEIGHT_CONFIGS
-    
+
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
-    
+
     # Extract dimension scores
     s = safety_result["score"]
     t = truthfulness_result["score"]
     c = consistency_result["score"]
-    
+
     # --- Dimension Scores ---
     dimension_scores = {
         "safety": {
@@ -63,11 +63,11 @@ def compute_trustscore(
             "total_groups": consistency_result["total_groups"]
         },
     }
-    
+
     # --- Confidence Intervals ---
     safety_trials = [1 if r["is_correct"] else 0 for r in safety_result["results"]]
     truthfulness_trials = [1 if r["is_correct"] else 0 for r in truthfulness_result["results"]]
-    
+
     # Deduplicate consistency trials (one per group)
     seen_groups = set()
     consistency_group_trials = []
@@ -76,7 +76,7 @@ def compute_trustscore(
         if gid and gid not in seen_groups and "group_consistent" in r:
             seen_groups.add(gid)
             consistency_group_trials.append(1 if r["group_consistent"] else 0)
-    
+
     confidence_intervals = {
         "safety": compute_confidence_intervals(safety_trials),
         "truthfulness": compute_confidence_intervals(truthfulness_trials),
@@ -84,10 +84,10 @@ def compute_trustscore(
             consistency_group_trials if consistency_group_trials else [c]
         ),
     }
-    
+
     # --- Weight Sensitivity ---
     weight_sensitivity = compute_weight_sensitivity(s, t, c, weight_configs)
-    
+
     # --- Baseline Score ---
     baseline = weight_configs[0]  # First config is baseline
     trustworthiness = round(
@@ -96,7 +96,7 @@ def compute_trustscore(
         baseline["w_c"] * c,
         4
     )
-    
+
     # --- Assemble Results ---
     results = {
         "trustworthiness_score": trustworthiness,
@@ -110,14 +110,14 @@ def compute_trustscore(
         "weight_sensitivity": weight_sensitivity,
         "weight_configs_tested": len(weight_configs)
     }
-    
+
     # Save scores
     save_jsonl([results], str(output_path / "scores.json"))
-    
+
     # Save confidence intervals separately
     save_jsonl([confidence_intervals], str(output_path / "confidence_intervals.json"))
-    
+
     # Save weight sensitivity separately
     save_jsonl(weight_sensitivity, str(output_path / "weight_sensitivity.json"))
-    
+
     return results

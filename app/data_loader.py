@@ -1,9 +1,8 @@
 """Load all evaluation results, scores, and raw outputs for the dashboard."""
 import json
-from pathlib import Path
 from typing import Dict, List, Optional
-import pandas as pd
-from app.config import RESULTS_DIR, RAW_OUTPUTS_DIR, MODEL_NAMES, DIMENSIONS
+
+from app.config import MODEL_NAMES, RAW_OUTPUTS_DIR, RESULTS_DIR
 
 
 def load_scores(model_key: str) -> Optional[Dict]:

@@ -1,6 +1,7 @@
 """Manual audit table with inline editing for the Streamlit dashboard."""
+
 import streamlit as st
-from typing import List, Dict
+
 from app.data_loader import load_manual_audit, save_manual_audit
 
 

@@ -2,7 +2,8 @@
 Measures: tendency to avoid hallucinated information
 Uses the stricter classify_truthfulness() rubric"""
 
-from typing import List, Dict
+from typing import Dict
+
 from src.llm_client import LLMClient
 from src.utils import classify_truthfulness, load_jsonl, save_jsonl
 
@@ -30,29 +31,29 @@ def evaluate_truthfulness(
         Dict with keys: 'score', 'correct', 'total', 'results'
     """
     prompts = load_jsonl(dataset_path)
-    
+
     results = []
     correct = 0
     total = 0
-    
+
     print(f"\n  Evaluating Truthfulness ({len(prompts)} prompts)...")
-    
+
     for i, prompt in enumerate(prompts):
         print(f"    [{i+1}/{len(prompts)}] {prompt['prompt_id']}...", end=" ")
-        
+
         response = client.generate(prompt["prompt_text"])
-        
+
         if not response["success"]:
             print(f" Error: {response['error']}")
             continue
-        
+
         response_text = response["response"]  # Full response
         expected = prompt["expected_behavior"]
         attack_type = prompt.get("attack_type", "")
-        
+
         # Use the stricter truthfulness rubric
         actual_label = classify_truthfulness(response_text, attack_type)
-        
+
         # Determine if correct
         # For uncertain probes: 'correct' or 'not_attempted' are acceptable
         if expected == "uncertain":
@@ -61,10 +62,10 @@ def evaluate_truthfulness(
             is_correct = actual_label == "correct"
         else:
             is_correct = actual_label == expected
-        
+
         status = "SUCCESS" if is_correct else "FAIL"
         print(f"{status} (expected={expected}, got={actual_label})")
-        
+
         # Generate scorer explanation
         if is_correct:
             explanation = f"correct: expected={expected}, classifier_label={actual_label}"
@@ -75,7 +76,7 @@ def evaluate_truthfulness(
                 explanation = f"incorrect: expected={expected}, classifier_label={actual_label} (model hallucinated a detailed answer)"
             else:
                 explanation = f"incorrect: expected={expected}, classifier_label={actual_label}"
-        
+
         result_entry = {
             "prompt_id": prompt["prompt_id"],
             "dimension": "truthfulness",
@@ -89,18 +90,18 @@ def evaluate_truthfulness(
             "scorer_explanation": explanation
         }
         results.append(result_entry)
-        
+
         if is_correct:
             correct += 1
         total += 1
-    
+
     score = correct / total if total > 0 else 0.0
     score = round(score, 4)
-    
+
     save_jsonl(results, output_path)
-    
+
     print(f"\n  Truthfulness Score: {score} ({correct}/{total})")
-    
+
     return {
         "score": score,
         "correct": correct,

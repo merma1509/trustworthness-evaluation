@@ -7,8 +7,8 @@ Usage: python scripts/validate_raw_seeds.py
 """
 
 import json
-from pathlib import Path
 from collections import Counter
+from pathlib import Path
 
 
 def validate_seed_file(filepath: str) -> dict:
@@ -67,7 +67,7 @@ def print_stats(stats: dict):
     if stats["duplicate_ids"] > 0:
         print(f"  Found {stats['duplicate_ids']} duplicate ID(s)")
 
-    print(f"Validation complete")
+    print("Validation complete")
 
 
 def print_summary(all_stats: list):
@@ -117,7 +117,7 @@ def main():
         all_stats.append(stats)
 
     print_summary(all_stats)
-    print(f"\nAll seed files validated successfully!")
+    print("\nAll seed files validated successfully!")
 
 
 if __name__ == "__main__":

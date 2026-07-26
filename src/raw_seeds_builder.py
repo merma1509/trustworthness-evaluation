@@ -5,7 +5,7 @@ Saves original hand-crafted prompts to data/raw/ for review
 import json
 import random
 from pathlib import Path
-from typing import List, Dict
+from typing import Dict, List
 
 
 class DatasetBuilder:

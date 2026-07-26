@@ -1,11 +1,10 @@
 """Lightweight Ollama API wrapper
 Sends prompts to local LLMs and returns structured responses"""
 
-import json
 import time
+from typing import Dict, List
+
 import requests
-from typing import List, Dict, Optional
-from pathlib import Path
 
 
 class LLMClient:

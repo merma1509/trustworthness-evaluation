@@ -1,6 +1,6 @@
 """Configuration constants for the Streamlit dashboard."""
 from pathlib import Path
-from typing import List, Dict
+from typing import Dict, List
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 RESULTS_DIR = PROJECT_ROOT / "results"

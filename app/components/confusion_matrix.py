@@ -1,6 +1,6 @@
 """Safety confusion matrix display for the Streamlit dashboard."""
-import streamlit as st
 import pandas as pd
+import streamlit as st
 
 
 def display_confusion_matrix(cm, model_label="Model"):

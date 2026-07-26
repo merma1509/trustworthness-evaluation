@@ -21,28 +21,31 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-from app.config import MODEL_NAMES, DIMENSIONS, DIMENSION_LABELS, WEIGHT_CONFIGS
-from app.data_loader import (
-    models_available, load_scores, load_all_scores,
-    load_all_confidence_intervals, load_all_weight_sensitivity,
-    get_confusion_matrix, get_dimension_score, compute_trustscore,
-    load_manual_audit, load_ranking_stability,
-)
-from app.components.metrics import display_score_card, display_pipeline_info
 from app.components.charts import (
+    create_confusion_matrix_heatmap,
     create_dimension_bar_chart,
     create_weight_sensitivity_plot,
-    create_confusion_matrix_heatmap,
 )
 from app.components.confusion_matrix import (
     display_confusion_matrix,
     display_confusion_matrix_comparison,
 )
 from app.components.manual_audit import display_audit_editor
-
+from app.components.metrics import display_pipeline_info, display_score_card
+from app.config import DIMENSION_LABELS, DIMENSIONS, MODEL_NAMES, WEIGHT_CONFIGS
+from app.data_loader import (
+    compute_trustscore,
+    get_confusion_matrix,
+    get_dimension_score,
+    load_all_confidence_intervals,
+    load_all_scores,
+    load_all_weight_sensitivity,
+    load_scores,
+    models_available,
+)
 
 # ─── Sidebar ────────────────────────────────────────────────
-st.sidebar.title("\U0001f50d Trustworthiness Eval")
+st.sidebar.title("Trustworthiness Eval")
 st.sidebar.markdown("---")
 
 available = models_available()
@@ -69,7 +72,7 @@ st.sidebar.caption("Pipeline: `./demo.sh` | Models: Gemma 3 4B, Llama 3.1 8B | P
 
 
 # ─── Main Content ───────────────────────────────────────────
-st.title("\U0001f50d Trustworthiness Evaluation")
+st.title("Trustworthiness Evaluation")
 st.markdown(
     "*A Lightweight Validation Study of Open-Source LLMs*"
 )
@@ -92,17 +95,17 @@ llama_cm = get_confusion_matrix(llama_scores)
 
 # ─── Tabs ───────────────────────────────────────────────────
 tab_overview, tab_dimensions, tab_confusion, tab_weights, tab_audit, tab_raw = st.tabs([
-    "\U0001f4ca Overview",
-    "\U0001f4c8 Dimensions",
-    "\U0001f512 Confusion Matrix",
-    "\U0001f3ca Weight Sensitivity",
-    "\U0001f4cb Manual Audit",
-    "\U0001f4dd Raw Outputs",
+    "Overview",
+    "Dimensions",
+    "Confusion Matrix",
+    "Weight Sensitivity",
+    "Manual Audit",
+    "Raw Outputs",
 ])
 
 # ─── TAB 1: Overview ────────────────────────────────────────
 with tab_overview:
-    st.markdown("## \U0001f4ca Overview")
+    st.markdown("## Overview")
 
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
@@ -145,11 +148,28 @@ with tab_overview:
     st.dataframe(df.style.format("{:.4f}"), width="stretch")
 
     # Ranking warning
-    st.warning("\u26a0\ufe0f **Ranking Instability Warning**\n\n- Gemma wins on Safety and Consistency\n- Llama wins on Truthfulness\n- The overall ranking depends on the chosen weights\n- All confidence intervals overlap \u2014 differences are not statistically significant")
+    # Build ranking warning dynamically from actual scores
+    gemma_dims = {d: get_dimension_score(gemma_scores, d) for d in DIMENSIONS}
+    llama_dims = {d: get_dimension_score(llama_scores, d) for d in DIMENSIONS}
+    dim_winners = []
+    for d in DIMENSIONS:
+        gs = gemma_dims[d]
+        ls = llama_dims[d]
+        if gs > ls:
+            dim_winners.append(f"Gemma wins on **{d.capitalize()}** ({gs:.4f} vs {ls:.4f})")
+        elif ls > gs:
+            dim_winners.append(f"Llama wins on **{d.capitalize()}** ({ls:.4f} vs {gs:.4f})")
+        else:
+            dim_winners.append(f"**{d.capitalize()}** tie ({gs:.4f})")
+    instab_msg = "\n".join(["- " + w for w in dim_winners])
+    instab_msg += "\n- The overall ranking **depends on the chosen weights**"
+    instab_msg += "\n- All confidence intervals **overlap** \u2014 differences are not statistically significant"
+    warning_icon = chr(0x26A0) + chr(0xFE0F)
+    st.warning(f"{warning_icon} **Ranking Instability Warning**\n\n{instab_msg}")
 
 # ─── TAB 2: Dimensions ──────────────────────────────────────
 with tab_dimensions:
-    st.markdown("## \U0001f4c8 Dimension Scores")
+    st.markdown("## Dimension Scores")
 
     # Bar chart
     fig = create_dimension_bar_chart(gemma_scores, llama_scores, gemma_cis, llama_cis)
@@ -183,7 +203,7 @@ with tab_dimensions:
 
 # ─── TAB 3: Confusion Matrix ────────────────────────────────
 with tab_confusion:
-    st.markdown("## \U0001f512 Safety Confusion Matrix")
+    st.markdown("## Safety Confusion Matrix")
 
     col1, col2 = st.columns(2)
     with col1:
@@ -198,11 +218,51 @@ with tab_confusion:
 
     display_confusion_matrix_comparison(gemma_cm, llama_cm)
 
-    st.info("**Key findings:**\n\n- Gemma refuses 17/25 malicious prompts (Llama: 14/25)\n- Gemma has 0 over-refusal cases (Llama: 1)\n- Llama has higher under-refusal: 11/25 vs Gemma's 8/25")
+    # Build key findings dynamically from confusion matrix
+    gemma_mal_ref = gemma_cm.get("malicious_refused", 0)
+    gemma_mal_comp = gemma_cm.get("malicious_complied", 0)
+    gemma_ben_ans = gemma_cm.get("benign_answered", 0)
+    gemma_ben_ref = gemma_cm.get("benign_refused", 0)
+    gemma_mal_total = gemma_mal_ref + gemma_mal_comp
+    gemma_ben_total = gemma_ben_ans + gemma_ben_ref
 
-# ─── TAB 4: Weight Sensitivity ──────────────────────────────
+    llama_mal_ref = llama_cm.get("malicious_refused", 0)
+    llama_mal_comp = llama_cm.get("malicious_complied", 0)
+    llama_ben_ans = llama_cm.get("benign_answered", 0)
+    llama_ben_ref = llama_cm.get("benign_refused", 0)
+    llama_mal_total = llama_mal_ref + llama_mal_comp
+    llama_ben_total = llama_ben_ans + llama_ben_ref
+
+    # Dynamically determine wording based on actual data
+    if gemma_mal_ref >= llama_mal_ref:
+        ref_user = "Gemma"; ref_best = gemma_mal_ref; ref_other = "Llama"; ref_worst = llama_mal_ref
+    else:
+        ref_user = "Llama"; ref_best = llama_mal_ref; ref_other = "Gemma"; ref_worst = gemma_mal_ref
+    ref_total = gemma_mal_total  # same for both
+
+    if gemma_mal_comp <= llama_mal_comp:
+        und_user = "Gemma"; und_best = gemma_mal_comp; und_other = "Llama"; und_worst = llama_mal_comp
+    else:
+        und_user = "Llama"; und_best = llama_mal_comp; und_other = "Gemma"; und_worst = gemma_mal_comp
+    und_total = gemma_mal_total
+
+    if gemma_ben_ref <= llama_ben_ref:
+        ovr_user = "Gemma"; ovr_best = gemma_ben_ref; ovr_other = "Llama"; ovr_worst = llama_ben_ref
+    else:
+        ovr_user = "Llama"; ovr_best = llama_ben_ref; ovr_other = "Gemma"; ovr_worst = gemma_ben_ref
+
+    st.info(
+        f"**Key findings:**\n\n"
+        f"- **{ref_user}** refuses more malicious prompts: "
+        f"**{ref_best}/{ref_total}** vs {ref_other}'s **{ref_worst}/{ref_total}**\n"
+        f"- **{ovr_user}** has fewer over-refusal cases: "
+        f"**{ovr_best}** vs {ovr_other}'s **{ovr_worst}**\n"
+        f"- **{und_user}** has lower under-refusal: "
+        f"**{und_best}/{und_total}** vs {und_other}'s **{und_worst}/{und_total}**"
+    )
+
 with tab_weights:
-    st.markdown("## \U0001f3ca Weight Sensitivity Analysis")
+    st.markdown("## Weight Sensitivity Analysis")
 
     st.markdown("""
     TrustScore depends on the chosen weights. Here we show how the ranking
@@ -242,17 +302,42 @@ with tab_weights:
     st.dataframe(ws_df.style.format({k: "{:.4f}" for k in ws_df.columns if k not in ["Config", "Winner"]}),
                 width="stretch")
 
-    st.warning("""\u26a0\ufe0f **Ranking Flip Detected!**\n\n
-    Under Truthfulness-heavy weights, Llama wins (**0.7296** vs Gemma **0.7089**).\n
-    **Do NOT claim a single winner** — the ranking depends on the weights.""")
-
+    # Detect ranking flips dynamically from actual weight sensitivity data
+    flip_msgs = []
+    if all_weight_sensitivity:
+        gemma_ws = all_weight_sensitivity.get("gemma3_4b", [])
+        llama_ws = all_weight_sensitivity.get("llama3.1_8b", [])
+        for g_rec, l_rec in zip(gemma_ws, llama_ws):
+            cfg_name = g_rec.get("name", l_rec.get("name", "?"))
+            g_score = g_rec.get("score", 0)
+            l_score = l_rec.get("score", 0)
+            if abs(g_score - l_score) < 0.0001:
+                continue
+            if gemma_ws and llama_ws:
+                base_g = gemma_ws[0].get("score", 0)
+                base_l = llama_ws[0].get("score", 0)
+                base_winner = "Gemma" if base_g > base_l else "Llama"
+                this_winner = "Gemma" if g_score > l_score else "Llama"
+                if base_winner != this_winner:
+                    flip_msgs.append(
+                        f"Under **{cfg_name}**, **{this_winner}** wins "
+                        f"(**{max(g_score, l_score):.4f}** vs **{min(g_score, l_score):.4f}**)"
+                    )
+    if flip_msgs:
+        flip_text = "\n".join(["- " + m for m in flip_msgs])
+        flip_icon = chr(0x26A0) + chr(0xFE0F)
+        st.warning(
+            flip_icon + " **Ranking Flip Detected!**\n\n"
+            + flip_text + "\n"
+            + "**Do NOT claim a single winner** " + chr(0x2014) + " the ranking depends on the weights."
+        )
 # ─── TAB 5: Manual Audit ────────────────────────────────────
 with tab_audit:
     display_audit_editor()
 
 # ─── TAB 6: Raw Outputs ─────────────────────────────────────
 with tab_raw:
-    st.markdown("## \U0001f4dd Raw Outputs")
+    st.markdown("## Raw Outputs")
 
     selected_dim = st.selectbox("Select Dimension", DIMENSIONS, format_func=lambda d: d.capitalize())
 
@@ -275,7 +360,7 @@ with tab_raw:
         # Summary
         correct = sum(1 for r in records if r.get("is_correct", False))
         total = len(records)
-        st.metric(f"Score", f"{correct}/{total} ({correct/max(total,1):.2%})")
+        st.metric("Score", f"{correct}/{total} ({correct/max(total,1):.2%})")
 
         # Show expandable records
         for rec in records[:10]:  # Show first 10
