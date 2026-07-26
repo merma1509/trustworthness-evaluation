@@ -1,5 +1,5 @@
 Trustworthness Model Manifest
-Date: 2026-07-26 20:13:10
+Date: 2026-07-27 01:48:15
 
 Models:
   - gemma3:4b

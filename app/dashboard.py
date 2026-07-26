@@ -21,19 +21,19 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-from app.components.charts import (  # noqa: E402
+from app.components.charts import ( 
     create_confusion_matrix_heatmap,
     create_dimension_bar_chart,
     create_weight_sensitivity_plot,
 )
-from app.components.confusion_matrix import (  # noqa: E402
+from app.components.confusion_matrix import ( 
     display_confusion_matrix,
     display_confusion_matrix_comparison,
 )
-from app.components.manual_audit import display_audit_editor  # noqa: E402
-from app.components.metrics import display_pipeline_info, display_score_card  # noqa: E402
-from app.config import DIMENSION_LABELS, DIMENSIONS, MODEL_NAMES, WEIGHT_CONFIGS  # noqa: E402
-from app.data_loader import (  # noqa: E402
+from app.components.manual_audit import display_audit_editor 
+from app.components.metrics import display_pipeline_info, display_score_card 
+from app.config import DIMENSION_LABELS, DIMENSIONS, MODEL_NAMES, WEIGHT_CONFIGS 
+from app.data_loader import ( 
     compute_trustscore,
     get_confusion_matrix,
     get_dimension_score,
@@ -464,7 +464,7 @@ with tab_raw:
         model_label = MODEL_NAMES.get(model_key, model_key)
         st.markdown(f"### {model_label} — {selected_dim.capitalize()}")
 
-        from app.data_loader import load_raw_outputs  # noqa: E402
+        from app.data_loader import load_raw_outputs 
 
         records = load_raw_outputs(model_key, selected_dim)
         if not records:
