@@ -11,6 +11,10 @@ build/
 .idea/
 *.swp
 *.swo
+.agents/
+.venv/
+.ruff_cache/
+.bash_history
 
 # Environment
 .env
