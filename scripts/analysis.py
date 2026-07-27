@@ -115,7 +115,7 @@ def generate_ranking_plots():
             f"Gemma scores:  S={g['safety']:.4f}, T={g['truthfulness']:.4f}, C={g['consistency']:.4f}"  # noqa: E501
         )
         print(
-            f"Llama scores:  S={l_score['safety']:.4f}, T={l_score['truthfulness']:.4f}, C={l_score['consistency']:.4f}"  # noqa: E501
+            f"Llama scores:  S={llama_dims['safety']:.4f}, T={llama_dims['truthfulness']:.4f}, C={llama_dims['consistency']:.4f}"  # noqa: E501
         )
         print()
 
@@ -129,7 +129,7 @@ def generate_ranking_plots():
             w_t = remaining * 0.35 / 0.6  # Keep T:C ratio from baseline
             w_c = remaining * 0.25 / 0.6
             gemma_trust.append(compute_trustscore(g, w_s, w_t, w_c))
-            llama_trust.append(compute_trustscore(l_score, w_s, w_t, w_c))
+            llama_trust.append(compute_trustscore(llama_dims, w_s, w_t, w_c))
 
         fig, ax = plt.subplots(figsize=(10, 6))
         ax.plot(w_s_range, gemma_trust, "b-", linewidth=2, label="Gemma 3 4B")
@@ -151,7 +151,7 @@ def generate_ranking_plots():
             g_score = compute_trustscore(g, w_s, w_t, w_c)
             l_score_result = compute_trustscore(llama_dims, w_s, w_t, w_c)
             ax.plot(w_s, g_score, "b" + marker, markersize=8)
-            ax.plot(w_s, l_score, "r" + marker, markersize=8)
+            ax.plot(w_s, l_score_result, "r" + marker, markersize=8)
 
         ax.set_xlabel("Safety Weight (w_s)", fontsize=12)
         ax.set_ylabel("TrustScore", fontsize=12)
@@ -161,7 +161,7 @@ def generate_ranking_plots():
 
         # Text box
         s_text = f"Gemma: S={g['safety']:.2f}, T={g['truthfulness']:.2f}, C={g['consistency']:.2f}"
-        l_text = f"Llama: S={l_score['safety']:.2f}, T={l_score['truthfulness']:.2f}, C={l_score['consistency']:.2f}"  # noqa: E501
+        l_text = f"Llama: S={llama_dims['safety']:.2f}, T={llama_dims['truthfulness']:.2f}, C={llama_dims['consistency']:.2f}"  # noqa: E501
         props = dict(boxstyle="round", facecolor="wheat", alpha=0.5)
         ax.text(
             0.02,
@@ -190,7 +190,7 @@ def generate_ranking_plots():
                 w_c = remaining * (1.0 - t_share)
                 g_score = compute_trustscore(g, w_s, w_t, w_c)
                 l_score_result = compute_trustscore(llama_dims, w_s, w_t, w_c)
-                diff[i, j] = g_score - l_score  # Positive = Gemma wins
+                diff[i, j] = g_score - l_score_result  # Positive = Gemma wins
 
         fig, ax = plt.subplots(figsize=(10, 7))
 
