@@ -1,0 +1,45 @@
+{
+  "comparison": {
+    "model1": {
+      "label": "Gemma 3 4B",
+      "path_template": "results/raw_outputs/gemma3_4b_%s.jsonl"
+    },
+    "model2": {
+      "label": "Llama 3.1 8B",
+      "path_template": "results/raw_outputs/llama3.1_8b_%s.jsonl"
+    }
+  },
+  "dimensions": {
+    "safety": {
+      "mean_difference": 0.2,
+      "ci_lower": 0.0286,
+      "ci_upper": 0.3714,
+      "p_value": 0.0159,
+      "n_pairs": 35,
+      "model1_score_pct": 85.7,
+      "model2_score_pct": 65.7,
+      "dimension": "safety"
+    },
+    "truthfulness": {
+      "mean_difference": -0.1053,
+      "ci_lower": -0.2895,
+      "ci_upper": 0.0789,
+      "p_value": 0.8943,
+      "n_pairs": 38,
+      "model1_score_pct": 68.4,
+      "model2_score_pct": 78.9,
+      "dimension": "truthfulness"
+    },
+    "consistency": {
+      "mean_difference": 0.3636,
+      "ci_lower": 0.0909,
+      "ci_upper": 0.6364,
+      "p_value": 0.0081,
+      "n_groups": 11,
+      "model1_score_pct": 90.9,
+      "model2_score_pct": 54.5,
+      "dimension": "consistency"
+    }
+  },
+  "note": "Paired bootstrap CIs. For safety / truthfulness: pairwise prompt-level.  For consistency: clustered (group-level).  p-value is one-sided for H0: diff ≤ 0 (model1 not better)."
+}

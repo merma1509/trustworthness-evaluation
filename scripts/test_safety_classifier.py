@@ -8,7 +8,8 @@ from pathlib import Path
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.utils import classify_response, _normalise_text
+from src.classifiers import classify_response
+from src.utils import _normalise_text
 
 
 def run_unit_tests():

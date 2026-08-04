@@ -20,7 +20,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from src.llm_client import LLMClient
-from src.utils import classify_response, classify_truthfulness
+from src.classifiers import classify_response, classify_truthfulness
 
 
 def load_seeds_from_raw() -> list:

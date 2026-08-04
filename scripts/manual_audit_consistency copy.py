@@ -16,8 +16,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from src.classifiers import classify_response
 from src.consistency import compute_semantic_similarity
-from src.utils import classify_response, load_jsonl, save_jsonl
+from src.utils import load_jsonl, save_jsonl
 
 
 def create_audit_file(

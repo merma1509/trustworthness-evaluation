@@ -339,6 +339,32 @@ make dashboard
 
 ## Reproducing Results
 
+### Reproducibility
+
+Every evaluation run is locked to an exact environment:
+
+| Artifact             | How it's captured                                       |
+| -------------------- | ------------------------------------------------------- |
+| **Code version**     | Git commit hash + branch in `manifest.txt`              |
+| **Model versions**   | Ollama model digests (e.g., `gemma3:4b @ a2af6cc3eb7f`) |
+| **Python deps**      | `uv.lock` + `requirements.txt` for pip compatibility    |
+| **Dataset checksum** | SHA-256 prefix in `results_summary.json`                |
+| **Run metadata**     | `manifest.txt` generated at runtime                     |
+
+### Report History
+
+| Report          | Git Tag | Date         | Models                 | Dataset Checksum (safety) |
+| --------------- | ------- | ------------ | ---------------------- | ------------------------- |
+| v1.0 (progress) | —       | `2025-05-XX` | gemma3:4b, llama3.1:8b | `aeb40c92...`             |
+| v2.0 (final)    | `v2.0`  | `2025-06-17` | gemma3:4b, llama3.1:8b | `aeb40c92...`             |
+
+To tag a new release:
+
+```bash
+git tag -a v2.0 -m "Final evaluation run for course project"
+git push origin v2.0
+```
+
 ### One-Command (Modern)
 
 ```bash
@@ -360,6 +386,16 @@ python3 scripts/score_saved_outputs.py \
     --dimension all
 ```
 
+### Using different dataset versions
+
+```bash
+# Default: data/final/
+python3 run_evaluation.py --models gemma3:4b,llama3.1:8b
+
+# Custom version: data/raw/
+python3 run_evaluation.py --models gemma3:4b,llama3.1:8b --dataset-version raw
+```
+
 ### Exact Paths to Artifacts
 
 | Artifact               | Path                                                         |
@@ -373,6 +409,8 @@ python3 scripts/score_saved_outputs.py \
 | Text summary           | `results/analysis_summary.txt`                               |
 | Manual audit (filled)  | `results/manual_audit_consistency.jsonl`                     |
 | Model manifest         | `results/manifest.txt`                                       |
+| Paired comparison      | `results/paired_comparison.json`                             |
+| Agreement report       | `results/audit/agreement_report.json`                        |
 
 ---
 
@@ -385,6 +423,73 @@ python3 scripts/score_saved_outputs.py \
 5. **Keyword-based truthfulness** — not LLM-as-a-judge
 6. **Temperature = 0.0** — may miss natural model variation
 7. **Heuristic weights** — not optimized for any deployment scenario
+
+---
+
+## New Paradigm: Measurement Validation
+
+**Original question:** _"Which model is better?"_
+
+**New question:** _"When can we trust a small local evaluation?"_
+
+The core insight is that **evaluation is a measurement instrument**, and like any
+instrument it must be validated before use. We reframe the study around 4 research
+questions:
+
+### RQ1: How well do auto-labels agree with human labels?
+
+| Metric           | Safety | Truthfulness | Consistency | Overall |
+| ---------------- | ------ | ------------ | ----------- | ------- |
+| Agreement rate   | TBD    | TBD          | TBD         | TBD     |
+| Cohen's Kappa    | TBD    | TBD          | TBD         | TBD     |
+| Precision (auto) | TBD    | TBD          | TBD         | TBD     |
+| Recall (auto)    | TBD    | TBD          | TBD         | TBD     |
+
+### RQ2: What factors affect agreement?
+
+- **Dimension:** Which dimension is easiest/hardest for the auto-scorer?
+- **Attack type:** Role hijacking vs. perturbation — where does the automatics fail?
+- **Model:** Does agreement differ between Gemma and Llama?
+- **Difficulty:** Do easier prompts produce higher agreement?
+
+### RQ3: What dataset size is needed for stable evaluation?
+
+Uses **jackknife resampling** (leave-k-out) to measure how much
+the score changes when removing individual prompts:
+
+```
+Jackknife std (leave-1-out):
+  Safety:       ±0.0063   → STABLE (< 3% change)
+  Truthfulness: ±0.0061   → STABLE
+  Consistency:  ±0.0068   → STABLE
+```
+
+Estimates minimum N for CI width < 0.10 via simulated dataset sizes.
+
+### RQ4: What is the cost of automatic vs. human evaluation?
+
+| Approach                                 | Time  | Cost   | Scalability  |
+| ---------------------------------------- | ----- | ------ | ------------ |
+| Fully automatic (2 models × 105 prompts) | ~0.6h | $0.29  | O(n·m)       |
+| Fully human annotation                   | ~1.8h | $35.00 | O(n·m) × 120 |
+| Hybrid (auto + 50% human audit)          | ~1.5h | $17.79 | Best of both |
+
+**Finding:** Automatic evaluation is **~120× cheaper** than full human evaluation.
+A hybrid approach (auto scoring + 50% human validation) provides measurement
+validation at 50% of human cost.
+
+### How to run
+
+```bash
+# 1. Annotate audit samples
+# Open results/audit/all_audit.jsonl and fill human_label
+
+# 2. Generate validation report
+python3 scripts/paradigm_report.py
+
+# 3. View report
+cat results/validation_report.json
+```
 
 ---
 

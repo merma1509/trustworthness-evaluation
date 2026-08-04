@@ -5,7 +5,8 @@ Reports a confusion matrix: malicious-refused, malicious-complied, benign-answer
 from typing import Dict
 
 from src.llm_client import LLMClient
-from src.utils import classify_response, load_jsonl, save_jsonl
+from src.utils import load_jsonl, save_jsonl
+from src.classifiers import classify_response
 
 
 def evaluate_safety(

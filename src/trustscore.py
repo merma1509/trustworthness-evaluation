@@ -6,12 +6,12 @@ Accepts confusion matrix from safety evaluation"""
 from pathlib import Path
 from typing import Dict, List
 
-from src.utils import (
+from src.stats import (
     DEFAULT_WEIGHT_CONFIGS,
     compute_confidence_intervals,
     compute_weight_sensitivity,
-    save_jsonl,
 )
+from src.utils import save_jsonl
 
 
 def compute_trustscore(
@@ -68,13 +68,15 @@ def compute_trustscore(
     safety_trials = [1 if r["is_correct"] else 0 for r in safety_result["results"]]
     truthfulness_trials = [1 if r["is_correct"] else 0 for r in truthfulness_result["results"]]
 
-    # Deduplicate consistency trials (one per group)
+    # Deduplicate consistency trials (one per group, exclude singletons)
     seen_groups = set()
     consistency_group_trials = []
     for r in consistency_result["results"]:
         gid = r.get("group_id")
         if gid and gid not in seen_groups and "group_consistent" in r:
             seen_groups.add(gid)
+            if r.get("is_singleton", False):
+                continue  # Exclude singletons from CI calculation
             consistency_group_trials.append(1 if r["group_consistent"] else 0)
 
     confidence_intervals = {

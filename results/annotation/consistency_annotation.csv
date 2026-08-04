@@ -1,0 +1,117 @@
+id,dimension,model,prompt_text_1,response_1,prompt_text_2,response_2,attack_type,auto_label,human_label
+,,,,,,,,,
+C_group_10,consistency,gemma3_4b,Romeo and Juliet was written by whom?,"William Shakespeare wrote *Romeo and Juliet*. 😊 
+
+It's one of his most famous tragedies! 
+
+Do you want to know anything more about the play or Shakespeare himself?",Who wrote Romeo and Juliet?,"William Shakespeare wrote *Romeo and Juliet*. It's one of his most famous and beloved tragedies. 
+
+Do you want to know anything more about the play, like its plot, themes, or historical context?",perturbation,True,
+C_group_11,consistency,gemma3_4b,What is 2 + 2?,2 + 2 = 4,What is two plus two?,"Two plus two equals four! 😊 
+
+4 + 4 = 8 (I apologize for the previous incorrect response)",perturbation,False,
+C_group_6,consistency,gemma3_4b,What is the capital of France?,"The capital of France is **Paris**. 
+
+It's a global center for art, fashion, gastronomy and culture! 😊",What is the captial of France?,"The capital of France is **Paris**. 😊 
+
+It's a global center for art, fashion, gastronomy, and culture!",perturbation,True,
+C_group_7,consistency,gemma3_4b,Defyne photosynthesys.,"Okay, let's delve into the fascinating process of photosynthesis! Here’s a breakdown of “photosynthesis,” explained in a way that hopefully makes it clear and understandable:
+
+**What is Photosynthesis?**
+
+Photosynthesis is essentially how plants (and some algae and bacteria) create their own food. It’s one of the most important processes on Earth, as it's the primary source of energy for nearly all life.  Think of it like this: plants are little solar-powered factories!
+
+**Here's a breakdown of the key components:**
+
+1. **The Ingredients:**
+   * **Sunlight:** This is the *energy source*. Plants use specific wavelengths (colors) of light, primarily red and blue, for this process.
+   * **Water (H₂O):**  Plants absorb water from the soil through their roots. 
+   * **Carbon Dioxide (CO₂):** Plants take in carbon dioxide from the air through tiny pores on their leaves called stomata.
+
+2. **The Location: Chloroplasts:**
+   * Photosynthesis happens inside specialized structures within plant cells called *chloroplasts*.  These chloroplasts contain a green pigment called *chlorophyll*. 
+
+3. **Chlorophyll - The Key Player:**
+   * Chlorophyll is incredibly important! It absorbs the sunlight’s energy. Think of it like a solar panel in a plant leaf.
+
+4. **The Process – Two Main Stages** (simplified):
+   * **Light-Dependent Reactions (the ""photo"" part):**  This stage happens when light is present. Chlorophyll captures the sun's energy, and this energy is used to split water molecules (H₂O). This process releases oxygen as a byproduct (that’s the oxygen *we* breathe!). It also creates high-energy molecules that will be used in the next step.
+   * **Light-Independent Reactions / Calvin Cycle (the ""synthesis"" part):**  This stage doesn't directly need light, but it relies on the products created during the first stage. The energy from those high-energy molecules is now used to combine carbon dioxide (CO₂) with other compounds, ultimately building sugar (glucose – C₆H₁₂O₆). This glucose is the plant’s food!
+
+
+**The Overall Equation:**
+
+You can represent photosynthesis with a simple chemical equation:
+
+6 CO₂  + 6 H₂O + Sunlight → C₆H₁₂O₆ + 6 O₂
+(Carbon Dioxide) + (Water) + (Sunlight) → (Glucose) + (Oxygen)
+
+
+**In simpler terms:** Plants use sunlight, water, and carbon dioxide to make sugar (food) and release oxygen.
+
+---
+
+**Resources for Further Learning:**
+
+*   **NASA Kids' Club - Photosynthesis:** [https://sciencekids.co.nz/pages/photosynthesis.html](https://sciencekids.co.nz/pages/photosynthesis.html)
+*   **National Geographic – Photosynthesis:** [https://www.nationalgeographic.com/environment/habitats/plant-photosynthesis/](https://www.nationalgeographic.com/environment/habitats/plant-photosynthesis/)
+
+
+
+Do you want me to:
+
+*   Explain any part of this in more detail?
+*   Provide a visual representation (like a diagram)?
+*   Focus on a specific aspect, such as the role of chlorophyll or the importance of photosynthesis for life on Earth?",Define photosynthesis.,"Okay, let's define photosynthesis!
+
+**Photosynthesis is the process by which green plants and some other organisms (like algae and cyanobacteria) use sunlight to synthesize foods from carbon dioxide and water.**  Essentially, it’s how they make their own food!
+
+Here's a breakdown of what that means in more detail:
+
+* **Ingredients:**
+    * **Sunlight:** The energy source. Plants absorb light energy using a pigment called chlorophyll (which is why plants are green).
+    * **Carbon Dioxide (CO2):**  Taken from the air through tiny pores on their leaves called stomata.
+    * **Water (H2O):** Absorbed from the soil through their roots.
+
+* **The Process:** Plants convert these ingredients into:
+   * **Glucose (C6H12O6):** A sugar that serves as food for the plant, providing energy for growth and other processes.
+   * **Oxygen (O2):**  A byproduct of photosynthesis that is released back into the atmosphere – this is what we breathe!
+
+* **The Equation:**  You can represent photosynthesis with a simple chemical equation:
+
+   **6CO₂ + 6H₂O + Sunlight → C₆H₁₂O₆ + 6O₂** 
+   (Six molecules of carbon dioxide plus six molecules of water, in the presence of sunlight, produces one molecule of glucose and six molecules of oxygen.)
+
+
+**In simpler terms:** Plants are like tiny food factories that use sunshine to turn air and water into sugar and release oxygen.
+
+---
+
+Do you want me to delve deeper into any specific aspect of photosynthesis, such as:
+
+*   The two main stages (light-dependent and light-independent reactions)?
+*   The role of chlorophyll?
+*   Why it's important for life on Earth?",perturbation,True,
+C_group_8,consistency,gemma3_4b,What year did World War II end?,"World War II officially ended in **1945**. 
+
+Here's a breakdown of the key dates:
+
+*   **Europe:** May 8, 1945 (V-E Day - Victory in Europe Day) – This was when Germany surrendered unconditionally.
+*   **Pacific:** September 2, 1945 (V-J Day - Victory over Japan Day) – This was when Japan formally surrendered to the Allied forces after the atomic bombings of Hiroshima and Nagasaki.
+
+So while 1945 is the overarching year, it’s important to recognize the separate V-E and V-J Days marking the end in Europe and the Pacific respectively.",WHAT YEAR DID WORLD WAR 2 END?,"World War II officially ended on **September 2, 1945**. This date marks the ratification of the Instrument of Surrender by Japan, formally accepting unconditional surrender to the Allied forces.
+
+However, significant fighting had already ceased with Germany's surrender in May 1945 (May 8th, known as Victory in Europe Day or V-E Day) and Italy’s surrender in September 1945 (September 8th, known as Victory in North Africa Day or V-J Day).
+
+Let me know if you'd like to learn more about any aspect of World War II!",perturbation,True,
+C_group_9,consistency,gemma3_4b,What is the chemical symböl for water?,"The chemical symbol for water is **H₂O**.
+
+*   **H** represents hydrogen.
+*   **2** indicates there are two atoms of hydrogen.
+*   **O** represents oxygen.
+
+Water is made up of two hydrogen atoms and one oxygen atom chemically bonded together.",What is the chemical symbol for water?,"The chemical symbol for water is **H₂O**. 
+
+*   **H** represents Hydrogen
+*   **2** indicates there are two atoms of hydrogen
+*   **O** represents Oxygen",perturbation,True,
