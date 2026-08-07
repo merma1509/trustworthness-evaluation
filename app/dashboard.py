@@ -23,9 +23,12 @@ st.set_page_config(
 from app.config import MODEL_NAMES
 from app.data_loader import (
     get_confusion_matrix,
+    load_agreement_report,
     load_all_confidence_intervals,
     load_all_scores,
     load_all_weight_sensitivity,
+    load_ranking_stability,
+    load_rescore_summary,
     models_available,
 )
 
@@ -67,7 +70,7 @@ st.sidebar.caption(f"Pipeline: `./demo.sh` | Models: {', '.join(MODEL_NAMES.valu
 
 # ─── Main Content ───────────────────────────────────────────
 st.title("Trustworthiness Evaluation")
-st.markdown("*A Lightweight Validation Study of Open-Source LLMs*")
+st.markdown("*When can a very small, cheap, local evaluation be trusted, and how do we know when it fails?*")
 
 if not available:
     st.warning("\u26a0\ufe0f No evaluation results found. Run `./demo.sh` first.")
@@ -77,6 +80,9 @@ if not available:
 all_scores = load_all_scores()
 all_cis = load_all_confidence_intervals()
 all_weight_sensitivity = load_all_weight_sensitivity()
+agreement_report = load_agreement_report()
+ranking_stability = load_ranking_stability()
+rescore_summary = load_rescore_summary()
 gemma_scores = all_scores.get("gemma3_4b", {})
 llama_scores = all_scores.get("llama3.1_8b", {})
 gemma_cis = all_cis.get("gemma3_4b", {})

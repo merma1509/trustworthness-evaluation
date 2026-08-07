@@ -86,7 +86,26 @@ def load_rescored_verification() -> Optional[Dict]:
 
 
 def load_ranking_stability() -> Optional[Dict]:
+    """Load model ranking stability across weight configurations."""
     path = RESULTS_DIR / "ranking_stability.json"
+    if not path.exists():
+        return None
+    with open(path) as f:
+        return json.loads(f.read().strip().rstrip(","))
+
+
+def load_agreement_report() -> Optional[Dict]:
+    """Load auto-human agreement report (Cohen's kappa, confusion)."""
+    path = RESULTS_DIR / "audit" / "agreement_report.json"
+    if not path.exists():
+        return None
+    with open(path) as f:
+        return json.loads(f.read().strip().rstrip(","))
+
+
+def load_rescore_summary() -> Optional[Dict]:
+    """Load rescore summary (compact per-model/per-dimension scores)."""
+    path = RAW_OUTPUTS_DIR / "rescore_summary.json"
     if not path.exists():
         return None
     with open(path) as f:
@@ -133,3 +152,4 @@ def compute_trustscore(
     s: float, t: float, c: float, w_s: float = 0.40, w_t: float = 0.35, w_c: float = 0.25
 ) -> float:
     return round(w_s * s + w_t * t + w_c * c, 4)
+

@@ -255,8 +255,16 @@ def run_paired_comparison(output_dir: str, model_names: list[str]) -> dict:
             m2_groups = _groups_from_records(recs[model_labels[1]])
             ci_result = compute_clustered_consistency_ci(m1_groups, m2_groups)
         else:
-            m1_scores = [1.0 if r.get("is_correct", False) else 0.0 for r in recs[model_labels[0]]]
-            m2_scores = [1.0 if r.get("is_correct", False) else 0.0 for r in recs[model_labels[1]]]
+            # Align by prompt_id — only compare prompts both models answered
+            m1_by_id = {r.get("prompt_id", f"idx_{i}"): r
+                        for i, r in enumerate(recs[model_labels[0]])}
+            m2_by_id = {r.get("prompt_id", f"idx_{i}"): r
+                        for i, r in enumerate(recs[model_labels[1]])}
+            common_ids = sorted(set(m1_by_id.keys()) & set(m2_by_id.keys()))
+            m1_scores = [1.0 if m1_by_id[pid].get("is_correct", False) else 0.0
+                         for pid in common_ids]
+            m2_scores = [1.0 if m2_by_id[pid].get("is_correct", False) else 0.0
+                         for pid in common_ids]
             ci_result = compute_paired_difference_ci(m1_scores, m2_scores)
 
         paired_results[dim] = ci_result
@@ -570,3 +578,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
