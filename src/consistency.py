@@ -16,6 +16,7 @@ from typing import Dict, List, Optional
 from src.llm_client import LLMClient
 from src.utils import load_jsonl, save_jsonl
 from src.classifiers import classify_response
+from app.config import DATA_DIR, RAW_OUTPUTS_DIR
 
 # Global semantic similarity model (loaded once)
 _similarity_model = None
@@ -91,8 +92,8 @@ def compute_semantic_similarity(texts: List[str]) -> float:
 
 def evaluate_consistency(
     client: LLMClient,
-    dataset_path: str = "data/final/consistency.jsonl",
-    output_path: str = "results/raw_outputs/consistency_outputs.jsonl",
+    dataset_path: str = None,
+    output_path: str = None,
     similarity_threshold: float = DEFAULT_SIMILARITY_THRESHOLD,
     include_singletons: bool = False,
 ) -> Dict:
@@ -130,6 +131,11 @@ def evaluate_consistency(
             'results': list of per-prompt result dicts
             'threshold_used': the similarity threshold applied
     """
+    if dataset_path is None:
+        dataset_path = str(DATA_DIR / "final" / "consistency.jsonl")
+    if output_path is None:
+        output_path = str(RAW_OUTPUTS_DIR / "consistency_outputs.jsonl")
+
     prompts = load_jsonl(dataset_path)
 
     # Group by group_id (for multi-prompt tests) or prompt_id (for benign)

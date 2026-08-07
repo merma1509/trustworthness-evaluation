@@ -21,11 +21,12 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from src.llm_client import LLMClient
 from src.classifiers import classify_response, classify_truthfulness
+from app.config import DATA_DIR, RESULTS_DIR
 
 
 def load_seeds_from_raw() -> list:
     """Load 3 seeds per dimension from data/raw/*.jsonl for quick validation"""
-    raw_dir = Path("data/raw")
+    raw_dir = DATA_DIR / "raw"
     samples = []
 
     dimension_files = {
@@ -212,7 +213,7 @@ def print_summary(all_results: list):
 
 def save_results(all_results: list, seeds: list):
     """Save to JSON with full response data."""
-    output_path = Path("results/baseline_validation.json")
+    output_path = RESULTS_DIR / "baseline_validation.json"
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     output = {

@@ -187,71 +187,71 @@
   "rq3_dataset_stability": {
     "safety": {
       "jackknife_stability": {
-        "full_score": 0.7714,
-        "mean_jackknife": 0.7715,
-        "std_jackknife": 0.0062,
+        "full_score": 0.7429,
+        "mean_jackknife": 0.7428,
+        "std_jackknife": 0.0063,
         "ci_95": [
-          0.7681,
-          0.7826
+          0.7391,
+          0.7536
         ],
-        "max_decrease": 0.0033,
-        "max_increase": 0.0112,
+        "max_decrease": 0.0037,
+        "max_increase": 0.0108,
         "n_total": 70,
         "n_remove": 1
       },
       "dataset_size_sensitivity": {
-        "full_score": 0.7714,
+        "full_score": 0.7429,
         "full_n": 70,
         "ci_level": 0.95,
         "sizes": [
           {
             "n": 10,
-            "mean_score": 0.7754,
+            "mean_score": 0.7566,
             "ci_lower": 0.5,
             "ci_upper": 1.0,
             "ci_width": 0.5
           },
           {
             "n": 15,
-            "mean_score": 0.7716,
+            "mean_score": 0.746,
             "ci_lower": 0.5333,
             "ci_upper": 0.9333,
             "ci_width": 0.4
           },
           {
             "n": 20,
-            "mean_score": 0.7719,
+            "mean_score": 0.7443,
             "ci_lower": 0.6,
-            "ci_upper": 0.9262,
-            "ci_width": 0.3262
+            "ci_upper": 0.9,
+            "ci_width": 0.3
           },
           {
             "n": 25,
-            "mean_score": 0.7738,
-            "ci_lower": 0.64,
-            "ci_upper": 0.92,
+            "mean_score": 0.7422,
+            "ci_lower": 0.6,
+            "ci_upper": 0.88,
             "ci_width": 0.28
           },
           {
             "n": 30,
-            "mean_score": 0.7716,
-            "ci_lower": 0.6333,
-            "ci_upper": 0.9,
+            "mean_score": 0.7413,
+            "ci_lower": 0.6,
+            "ci_upper": 0.8667,
             "ci_width": 0.2667
           },
           {
             "n": 35,
-            "mean_score": 0.7699,
-            "ci_lower": 0.6857,
-            "ci_upper": 0.8571,
-            "ci_width": 0.1714
+            "mean_score": 0.741,
+            "ci_lower": 0.6286,
+            "ci_upper": 0.8436,
+            "ci_width": 0.215
           },
           {
             "n": 50,
-            "mean_score": 0.7714,
-            "ci_lower": 0.72,
-            "ci_upper": 0.82,
-            "ci_width": 0.1
+            "mean_score": 0.7429,
+            "ci_lower": 0.68,
+            "ci_upper": 0.8,
+            "ci_width": 0.12
           }
         ],
         "estimated_min_n": 70,
@@ -279,56 +279,56 @@
         "sizes": [
           {
             "n": 10,
-            "mean_score": 0.4636,
+            "mean_score": 0.4614,
             "ci_lower": 0.2,
             "ci_upper": 0.7,
             "ci_width": 0.5
           },
           {
             "n": 15,
-            "mean_score": 0.4619,
+            "mean_score": 0.4663,
             "ci_lower": 0.2667,
-            "ci_upper": 0.6667,
-            "ci_width": 0.4
+            "ci_upper": 0.7333,
+            "ci_width": 0.4667
           },
           {
             "n": 20,
-            "mean_score": 0.4562,
+            "mean_score": 0.4624,
             "ci_lower": 0.3,
             "ci_upper": 0.65,
             "ci_width": 0.35
           },
           {
             "n": 25,
-            "mean_score": 0.4569,
-            "ci_lower": 0.32,
+            "mean_score": 0.4556,
+            "ci_lower": 0.28,
             "ci_upper": 0.6,
-            "ci_width": 0.28
+            "ci_width": 0.32
           },
           {
             "n": 30,
-            "mean_score": 0.4622,
+            "mean_score": 0.4641,
             "ci_lower": 0.3333,
             "ci_upper": 0.6,
             "ci_width": 0.2667
           },
           {
             "n": 35,
-            "mean_score": 0.4614,
+            "mean_score": 0.4585,
             "ci_lower": 0.3429,
             "ci_upper": 0.5714,
             "ci_width": 0.2286
           },
           {
             "n": 50,
-            "mean_score": 0.4605,
+            "mean_score": 0.4606,
             "ci_lower": 0.38,
             "ci_upper": 0.54,
             "ci_width": 0.16
           },
           {
             "n": 75,
-            "mean_score": 0.4606,
+            "mean_score": 0.46,
             "ci_lower": 0.4533,
             "ci_upper": 0.4667,
             "ci_width": 0.0133
@@ -340,75 +340,68 @@
     },
     "consistency": {
       "jackknife_stability": {
-        "full_score": 0.9219,
-        "mean_jackknife": 0.922,
-        "std_jackknife": 0.0044,
+        "full_score": 0.8636,
+        "mean_jackknife": 0.8637,
+        "std_jackknife": 0.008,
         "ci_95": [
-          0.9206,
-          0.9365
+          0.8605,
+          0.8837
         ],
-        "max_decrease": 0.0012,
-        "max_increase": 0.0146,
-        "n_total": 64,
+        "max_decrease": 0.0032,
+        "max_increase": 0.0201,
+        "n_total": 44,
         "n_remove": 1
       },
       "dataset_size_sensitivity": {
-        "full_score": 0.9219,
-        "full_n": 64,
+        "full_score": 0.8636,
+        "full_n": 44,
         "ci_level": 0.95,
         "sizes": [
           {
             "n": 10,
-            "mean_score": 0.9236,
+            "mean_score": 0.8658,
             "ci_lower": 0.7,
             "ci_upper": 1.0,
             "ci_width": 0.3
           },
           {
             "n": 15,
-            "mean_score": 0.9229,
-            "ci_lower": 0.8,
+            "mean_score": 0.8659,
+            "ci_lower": 0.7333,
             "ci_upper": 1.0,
-            "ci_width": 0.2
+            "ci_width": 0.2667
           },
           {
             "n": 20,
-            "mean_score": 0.9232,
-            "ci_lower": 0.85,
-            "ci_upper": 1.0,
-            "ci_width": 0.15
+            "mean_score": 0.8649,
+            "ci_lower": 0.75,
+            "ci_upper": 0.9762,
+            "ci_width": 0.2262
           },
           {
             "n": 25,
-            "mean_score": 0.9237,
-            "ci_lower": 0.84,
-            "ci_upper": 1.0,
-            "ci_width": 0.16
+            "mean_score": 0.8629,
+            "ci_lower": 0.779,
+            "ci_upper": 0.96,
+            "ci_width": 0.181
           },
           {
             "n": 30,
-            "mean_score": 0.9236,
-            "ci_lower": 0.8667,
-            "ci_upper": 1.0,
+            "mean_score": 0.8638,
+            "ci_lower": 0.8,
+            "ci_upper": 0.9333,
             "ci_width": 0.1333
           },
           {
             "n": 35,
-            "mean_score": 0.9212,
-            "ci_lower": 0.8571,
-            "ci_upper": 0.9714,
-            "ci_width": 0.1143
-          },
-          {
-            "n": 50,
-            "mean_score": 0.9212,
-            "ci_lower": 0.9,
-            "ci_upper": 0.96,
-            "ci_width": 0.06
+            "mean_score": 0.8626,
+            "ci_lower": 0.8286,
+            "ci_upper": 0.9143,
+            "ci_width": 0.0857
           }
         ],
-        "estimated_min_n": 50,
-        "note": "Estimated minimum N for 95% CI width < 0.10: ~50 prompts. Current dataset: 64 prompts."
+        "estimated_min_n": 35,
+        "note": "Estimated minimum N for 95% CI width < 0.10: ~35 prompts. Current dataset: 44 prompts."
       }
     }
   },

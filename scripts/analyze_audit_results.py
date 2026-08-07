@@ -27,6 +27,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.agreement import compute_agreement, compute_per_dimension_agreement
 from src.utils import load_jsonl, save_jsonl
+from app.config import RESULTS_DIR
 
 
 def print_report(
@@ -204,14 +205,14 @@ def main():
     parser.add_argument(
         "--input", "-i",
         type=str,
-        default="results/audit/all_audit.jsonl",
-        help="Path to audit JSONL file (default: results/audit/all_audit.jsonl)",
+        default=str(RESULTS_DIR / "audit" / "all_audit.jsonl"),
+        help=f"Path to audit JSONL file (default: {RESULTS_DIR}/audit/all_audit.jsonl)",
     )
     parser.add_argument(
         "--output", "-o",
         type=str,
-        default="results/audit/agreement_report.json",
-        help="Path to save agreement report JSON (default: results/audit/agreement_report.json)",
+        default=str(RESULTS_DIR / "audit" / "agreement_report.json"),
+        help=f"Path to save agreement report JSON (default: {RESULTS_DIR}/audit/agreement_report.json)",
     )
     parser.add_argument(
         "--verbose", "-v",

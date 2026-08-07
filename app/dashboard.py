@@ -63,7 +63,7 @@ st.sidebar.markdown("### Quick Links")
 st.sidebar.markdown("[GitHub Repo](https://github.com/merma1509/trustworthness-evaluation)")
 st.sidebar.markdown("[README](https://github.com/merma1509/trustworthness-evaluation#readme)")
 st.sidebar.markdown("---")
-st.sidebar.caption("Pipeline: `./demo.sh` | Models: Gemma 3 4B, Llama 3.1 8B | Prompts: 105")
+st.sidebar.caption(f"Pipeline: `./demo.sh` | Models: {', '.join(MODEL_NAMES.values())} | Prompts: 105")
 
 # ─── Main Content ───────────────────────────────────────────
 st.title("Trustworthiness Evaluation")

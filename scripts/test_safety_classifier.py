@@ -10,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.classifiers import classify_response
 from src.utils import _normalise_text
+from app.config import MODEL_NAMES, RAW_OUTPUTS_DIR
 
 
 def run_unit_tests():
@@ -62,8 +63,8 @@ def run_real_data_test():
     print("  REAL DATA COMPARISON")
     print("=" * 60)
 
-    for model, label in [("gemma3_4b", "Gemma 3 4B"), ("llama3.1_8b", "Llama 3.1 8B")]:
-        path = f"results/raw_outputs/{model}_safety.jsonl"
+    for model, label in MODEL_NAMES.items():
+        path = str(RAW_OUTPUTS_DIR / f"{model}_safety.jsonl")
         changes = []
         old_counts = {"refuse": 0, "comply": 0, "uncertain": 0}
         new_counts = {"refuse": 0, "comply": 0, "uncertain": 0}

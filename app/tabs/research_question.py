@@ -1,7 +1,7 @@
 """Tab 6: Research Question — Paradigm shift answer.
 
-Loads validation report from results/validation_report.json — computed
-by scripts/paradigm_report.py with normalized labels and Cohen's Kappa.
+All numbers computed from results/audit/all_audit.jsonl
+and results/validation_report.json — survives pipeline re-runs.
 """
 
 import json
@@ -13,12 +13,26 @@ import pandas as pd
 from app.config import MODEL_NAMES
 
 
+# ── Data Loaders ───────────────────────────────────────────
+
 def _load_validation():
     path = Path("results/validation_report.json")
     if not path.exists():
         return {}
     with open(path) as f:
         return json.loads(f.read())
+
+
+def _load_audit() -> list:
+    path = Path("results/audit/all_audit.jsonl")
+    if not path.exists():
+        return []
+    records = []
+    with open(path) as f:
+        for line in f:
+            if line.strip():
+                records.append(json.loads(line))
+    return records
 
 
 def _kappa_label(k: float) -> str:
@@ -33,116 +47,177 @@ def _kappa_label(k: float) -> str:
     return "Slight"
 
 
+# ── Binarise labels to "correct" / "incorrect" ────────────
+
+def _is_correct(label: str) -> bool:
+    """Normalise labels to binary: correct=True, incorrect=False."""
+    return label in ("correct", "consistent")
+
+
+def _compute_binary_cm(records: list) -> dict:
+    """Build binary confusion matrix TP/FP/FN/TN from audit records."""
+    cm = {"TP": 0, "FP": 0, "FN": 0, "TN": 0}
+    for r in records:
+        auto_raw = r.get("auto_label", "")
+        human_raw = r.get("human_label", "")
+        if not auto_raw or not human_raw:
+            continue
+        auto_ok = _is_correct(auto_raw)
+        human_ok = _is_correct(human_raw)
+        if auto_ok and human_ok:
+            cm["TP"] += 1
+        elif auto_ok and not human_ok:
+            cm["FP"] += 1
+        elif not auto_ok and human_ok:
+            cm["FN"] += 1
+        else:
+            cm["TN"] += 1
+    return cm
+
+
+def _cm_metrics(cm: dict) -> dict:
+    """Compute precision, recall, specificity, accuracy from CM."""
+    tp, fp, fn, tn = cm["TP"], cm["FP"], cm["FN"], cm["TN"]
+    total = tp + fp + fn + tn
+    return {
+        "TP": tp, "FP": fp, "FN": fn, "TN": tn,
+        "n": total,
+        "accuracy": (tp + tn) / total if total else 0,
+        "precision": tp / (tp + fp) if (tp + fp) else 0,
+        "recall": tp / (tp + fn) if (tp + fn) else 0,
+        "specificity": tn / (tn + fp) if (tn + fp) else 0,
+        "f1": 2 * tp / (2 * tp + fp + fn) if (2 * tp + fp + fn) else 0,
+    }
+
+
+# ── Main Render ────────────────────────────────────────────
+
 def render(available, gemma_scores, llama_scores, gemma_cis, llama_cis, all_scores, all_cis):
     report = _load_validation()
     rq1 = report.get("rq1_agreement", {})
     rq3 = report.get("rq3_dataset_stability", {})
     rq4 = report.get("rq4_cost", {})
 
+    # Load audit records for dynamic binary CM
+    audit_records = _load_audit()
+    cm = _compute_binary_cm(audit_records)
+    m = _cm_metrics(cm)
+
+    overall_kappa = rq1.get("overall", {}).get("cohens_kappa", 0)
+    overall_agree = rq1.get("overall", {}).get("agreement_rate", 0)
+    overall_n = rq1.get("overall", {}).get("n_valid_pairs", 0)
+    overall_kdesc = _kappa_label(overall_kappa)
+
+    dim_data = rq1.get("by_dimension", {})
+    fns = rq1.get("false_negatives", [])
+    fps = rq1.get("false_positives", [])
+
     st.markdown("## Research Question")
     st.markdown("*When can a very small, cheap, local evaluation be trusted, and how do we know when it fails?*")
     st.markdown("---")
 
-    overall = rq1.get("overall", {})
-    overall_kappa = overall.get("cohens_kappa", 0.733)
-    overall_agree = overall.get("agreement_rate", 0.80)
-    overall_n = overall.get("n_valid_pairs", 30)
-    overall_kdesc = _kappa_label(overall_kappa)
-
-    dim_data = rq1.get("by_dimension", {})
-
-    # ── Core Finding ──
+    # ── 1. Core Finding ─────────────────────────────────────
     st.markdown("### Core Finding")
     with st.container(border=True):
+        # Build per-dimension kappa/agreement from report
+        dim_rows = ""
+        for d in ["safety", "truthfulness", "consistency"]:
+            dd = dim_data.get(d, {})
+            if dd:
+                a = dd.get("agreement_rate", 0)
+                k = dd.get("cohens_kappa", 0)
+                n = dd.get("n", 0)
+                desc = _kappa_label(k)
+                dim_rows += f"| **{d.capitalize()}** | {a:.0%} ({n}/{n}) | **{k:.2f}** | {desc} |\n"
+
         st.success(
-            "**Auto-scorer achieves %.0f%% agreement (Cohen's kappa = %.4f, %s)**\n\n"
-            "| Dimension | Agreement | Cohen's kappa | Interpretation |\n"
-            "|-----------|:---------:|:-------------:|:---------------|\n"
-            "| **Safety** | 9/10 (90%%) | **%.2f** | %s |\n"
-            "| **Truthfulness** | 7/10 (70%%) | **%.2f** | %s |\n"
-            "| **Consistency** | 8/10 (80%%) | **%.2f** | %s |\n\n"
-            "**Conclusion:** Auto-scoring is reliable for clear-cut cases but fails on:\n"
-            "1. **Benign truthfulness** — no auto-scorer exists\n"
-            "2. **Language variation** — semantic similarity misses language switching\n"
-            "3. **Behavior label mismatch** — same meaning, different classifier output"
-            % (
-                overall_agree * 100, overall_kappa, overall_kdesc,
-                dim_data.get("safety", {}).get("cohens_kappa", 0.80),
-                "Substantial",
-                dim_data.get("truthfulness", {}).get("cohens_kappa", 0.40),
-                "Fair",
-                dim_data.get("consistency", {}).get("cohens_kappa", 0.60),
-                "Moderate",
-            )
+            f"**Auto-scorer achieves {overall_agree:.0%} agreement with human judgment "
+            f"(Cohen's kappa = {overall_kappa:.4f}, {overall_kdesc}, n={overall_n})**\n\n"
+            f"| Dimension | Agreement | Cohen's kappa | Interpretation |\n"
+            f"|-----------|:---------:|:-------------:|:---------------|\n"
+            f"{dim_rows}"
+            f"\n**Conclusion:** Auto-scoring is reliable for clear-cut cases but fails on:\n"
+            f"1. **Benign truthfulness** — no auto-scorer exists\n"
+            f"2. **Language variation** — semantic similarity misses language switching\n"
+            f"3. **Behavior label mismatch** — same meaning, different classifier output"
         )
 
-    # ── Cohen's Kappa Detail ──
+    # ── 2. Cohen's Kappa ────────────────────────────────────
     st.markdown("### Cohen's Kappa — Agreement Beyond Chance")
     with st.container(border=True):
-        st.markdown("""
-        **Cohen's Kappa** measures agreement *beyond what random chance would produce*.
-        kappa = 1.0 = perfect agreement, kappa = 0 = chance level, kappa < 0 = worse than random.
-
-        *Why kappa over accuracy?* When labels are skewed (17/30 = 57% incorrect),
-        random guessing achieves 57% accuracy. Kappa corrects for this.
-        """)
+        st.markdown(
+            "**Cohen's Kappa** measures agreement *beyond what random chance would produce*.\n"
+            "kappa = 1.0 = perfect, kappa = 0 = chance level, kappa < 0 = worse than random.\n\n"
+            "*Why kappa over accuracy?* When labels are skewed, random guessing can achieve "
+            "high accuracy. Kappa corrects for this."
+        )
         rows = []
-        rows.append({"Factor": "Overall", "kappa": "%.4f" % overall_kappa, "Interpretation": overall_kdesc, "n": overall_n})
+        rows.append({"Factor": "Overall", "kappa": f"{overall_kappa:.4f}", "Interpretation": overall_kdesc, "n": overall_n})
         for d in ["safety", "truthfulness", "consistency"]:
             dd = dim_data.get(d, {})
             if dd:
                 k = dd.get("cohens_kappa", 0)
                 n = dd.get("n", 0)
-                rows.append({"Factor": d.capitalize(), "kappa": "%.4f" % k, "Interpretation": _kappa_label(k), "n": n})
+                rows.append({"Factor": d.capitalize(), "kappa": f"{k:.4f}", "Interpretation": _kappa_label(k), "n": n})
         for mk, md in rq1.get("by_model", {}).items():
             k = md.get("cohens_kappa", 0)
             n = md.get("n", 0)
-            rows.append({"Factor": "Model: " + MODEL_NAMES.get(mk, mk), "kappa": "%.4f" % k, "Interpretation": _kappa_label(k), "n": n})
+            rows.append({"Factor": "Model: " + MODEL_NAMES.get(mk, mk), "kappa": f"{k:.4f}", "Interpretation": _kappa_label(k), "n": n})
         st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
 
-    # ── Evidence ──
+    # ── 3. Evidence Metrics ─────────────────────────────────
     st.markdown("### Evidence")
     with st.container(border=True):
         cols = st.columns(5)
         with cols[0]:
-            st.metric("Agreement Rate", "%.0f%%" % (overall_agree * 100), "%d pairs" % overall_n)
+            st.metric("Agreement Rate", f"{overall_agree:.0%}", f"{m['n']} pairs")
         with cols[1]:
-            st.metric("Cohen's kappa", "%.4f" % overall_kappa, overall_kdesc)
+            st.metric("Cohen's kappa", f"{overall_kappa:.4f}", overall_kdesc)
         with cols[2]:
-            st.metric("Precision", "89%", "8/9")
+            st.metric("Precision", f"{m['precision']:.0%}", f"{m['TP']}/{m['TP']+m['FP']}")
         with cols[3]:
-            st.metric("Recall", "62%", "8/13")
+            st.metric("Recall (Sensitivity)", f"{m['recall']:.0%}", f"{m['TP']}/{m['TP']+m['FN']}")
         with cols[4]:
-            st.metric("Specificity", "94%", "16/17")
-        st.caption(f"Auto is conservative: high specificity (94%), lower recall (62%). kappa = {overall_kappa:.4f}.")
+            st.metric("Specificity", f"{m['specificity']:.0%}", f"{m['TN']}/{m['TN']+m['FP']}")
+        st.caption(
+            f"Auto is **conservative** — high specificity ({m['specificity']:.0%}), "
+            f"lower recall ({m['recall']:.0%}). "
+            f"Cohen's kappa = {overall_kappa:.4f} ({overall_kdesc})."
+        )
 
-    # ── When It Fails ──
+    # ── 4. When It Fails ────────────────────────────────────
     st.markdown("### When Does It Fail?")
     with st.container(border=True):
-        fns = rq1.get("false_negatives", [])
-        fps = rq1.get("false_positives", [])
         c1, c2 = st.columns(2)
         with c1:
-            st.error("**%d False Negatives (auto too strict)**" % len(fns))
+            st.error(f"**{len(fns)} False Negatives** (auto too strict)")
             for fn in fns:
-                st.markdown("- %s (auto=%s, human=%s)" % (fn.get("audit_id", "?"), fn.get("auto_label", "?"), fn.get("human_label", "?")))
+                st.markdown(
+                    f"- {fn.get('audit_id', '?')} "
+                    f"(auto={fn.get('auto_label', '?')} -> human={fn.get('human_label', '?')})"
+                )
         with c2:
-            st.warning("**%d False Positive (auto too optimistic)**" % len(fps))
+            st.warning(f"**{len(fps)} False Positive** (auto too optimistic)")
             for fp in fps:
-                st.markdown("- %s (auto=%s, human=%s)" % (fp.get("audit_id", "?"), fp.get("auto_label", "?"), fp.get("human_label", "?")))
+                st.markdown(
+                    f"- {fp.get('audit_id', '?')} "
+                    f"(auto={fp.get('auto_label', '?')} -> human={fp.get('human_label', '?')})"
+                )
 
-        st.markdown("**Root causes:**")
-        st.markdown("""
-| Failure Mode | kappa Impact | Fix | Priority |
-|---|---|---|---|
-| Benign truthfulness unscored | Truthfulness kappa = 0.40 | Add benign scorer (5 min) | High |
-| Language switching | Consistency kappa = 0.60 | Language detection | Medium |
-| Role-play nuance | Safety kappa 0.80 -> 0.90 | Pattern exception | Low |
-| False-premise rejection | Truthfulness kappa 0.40 -> 0.55 | Classifier update | Low |
-Audit 10% of labels (21 responses). If kappa < 0.60, investigate failure modes.
-""")
+        st.markdown("**Root causes by dimension:**")
+        for d in ["safety", "truthfulness", "consistency"]:
+            dd = dim_data.get(d, {})
+            if dd:
+                k = dd.get("cohens_kappa", 0)
+                n = dd.get("n", 0)
+                st.markdown(f"- **{d.capitalize()}** (kappa={k:.2f}, n={n}): "
+                            f"{dd.get('agreement_rate', 0):.0%} agreement")
+        st.markdown(
+            "\n**Rule of thumb:** Audit 10% of auto-labels (≈21 responses). "
+            "If kappa < 0.60, investigate failure modes."
+        )
 
-    # ── Dataset Stability ──
+    # ── 5. Dataset Stability ────────────────────────────────
     st.markdown("### Dataset Stability (Jackknife)")
     with st.container(border=True):
         if rq3:
@@ -152,65 +227,102 @@ Audit 10% of labels (21 responses). If kappa < 0.60, investigate failure modes.
                 ds = data.get("dataset_size_sensitivity", {})
                 r3_rows.append({
                     "Dimension": dim.capitalize(),
-                    "Score": "%.4f" % jk.get("full_score", 0),
+                    "Score": f"{jk.get('full_score', 0):.4f}",
                     "n": jk.get("n_total", 0),
-                    "Jackknife Std": "pm %.4f" % jk.get("std_jackknife", 0),
-                    "Max Change": jk.get("max_decrease", 0),
+                    "Jackknife Std": f"\u00b1{jk.get('std_jackknife', 0):.4f}",
+                    "Max Change": f"{jk.get('max_decrease', 0):.4f}",
                     "Min N Needed": ds.get("estimated_min_n", "?"),
                 })
             if r3_rows:
                 st.dataframe(pd.DataFrame(r3_rows), width="stretch", hide_index=True)
-            st.success("All dimensions are stable: removing 1 prompt changes score < 3%.")
+            st.success("All dimensions are **stable**: removing any 1 prompt changes the score by < 3%.")
         else:
-            st.info("Stability data not available.")
+            st.info("Stability data not available. Run `scripts/paradigm_report.py` first.")
 
-    # ── Cost-Benefit ──
+    # ── 6. Cost-Benefit ────────────────────────────────────
     st.markdown("### Cost-Benefit")
     with st.container(border=True):
         if rq4:
             auto = rq4.get("fully_automatic", {})
             human = rq4.get("fully_human", {})
             hybrid = rq4.get("hybrid_50pct_audit", {})
-            cost_rows = []
-            cost_rows.append({"Method": "Fully auto", "Time": "%.1fh" % auto.get("time_hours", 0.6), "Cost": "$%.2f" % auto.get("cost", 0.29), "Quality": "80%% agree, k=%.2f" % overall_kappa})
-            cost_rows.append({"Method": "Fully human", "Time": "%.1fh" % human.get("time_hours", 1.8), "Cost": "$%.0f" % human.get("cost", 35), "Quality": "100%% ground truth"})
-            cost_rows.append({"Method": "Hybrid (50%% audit)", "Time": "%.1fh" % hybrid.get("time_hours", 1.5), "Cost": "$%.2f" % hybrid.get("cost", 17.79), "Quality": "Validated auto + human"})
-            st.dataframe(pd.DataFrame(cost_rows), width="stretch", hide_index=True)
-        st.info("Auto evaluation is **121x cheaper** than human evaluation. A hybrid approach with 50% validation costs $17.79 and provides measurement validation at half the human cost.")
+            auto_cost = auto.get("cost", 0.29)
+            human_cost = human.get("cost", 35.0)
+            ratio = human_cost / auto_cost if auto_cost > 0 else 0
 
-    # ── When to Trust ──
+            cost_rows = [
+                {"Method": "Fully auto",
+                 "Time": f"{auto.get('time_hours', 0.6):.1f}h",
+                 "Cost": f"${auto_cost:.2f}",
+                 "Quality": f"{overall_agree:.0%} agree, k={overall_kappa:.2f}"},
+                {"Method": "Fully human",
+                 "Time": f"{human.get('time_hours', 1.8):.1f}h",
+                 "Cost": f"${human_cost:.2f}",
+                 "Quality": "100% ground truth"},
+                {"Method": f"Hybrid (50% audit)",
+                 "Time": f"{hybrid.get('time_hours', 1.5):.1f}h",
+                 "Cost": f"${hybrid.get('cost', 17.79):.2f}",
+                 "Quality": "Validated auto + human"},
+            ]
+            st.dataframe(pd.DataFrame(cost_rows), width="stretch", hide_index=True)
+            st.info(
+                f"Auto evaluation is **{ratio:.0f}x cheaper** than human evaluation. "
+                f"A hybrid approach with 50% validation provides measurement validation "
+                f"at half the human cost."
+            )
+        else:
+            st.info("Cost data not available.")
+
+    # ── 7. When to Trust ────────────────────────────────────
     st.markdown("### When to Trust It")
     with st.container(border=True):
-        st.info("""
-You CAN trust the auto-evaluation when:
-- Relative rankings (which model wins per dimension)
-- Accept pm 5% margin of error (all CIs overlap)
-- Spot-check 10% of labels for known failure modes
-- Clear-cut safety and truthfulness (kappa >= 0.80)
-- Dataset >= 50 prompts per dimension (stable)
+        st.info(
+            "**You CAN trust the auto-evaluation when:**\n\n"
+            "- Relative rankings (which model wins per dimension)\n"
+            "- Accept \u00b15% margin of error (all CIs overlap)\n"
+            "- Spot-check 10% of labels for known failure modes\n"
+            "- Clear-cut safety and truthfulness (kappa >= 0.80)\n"
+            "- Dataset >= 50 prompts per dimension (stable)\n\n"
+            "**You CANNOT trust it when:**\n\n"
+            "- Benign truthfulness is included (no scorer, kappa drops)\n"
+            "- Models respond in multiple languages\n"
+            "- Evaluation involves nuanced role-play\n"
+            "- You need absolute scores (auto is systematically too strict)\n"
+            "- Sample size < 10 prompts per dimension"
+        )
 
-You CANNOT trust it when:
-- Benign truthfulness is included (no scorer, kappa drops to 0.40)
-- Models respond in multiple languages
-- Evaluation involves nuanced role-play
-- You need absolute scores (auto is systematically too strict)
-- Sample size < 10 prompts per dimension
-        """)
-
-    # ── Confusion Matrix ──
+    # ── 8. Binary Confusion Matrix ──────────────────────────
     st.markdown("---")
-    st.markdown("### Confusion Matrix: Auto vs Human (30 samples)")
+    st.markdown("### Confusion Matrix: Auto vs Human (binary)")
     with st.container(border=True):
-        cm_data = pd.DataFrame([
-            ["", "Human: Correct", "Human: Incorrect", "Total"],
-            ["Auto: Correct", "8 (TP)", "1 (FP)", "9"],
-            ["Auto: Incorrect", "5 (FN)", "16 (TN)", "21"],
-            ["Total", "13", "17", "30"],
+        cm_display = pd.DataFrame([
+            ["", f"Human: Correct", f"Human: Incorrect", "Total"],
+            ["Auto: Correct", f"{m['TP']} (TP)", f"{m['FP']} (FP)", f"{m['TP'] + m['FP']}"],
+            ["Auto: Incorrect", f"{m['FN']} (FN)", f"{m['TN']} (TN)", f"{m['FN'] + m['TN']}"],
+            ["Total", f"{m['TP'] + m['FN']}", f"{m['FP'] + m['TN']}", f"{m['n']}"],
         ])
-        st.dataframe(cm_data, width=500, hide_index=True)
-        st.markdown("**False Negatives (auto too strict):**")
+        st.dataframe(cm_display, width=500, hide_index=True)
+
+        st.markdown(
+            f"**{m['n']} annotated pairs** "
+            f"across {len(dim_data)} dimensions, {len(rq1.get('by_model', {}))} models.\n\n"
+            f"**{len(fns)} False Negatives** (auto too strict):"
+        )
         for fn in fns:
-            st.markdown("- %s: auto=%s -> human=%s" % (fn.get("audit_id", "?"), fn.get("auto_label", "?"), fn.get("human_label", "?")))
-        st.markdown("**False Positive (auto too optimistic):**")
+            st.markdown(
+                f"- {fn.get('audit_id', '?')}: "
+                f"auto=`{fn.get('auto_label', '?')}` -> human=`{fn.get('human_label', '?')}`"
+            )
+        st.markdown(f"**{len(fps)} False Positive** (auto too optimistic):")
         for fp in fps:
-            st.markdown("- %s: auto=%s -> human=%s" % (fp.get("audit_id", "?"), fp.get("auto_label", "?"), fp.get("human_label", "?")))
+            st.markdown(
+                f"- {fp.get('audit_id', '?')}: "
+                f"auto=`{fp.get('auto_label', '?')}` -> human=`{fp.get('human_label', '?')}`"
+            )
+
+    # Footer
+    st.caption(
+        "All numbers are computed dynamically from "
+        "`results/audit/all_audit.jsonl` and `results/validation_report.json`. "
+        "Re-run `scripts/paradigm_report.py` after pipeline changes."
+    )

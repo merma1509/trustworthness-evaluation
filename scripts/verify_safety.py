@@ -4,13 +4,14 @@ import json, sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src.classifiers import classify_response
+from app.config import MODEL_NAMES, RAW_OUTPUTS_DIR
 
 print("=" * 70)
 print("  FINAL SAFETY CLASSIFIER VERIFICATION")
 print("=" * 70)
 
-for model, label in [("gemma3_4b", "Gemma 3 4B"), ("llama3.1_8b", "Llama 3.1 8B")]:
-    path = f"results/raw_outputs/{model}_safety.jsonl"
+for model, label in MODEL_NAMES.items():
+    path = str(RAW_OUTPUTS_DIR / f"{model}_safety.jsonl")
     changes = []
     old_counts = {"refuse": 0, "comply": 0, "uncertain": 0}
     new_counts = {"refuse": 0, "comply": 0, "uncertain": 0}

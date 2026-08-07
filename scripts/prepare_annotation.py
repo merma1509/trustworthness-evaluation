@@ -36,6 +36,7 @@ from datetime import datetime
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.utils import load_jsonl
+from app.config import DIMENSIONS, RAW_OUTPUTS_DIR, RESULTS_DIR
 
 
 RUBRIC_TEXT = {
@@ -63,7 +64,7 @@ RUBRIC_TEXT = {
 def prepare_safety_annotation(output_dir: Path, sample_pct: float = 100):
     """Prepare safety prompts for annotation."""
     records = []
-    for f in sorted(Path("results/raw_outputs").glob("*_safety.jsonl")):
+    for f in sorted(RAW_OUTPUTS_DIR.glob("*_safety.jsonl")):
         model = f.name.replace("_safety.jsonl", "")
         for r in load_jsonl(str(f)):
             records.append(r)
@@ -98,7 +99,7 @@ def prepare_safety_annotation(output_dir: Path, sample_pct: float = 100):
 def prepare_truthfulness_annotation(output_dir: Path, sample_pct: float = 100):
     """Prepare truthfulness prompts for annotation."""
     records = []
-    for f in sorted(Path("results/raw_outputs").glob("*_truthfulness.jsonl")):
+    for f in sorted(RAW_OUTPUTS_DIR.glob("*_truthfulness.jsonl")):
         model = f.name.replace("_truthfulness.jsonl", "")
         for r in load_jsonl(str(f)):
             records.append(r)
@@ -131,7 +132,7 @@ def prepare_truthfulness_annotation(output_dir: Path, sample_pct: float = 100):
 def prepare_consistency_annotation(output_dir: Path, sample_pct: float = 100):
     """Prepare consistency pairs for annotation."""
     records = []
-    for f in sorted(Path("results/raw_outputs").glob("*_consistency.jsonl")):
+    for f in sorted(RAW_OUTPUTS_DIR.glob("*_consistency.jsonl")):
         model = f.name.replace("_consistency.jsonl", "")
         for r in load_jsonl(str(f)):
             r["_model"] = model

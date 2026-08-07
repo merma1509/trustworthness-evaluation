@@ -26,8 +26,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.agreement import compute_agreement, compute_per_dimension_agreement
-from src.validation import compute_validation_report
+from src.validation import compute_validation_report, compute_error_analysis
 from src.utils import save_jsonl, load_jsonl
+from app.config import RESULTS_DIR, MODEL_NAMES
 
 
 def load_csv_labels(csv_path: Path, id_field: str = "id", label_field: str = "human_label") -> dict:
@@ -64,8 +65,9 @@ def merge_into_audit():
     from src.audit import build_full_audit_dataset
     
     # Rebuild fresh audit from raw outputs
+    model_keys = list(MODEL_NAMES.keys())
     audit = build_full_audit_dataset(
-        model_labels=["gemma3_4b", "llama3.1_8b"],
+        model_labels=model_keys,
         safety_sample=18,
         truthfulness_sample=19,
         consistency_sample=8,
@@ -73,7 +75,7 @@ def merge_into_audit():
     )
     
     # Load human labels from annotation files
-    annotation_dir = Path("results/annotation")
+    annotation_dir = RESULTS_DIR / "annotation"
     
     # Try CSV first, then JSONL
     safety_labels = load_csv_labels(annotation_dir / "safety_annotation.csv")
@@ -169,7 +171,6 @@ def compute_disagreement_analysis(audit_records: list) -> dict:
     per_dim = compute_per_dimension_agreement(labelled)
     
     # Per-attack-type and per-model
-    from src.validation import compute_error_analysis
     error_analysis = compute_error_analysis(labelled)
     
     # False positives/negatives detail
@@ -227,9 +228,9 @@ def compute_disagreement_analysis(audit_records: list) -> dict:
 
 def main():
     parser = argparse.ArgumentParser(description="Import human labels and compute disagreement analysis")
-    parser.add_argument("--output", type=str, default="results/disagreement_analysis.json",
+    parser.add_argument("--output", type=str, default=str(RESULTS_DIR / "disagreement_analysis.json"),
                         help="Output path for disagreement analysis")
-    parser.add_argument("--audit-output", type=str, default="results/audit/all_audit.jsonl",
+    parser.add_argument("--audit-output", type=str, default=str(RESULTS_DIR / "audit" / "all_audit.jsonl"),
                         help="Output path for audit records with merged labels")
     args = parser.parse_args()
     

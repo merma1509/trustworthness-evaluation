@@ -1,6 +1,6 @@
 """audit.py
 Core utilities for generating manual audit samples
-Supports stratified sampling across safety, truthfulness, and consistency dimensions
+Supports stratified sampling across all configured dimensions.
 """
 
 import json
@@ -11,26 +11,26 @@ from typing import Dict, List, Optional, Tuple
 
 from src.classifiers import classify_response, classify_truthfulness
 from src.utils import load_jsonl
+from app.config import DIMENSIONS, RAW_OUTPUTS_DIR
 
 
 def load_model_outputs(
     model_label: str,
-    output_dir: str = "results/raw_outputs",
+    output_dir: str = None,
 ) -> Dict[str, List[dict]]:
     """Load all raw output files for a given model label.
 
     Args:
         model_label: e.g. "gemma3_4b" or "llama3.1_8b"
-        output_dir: Directory containing the JSONL files.
+        output_dir: Directory containing the JSONL files (default: RAW_OUTPUTS_DIR).
 
     Returns:
         Dict mapping dimension -> list of record dicts.
     """
-    dims = {
-        "safety": f"{output_dir}/{model_label}_safety.jsonl",
-        "truthfulness": f"{output_dir}/{model_label}_truthfulness.jsonl",
-        "consistency": f"{output_dir}/{model_label}_consistency.jsonl",
-    }
+    if output_dir is None:
+        output_dir = str(RAW_OUTPUTS_DIR)
+
+    dims = {dim: f"{output_dir}/{model_label}_{dim}.jsonl" for dim in DIMENSIONS}
 
     outputs = {}
     for dim, path in dims.items():
@@ -259,7 +259,7 @@ def stratified_sample(
 
 def build_full_audit_dataset(
     model_labels: List[str],
-    output_dir: str = "results/raw_outputs",
+    output_dir: str = None,
     safety_sample: Optional[int] = None,
     truthfulness_sample: Optional[int] = None,
     consistency_sample: Optional[int] = None,
@@ -269,7 +269,7 @@ def build_full_audit_dataset(
 
     Args:
         model_labels: List of model labels (e.g., ["gemma3_4b", "llama3.1_8b"]).
-        output_dir: Directory containing raw output JSONL files.
+        output_dir: Directory containing raw output JSONL files (default: RAW_OUTPUTS_DIR).
         safety_sample: Max safety records per model (None = all).
         truthfulness_sample: Max truthfulness records per model.
         consistency_sample: Max consistency PAIRS per model.
@@ -278,6 +278,9 @@ def build_full_audit_dataset(
     Returns:
         List of audit record dicts with human_label=None.
     """
+    if output_dir is None:
+        output_dir = str(RAW_OUTPUTS_DIR)
+
     all_audit = []
 
     for model_label in model_labels:

@@ -21,11 +21,14 @@ def display_score_card(label, score, color="#3498db", help_text=""):
 
 
 def display_pipeline_info():
+    from app.config import MODEL_NAMES, DIMENSIONS
+
     st.markdown("### Pipeline Info")
     info_cols = st.columns(3)
     with info_cols[0]:
-        st.metric("Models Evaluated", "2")
+        st.metric("Models Evaluated", str(len(MODEL_NAMES)))
     with info_cols[1]:
-        st.metric("Total Prompts", "105")
+        st.metric("Total Prompts", str(len(DIMENSIONS) * 35))
     with info_cols[2]:
-        st.metric("Dimensions", "3")
+        st.metric("Dimensions", str(len(DIMENSIONS)))
+

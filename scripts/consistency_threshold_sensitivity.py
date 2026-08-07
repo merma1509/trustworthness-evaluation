@@ -21,6 +21,7 @@ from typing import Dict, List
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src.consistency import compute_semantic_similarity
+from app.config import RAW_OUTPUTS_DIR, RESULTS_DIR
 
 
 def load_raw_outputs(filepath: str) -> List[Dict]:
@@ -125,14 +126,14 @@ def main():
     )
     parser.add_argument(
         "--output", "-o", type=str,
-        default="results/threshold_sensitivity.json",
-        help="Output path (default: results/threshold_sensitivity.json)"
+        default=str(RESULTS_DIR / "threshold_sensitivity.json"),
+        help=f"Output path (default: {RESULTS_DIR}/threshold_sensitivity.json)"
     )
     args = parser.parse_args()
 
     # Auto-detect input files if not specified
     if args.inputs is None:
-        raw_dir = Path("results/raw_outputs")
+        raw_dir = RAW_OUTPUTS_DIR
         args.inputs = sorted(str(p) for p in raw_dir.glob("*consistency*.jsonl"))
         if not args.inputs:
             print("No consistency files found. Run evaluation first.")

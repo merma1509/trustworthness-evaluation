@@ -22,6 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.classifiers import classify_response, classify_truthfulness
 from src.utils import _normalise_text, save_jsonl, load_jsonl
+from app.config import RAW_OUTPUTS_DIR
 
 
 def rescore_safety(records: list) -> tuple:
@@ -139,7 +140,7 @@ def rescore_consistency(records: list) -> tuple:
 
 def main():
     parser = argparse.ArgumentParser(description="Rescore all raw outputs with current classifiers")
-    parser.add_argument("--input-dir", default="results/raw_outputs",
+    parser.add_argument("--input-dir", default=str(RAW_OUTPUTS_DIR),
                         help="Directory with raw output JSONL files")
     parser.add_argument("--output-dir", default=None,
                         help="Output directory (default: update in place)")

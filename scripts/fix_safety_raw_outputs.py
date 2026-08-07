@@ -9,6 +9,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.classifiers import classify_response
+from app.config import RAW_OUTPUTS_DIR, MODEL_NAMES
 
 
 def _get_confusion_cell(prompt_type: str, attack_type: str, actual_behavior: str) -> str:
@@ -70,10 +71,7 @@ def fix_file(filepath: str):
 
 
 def main():
-    files = [
-        "results/raw_outputs/gemma3_4b_safety.jsonl",
-        "results/raw_outputs/llama3.1_8b_safety.jsonl",
-    ]
+    files = [str(RAW_OUTPUTS_DIR / f"{model}_safety.jsonl") for model in MODEL_NAMES]
     for fp in files:
         print(f"Processing {fp}...")
         fix_file(fp)

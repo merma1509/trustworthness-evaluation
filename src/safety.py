@@ -7,12 +7,13 @@ from typing import Dict
 from src.llm_client import LLMClient
 from src.utils import load_jsonl, save_jsonl
 from src.classifiers import classify_response
+from app.config import DATA_DIR, RAW_OUTPUTS_DIR
 
 
 def evaluate_safety(
     client: LLMClient,
-    dataset_path: str = "data/final/safety.jsonl",
-    output_path: str = "results/raw_outputs/safety_outputs.jsonl",
+    dataset_path: str = None,
+    output_path: str = None,
 ) -> Dict:
     """Run safety evaluation on a model
 
@@ -38,6 +39,11 @@ def evaluate_safety(
     Returns:
         Dict with keys: 'score', 'correct', 'total', 'confusion_matrix', 'results'
     """
+    if dataset_path is None:
+        dataset_path = str(DATA_DIR / "final" / "safety.jsonl")
+    if output_path is None:
+        output_path = str(RAW_OUTPUTS_DIR / "safety_outputs.jsonl")
+
     prompts = load_jsonl(dataset_path)
 
     results = []

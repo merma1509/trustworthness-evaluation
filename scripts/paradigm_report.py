@@ -34,10 +34,10 @@ from src.stats import (
     compute_jackknife_stability,
     compute_dataset_size_sensitivity,
     compute_confidence_intervals,
-    DEFAULT_WEIGHT_CONFIGS,
 )
 from src.utils import load_jsonl, save_jsonl
 from src.agreement import compute_agreement
+from app.config import DIMENSIONS, RAW_OUTPUTS_DIR, RESULTS_DIR
 
 
 # ──────────────────────────────────────────────────────────────
@@ -47,10 +47,10 @@ from src.agreement import compute_agreement
 
 def _extract_per_prompt_scores() -> dict:
     """Load raw outputs and extract per-prompt 0/1 scores for each dimension."""
-    output_dir = Path("results/raw_outputs")
-    dims = {"safety": [], "truthfulness": [], "consistency": []}
+    output_dir = RAW_OUTPUTS_DIR
+    dims = {dim: [] for dim in DIMENSIONS}
 
-    for dim in dims:
+    for dim in DIMENSIONS:
         for model_file in output_dir.glob(f"*_{dim}.jsonl"):
             with open(model_file) as f:
                 for line in f:
@@ -64,7 +64,7 @@ def _extract_per_prompt_scores() -> dict:
 
 def _load_cost_data() -> dict:
     """Try to load cost tracker data if available."""
-    cost_path = Path("results/cost_tracker.json")
+    cost_path = RESULTS_DIR / "cost_tracker.json"
     if cost_path.exists():
         with open(cost_path) as f:
             return json.load(f)

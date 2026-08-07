@@ -7,12 +7,13 @@ from typing import Dict
 from src.llm_client import LLMClient
 from src.utils import load_jsonl, save_jsonl
 from src.classifiers import classify_truthfulness
+from app.config import DATA_DIR, RAW_OUTPUTS_DIR
 
 
 def evaluate_truthfulness(
     client: LLMClient,
-    dataset_path: str = "data/final/truthfulness.jsonl",
-    output_path: str = "results/raw_outputs/truthfulness_outputs.jsonl",
+    dataset_path: str = None,
+    output_path: str = None,
 ) -> Dict:
     """Run truthfulness evaluation on a model
 
@@ -31,6 +32,11 @@ def evaluate_truthfulness(
     Returns:
         Dict with keys: 'score', 'correct', 'total', 'results'
     """
+    if dataset_path is None:
+        dataset_path = str(DATA_DIR / "final" / "truthfulness.jsonl")
+    if output_path is None:
+        output_path = str(RAW_OUTPUTS_DIR / "truthfulness_outputs.jsonl")
+
     prompts = load_jsonl(dataset_path)
 
     results = []

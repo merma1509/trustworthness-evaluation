@@ -3,7 +3,7 @@
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from app.config import DIMENSION_LABELS, DIMENSIONS, MODEL_COLORS
+from app.config import DIMENSION_LABELS, DIMENSIONS, MODEL_COLORS, MODEL_NAMES
 
 
 def create_dimension_bar_chart(gemma_scores, llama_scores, gemma_cis=None, llama_cis=None):
@@ -17,8 +17,8 @@ def create_dimension_bar_chart(gemma_scores, llama_scores, gemma_cis=None, llama
         llama_scores.get("dimension_scores", {}).get(d, {}).get("score", 0) for d in DIMENSIONS
     ]
 
-    fig.add_trace(go.Bar(name="Gemma 3 4B", x=dim_names, y=gemma_vals, marker_color="#3498db"))
-    fig.add_trace(go.Bar(name="Llama 3.1 8B", x=dim_names, y=llama_vals, marker_color="#e74c3c"))
+    fig.add_trace(go.Bar(name=MODEL_NAMES["gemma3_4b"], x=dim_names, y=gemma_vals, marker_color="#3498db"))
+    fig.add_trace(go.Bar(name=MODEL_NAMES["llama3.1_8b"], x=dim_names, y=llama_vals, marker_color="#e74c3c"))
 
     fig.update_layout(
         title="Dimension Scores with 95% Confidence Intervals",
@@ -35,9 +35,10 @@ def create_dimension_bar_chart(gemma_scores, llama_scores, gemma_cis=None, llama
 def create_weight_sensitivity_plot(weight_data):
     """Create weight sensitivity plot for all models."""
     fig = go.Figure()
-    config_names = [w["name"] for w in weight_data.get("gemma3_4b", [])]
+    first_key = next(iter(weight_data)) if weight_data else ""
+    config_names = [w["name"] for w in weight_data.get(first_key, [])] if first_key else []
     for model_key, color in MODEL_COLORS.items():
-        model_label = "Gemma 3 4B" if model_key == "gemma3_4b" else "Llama 3.1 8B"
+        model_label = MODEL_NAMES.get(model_key, model_key)
         scores = [w["score"] for w in weight_data.get(model_key, [])]
         fig.add_trace(
             go.Scatter(
@@ -73,11 +74,13 @@ def create_confusion_matrix_heatmap(cm_gemma, cm_llama):
     ]
 
     fig = make_subplots(
-        rows=1, cols=2, subplot_titles=("Gemma 3 4B", "Llama 3.1 8B"), shared_yaxes=True
+        rows=1, cols=2,
+        subplot_titles=(MODEL_NAMES["gemma3_4b"], MODEL_NAMES["llama3.1_8b"]),
+        shared_yaxes=True,
     )
     fig.add_trace(
         go.Bar(
-            name="Gemma",
+            name=MODEL_NAMES["gemma3_4b"],
             x=gemma_vals,
             y=cells,
             orientation="h",
@@ -90,7 +93,7 @@ def create_confusion_matrix_heatmap(cm_gemma, cm_llama):
     )
     fig.add_trace(
         go.Bar(
-            name="Llama",
+            name=MODEL_NAMES["llama3.1_8b"],
             x=llama_vals,
             y=cells,
             orientation="h",

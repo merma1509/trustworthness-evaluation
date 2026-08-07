@@ -4,6 +4,7 @@ import json, sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src.classifiers import classify_truthfulness
+from app.config import MODEL_NAMES, RAW_OUTPUTS_DIR
 
 
 def main():
@@ -11,8 +12,8 @@ def main():
     print("  TRUTHFULNESS CLASSIFIER COMPARISON")
     print("=" * 70)
 
-    for model, label in [("gemma3_4b", "Gemma 3 4B"), ("llama3.1_8b", "Llama 3.1 8B")]:
-        path = f"results/raw_outputs/{model}_truthfulness.jsonl"
+    for model, label in MODEL_NAMES.items():
+        path = str(RAW_OUTPUTS_DIR / f"{model}_truthfulness.jsonl")
         changes = []
         old_correct = 0
         new_correct = 0
