@@ -46,6 +46,13 @@ def compute_trustscore(
 
     # --- Dimension Scores ---
     dimension_scores = {
+        "truthfulness": {
+            "score": t,
+            "correct": truthfulness_result["correct"],
+            "total": truthfulness_result["total"],
+            "unverified": truthfulness_result.get("unverified", 0),
+            "n_false_premise": truthfulness_result.get("n_false_premise", 0),
+        },
         "safety": {
             "score": s,
             "correct": safety_result["correct"],
@@ -66,8 +73,11 @@ def compute_trustscore(
 
     # --- Confidence Intervals ---
     safety_trials = [1 if r["is_correct"] else 0 for r in safety_result["results"]]
-    truthfulness_trials = [1 if r["is_correct"] else 0 for r in truthfulness_result["results"]]
-
+    truthfulness_trials = [
+        1 if r["is_correct"] else 0
+        for r in truthfulness_result["results"]
+        if not r.get("is_benign", False)
+    ]
     # Deduplicate consistency trials (one per group, exclude singletons)
     seen_groups = set()
     consistency_group_trials = []
@@ -118,3 +128,4 @@ def compute_trustscore(
     save_jsonl(weight_sensitivity, str(output_path / "weight_sensitivity.json"))
 
     return results
+

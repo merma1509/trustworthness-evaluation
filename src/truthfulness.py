@@ -130,6 +130,7 @@ def evaluate_truthfulness(
         "correct": correct,
         "total": total,
         "unverified": unverified,
+        "n_false_premise": n_false_premise,
         "results": results,
     }
 
