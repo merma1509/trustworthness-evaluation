@@ -430,66 +430,48 @@ python3 run_evaluation.py --models gemma3:4b,llama3.1:8b --dataset-version raw
 
 **Original question:** _"Which model is better?"_
 
-**New question:** _"When can we trust a small local evaluation?"_
+**New question:** _"When can a very small, cheap, local evaluation be trusted, and how do we know when it fails?"_
 
 The core insight is that **evaluation is a measurement instrument**, and like any
-instrument it must be validated before use. We reframe the study around 4 research
-questions:
+instrument it must be validated before use.
 
-### RQ1: How well do auto-labels agree with human labels?
+### Answer
 
-| Metric           | Safety | Truthfulness | Consistency | Overall |
-| ---------------- | ------ | ------------ | ----------- | ------- |
-| Agreement rate   | TBD    | TBD          | TBD         | TBD     |
-| Cohen's Kappa    | TBD    | TBD          | TBD         | TBD     |
-| Precision (auto) | TBD    | TBD          | TBD         | TBD     |
-| Recall (auto)    | TBD    | TBD          | TBD         | TBD     |
+> **You can trust the auto-scorer when:**
+>
+> - ✅ You care about **relative rankings** (which model wins per dimension)
+> - ✅ You accept **±5% margin of error** (all CIs overlap anyway)
+> - ✅ You spot-check **10% of labels** (≈21 responses, ~3 min)
+> - ✅ The evaluation involves **clear-cut safety and truthfulness** (90% agreement)
+>
+> **You cannot trust it when:**
+>
+> - ❌ **Benign truthfulness** (auto has no scorer — all marked `unverified`)
+> - ❌ **Language-switching in consistency** (auto misses language changes)
+> - ❌ **Nuanced role-play safety** (auto can't distinguish acting from actual compliance)
+> - ❌ You need **absolute scores** (bias is systematic: auto is too strict)
 
-### RQ2: What factors affect agreement?
+### Empirical Evidence (30 human-annotated samples)
 
-- **Dimension:** Which dimension is easiest/hardest for the auto-scorer?
-- **Attack type:** Role hijacking vs. perturbation — where does the automatics fail?
-- **Model:** Does agreement differ between Gemma and Llama?
-- **Difficulty:** Do easier prompts produce higher agreement?
+| Dimension        |    Agreement    |           Main Failure Mode           |
+| ---------------- | :-------------: | :-----------------------------------: |
+| **Safety**       |   90% (9/10)    |           Role-play nuance            |
+| **Truthfulness** |   70% (7/10)    |   Benign truthfulness has no scorer   |
+| **Consistency**  |   80% (8/10)    |  Language switching, label mismatch   |
+| **Overall**      | **80% (24/30)** | Auto is systematically **too strict** |
 
-### RQ3: What dataset size is needed for stable evaluation?
+### Key Findings
 
-Uses **jackknife resampling** (leave-k-out) to measure how much
-the score changes when removing individual prompts:
-
-```
-Jackknife std (leave-1-out):
-  Safety:       ±0.0063   → STABLE (< 3% change)
-  Truthfulness: ±0.0061   → STABLE
-  Consistency:  ±0.0068   → STABLE
-```
-
-Estimates minimum N for CI width < 0.10 via simulated dataset sizes.
-
-### RQ4: What is the cost of automatic vs. human evaluation?
-
-| Approach                                 | Time  | Cost   | Scalability  |
-| ---------------------------------------- | ----- | ------ | ------------ |
-| Fully automatic (2 models × 105 prompts) | ~0.6h | $0.29  | O(n·m)       |
-| Fully human annotation                   | ~1.8h | $35.00 | O(n·m) × 120 |
-| Hybrid (auto + 50% human audit)          | ~1.5h | $17.79 | Best of both |
-
-**Finding:** Automatic evaluation is **~120× cheaper** than full human evaluation.
-A hybrid approach (auto scoring + 50% human validation) provides measurement
-validation at 50% of human cost.
-
-### How to run
-
-```bash
-# 1. Annotate audit samples
-# Open results/audit/all_audit.jsonl and fill human_label
-
-# 2. Generate validation report
-python3 scripts/paradigm_report.py
-
-# 3. View report
-cat results/validation_report.json
-```
+| Finding                               | Detail                                                                |
+| ------------------------------------- | --------------------------------------------------------------------- |
+| **Gemma 3 4B wins on Safety**         | 0.771 vs 0.657 — refuses more malicious prompts                       |
+| **Llama 3.1 8B wins on Truthfulness** | 0.711 vs 0.605 — expresses uncertainty more often                     |
+| **Both tie on Consistency**           | 0.875 vs 0.875 — similar semantic stability                           |
+| **Ranking is unstable**               | Llama wins under Truthfulness-heavy weights                           |
+| **No over-refusal for Gemma**         | 0 benign prompts refused vs 1 for Llama                               |
+| **Auto-human agreement**              | **80%** overall — auto is conservative (high specificity, low recall) |
+| **Stability (jackknife)**             | All dimensions **stable** (std < 1% with leave-1-out)                 |
+| **Cost ratio**                        | Auto is **121× cheaper** than human evaluation                        |
 
 ---
 
