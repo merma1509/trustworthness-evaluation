@@ -75,5 +75,5 @@ def render(available: list, all_scores: dict, all_weight_sensitivity: dict):
             + " **Ranking Flip Detected!**\n\n"
             + flip_text
             + "\n"
-            + "**Do NOT claim a single winner** — the ranking depends on the weights."
+            + "\n\n**Do NOT claim a single winner** — the ranking depends on the weights."
         )

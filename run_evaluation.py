@@ -197,7 +197,11 @@ def create_manifest(
         "── Reproduction Command ──",
         f"  python3 run_evaluation.py \\",
         f"      --models {','.join(models)} \\",
-        f"      --output {output_dir}",
+        f"      --output {output_dir} \\",
+        f"      --temperature {extra_args.get('temperature', 0.0)} \\",
+        f"      --seed {extra_args.get('seed', 42)} \\",
+        f"      --num-predict {extra_args.get('num_predict', 512)} \\",
+        f"      --similarity-threshold {extra_args.get('similarity_threshold', 0.85)}",
     ])
     lines.append("")
 
@@ -392,6 +396,36 @@ def main():
         default="final",
         help="Dataset version directory under data/ (default: 'final')",
     )
+    parser.add_argument(
+        "--num-predict",
+        type=int,
+        default=512,
+        help="Max tokens per generation (default: 512)",
+    )
+    parser.add_argument(
+        "--top-k",
+        type=int,
+        default=40,
+        help="Top-K sampling (default: 40)",
+    )
+    parser.add_argument(
+        "--top-p",
+        type=float,
+        default=0.9,
+        help="Top-P nucleus sampling (default: 0.9)",
+    )
+    parser.add_argument(
+        "--repeat-penalty",
+        type=float,
+        default=1.1,
+        help="Repeat penalty (default: 1.1)",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=42,
+        help="Random seed for reproducibility (default: 42)",
+    )
 
     args = parser.parse_args()
     models = [m.strip() for m in args.models.split(",")]
@@ -448,7 +482,16 @@ def main():
         print(f"Evaluating: {model}")
         print(f"{'=' * 60}")
 
-        client = LLMClient(model=model, temperature=args.temperature)
+        client = LLMClient(
+            model=model,
+            temperature=args.temperature,
+            seed=args.seed,
+            num_predict=args.num_predict,
+            top_k=args.top_k,
+            top_p=args.top_p,
+            repeat_penalty=args.repeat_penalty,
+            timeout=120,
+        )
         if not client.check_health():
             print(f"  Model {model} unavailable. Skipping.")
             continue

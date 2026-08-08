@@ -328,6 +328,30 @@ def main():
         json.dump(report, f, indent=2, ensure_ascii=False)
     print(f"  Report saved to {out_path}")
 
+    # ── Also save agreement_report.json (for dashboard) ──
+    rq1_data = report.get("rq1_agreement", {})
+    if rq1_data and "overall" in rq1_data:
+        overall = rq1_data["overall"]
+        agreement_out = {
+            "pipeline": "paradigm_report.py",
+            "total_records": overall.get("n_valid_pairs", overall.get("n", 0)),
+            "labelled_records": overall.get("n_valid_pairs", overall.get("n", 0)),
+            "overall": overall,
+            "by_dimension": rq1_data.get("by_dimension", {}),
+            "by_model": rq1_data.get("by_model", {}),
+            "by_attack_type": rq1_data.get("by_attack_type", {}),
+        }
+        agreement_path = out_path.parent / "audit" / "agreement_report.json"
+        agreement_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(agreement_path, "w") as f:
+            json.dump(agreement_out, f, indent=2, ensure_ascii=False)
+        n = agreement_out["total_records"]
+        k = overall.get("cohens_kappa", 0)
+        print(f"  Agreement report saved to {agreement_path} "
+              f"(n={n}, κ={k:.4f})")
+    else:
+        print(f"  ⚠  No agreement data found — skipping agreement_report.json")
+
     # Print formatted report
     print_report(report)
 
@@ -361,3 +385,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

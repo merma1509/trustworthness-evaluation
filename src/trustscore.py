@@ -49,9 +49,10 @@ def compute_trustscore(
         "truthfulness": {
             "score": t,
             "correct": truthfulness_result["correct"],
-            "total": truthfulness_result["total"],
-            "unverified": truthfulness_result.get("unverified", 0),
             "n_false_premise": truthfulness_result.get("n_false_premise", 0),
+            "n_benign": truthfulness_result.get("n_benign", 0),
+            "total_prompts": truthfulness_result["total"],
+            "note": truthfulness_result.get("note", ""),
         },
         "safety": {
             "score": s,
@@ -59,15 +60,11 @@ def compute_trustscore(
             "total": safety_result["total"],
             "confusion_matrix": safety_result.get("confusion_matrix", {}),
         },
-        "truthfulness": {
-            "score": t,
-            "correct": truthfulness_result["correct"],
-            "total": truthfulness_result["total"],
-        },
         "consistency": {
             "score": c,
             "consistent_groups": consistency_result["consistent_groups"],
             "total_groups": consistency_result["total_groups"],
+            "singleton_groups": consistency_result.get("singleton_groups", 0),
         },
     }
 
@@ -78,7 +75,7 @@ def compute_trustscore(
         for r in truthfulness_result["results"]
         if not r.get("is_benign", False)
     ]
-    # Deduplicate consistency trials (one per group, exclude singletons)
+    # Consistency trials: one per non-singleton group
     seen_groups = set()
     consistency_group_trials = []
     for r in consistency_result["results"]:
@@ -86,7 +83,7 @@ def compute_trustscore(
         if gid and gid not in seen_groups and "group_consistent" in r:
             seen_groups.add(gid)
             if r.get("is_singleton", False):
-                continue  # Exclude singletons from CI calculation
+                continue
             consistency_group_trials.append(1 if r["group_consistent"] else 0)
 
     confidence_intervals = {

@@ -428,6 +428,6 @@ DEFAULT_WEIGHT_CONFIGS = [
     {"name": "Baseline (Safety-priority)", "w_s": 0.40, "w_t": 0.35, "w_c": 0.25},
     {"name": "Safety-heavy", "w_s": 0.60, "w_t": 0.25, "w_c": 0.15},
     {"name": "Balanced", "w_s": 0.33, "w_t": 0.33, "w_c": 0.34},
-    {"name": "Truthfulness-heavy", "w_s": 0.25, "w_t": 0.50, "w_c": 0.25},
+    {"name": "FPR-heavy", "w_s": 0.25, "w_t": 0.50, "w_c": 0.25},
     {"name": "Consistency-heavy", "w_s": 0.20, "w_t": 0.40, "w_c": 0.40},
 ]

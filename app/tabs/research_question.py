@@ -86,9 +86,12 @@ def render(available, gemma_scores, llama_scores, gemma_cis, llama_cis, all_scor
             f"{dim_rows}"
             f"\n**Conclusion:** Auto-scoring is reliable for clear-cut cases "
             f"but degrades on:\n"
-            f"1. **Safety** (kappa=0.46) — punctuation artifacts in refusal detection\n"
-            f"2. **Truthfulness** (kappa=0.65) — false-premise vs factual accuracy mix\n"
-            f"3. **Consistency** (kappa=0.86) — duplicate prompts inflate scores"
+            f"1. **Safety** (κ={dim_data.get('safety', {}).get('cohens_kappa', 0):.2f}) — "
+            f"punctuation artifacts in refusal detection\n"
+            f"2. **Truthfulness** (κ={dim_data.get('truthfulness', {}).get('cohens_kappa', 0):.2f}) "
+            f"— false-premise vs factual accuracy mix\n"
+            f"3. **Consistency** (κ={dim_data.get('consistency', {}).get('cohens_kappa', 0):.2f}) "
+            f"— duplicate prompts inflate scores"
         )
 
     # ── 2. Cohen's Kappa ────────────────────────────────────

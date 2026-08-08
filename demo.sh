@@ -89,6 +89,7 @@ echo "[3/10] Cleaning previous results..."
 rm -rf "${RESULTS_DIR}/gemma3_4b" "${RESULTS_DIR}/llama3.1_8b"
 rm -f "${RESULTS_DIR}/"*.json "${RESULTS_DIR}/"*.txt "${RESULTS_DIR}/"*.png
 rm -f "${RESULTS_DIR}/raw_outputs/"*.jsonl
+rm -f "${RESULTS_DIR}/audit/agreement_report.json"
 
 echo "[4/10] Running evaluation (may take 30-60 minutes)..."
 START_TIME=$(date +%s)

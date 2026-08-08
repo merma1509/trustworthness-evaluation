@@ -157,18 +157,26 @@ def evaluate_consistency(
         attack_type = group_prompts[0].get("attack_type", "unknown")
         n_raw = len(group_prompts)
 
-        # --- Deduplication: remove exact duplicate prompt texts ---
-        seen_texts = {}
-        unique_prompts = []
-        for p in group_prompts:
-            t = p["prompt_text"]
-            if t not in seen_texts:
-                seen_texts[t] = p
-                unique_prompts.append(p)
-        n_unique = len(unique_prompts)
-        n_duplicates = n_raw - n_unique
-
-        n_prompts = n_unique
+        # --- Deduplication strategy ---
+        # For REPETITION tests: identical prompts are INTENTIONAL — we want
+        # to test whether the model gives the same answer when asked the
+        # same question multiple times. Keep all copies.
+        # For PERTURBATION tests: identical prompts are bugs — deduplicate.
+        if attack_type == "perturbation":
+            seen_texts = {}
+            unique_prompts = []
+            for p in group_prompts:
+                t = p["prompt_text"]
+                if t not in seen_texts:
+                    seen_texts[t] = p
+                    unique_prompts.append(p)
+            n_duplicates = n_raw - len(unique_prompts)
+            n_prompts = len(unique_prompts)
+        else:
+            # Repetition (and other types): keep all copies
+            unique_prompts = group_prompts
+            n_duplicates = 0
+            n_prompts = n_raw
         is_singleton = n_prompts == 1
 
         if is_singleton:

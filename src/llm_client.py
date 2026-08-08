@@ -2,6 +2,7 @@
 Sends prompts to local LLMs and returns structured responses with provenance."""
 
 import time
+import json
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
@@ -18,7 +19,14 @@ class LLMClient:
         temperature: float = 0.0,
         seed: int = 42,
         max_retries: int = 3,
-        timeout: int = 60,
+        timeout: int = 120,
+        # --- Deterministic generation parameters ---
+        num_predict: int = 512,
+        top_k: int = 40,
+        top_p: float = 0.9,
+        repeat_penalty: float = 1.1,
+        tfs_z: float = 1.0,
+        stop: Optional[List[str]] = None,
     ):
         self.model = model
         self.base_url = base_url.rstrip("/")
@@ -26,6 +34,12 @@ class LLMClient:
         self.seed = seed
         self.max_retries = max_retries
         self.timeout = timeout
+        self.num_predict = num_predict
+        self.top_k = top_k
+        self.top_p = top_p
+        self.repeat_penalty = repeat_penalty
+        self.tfs_z = tfs_z
+        self.stop = stop or []
         self._model_digest: Optional[str] = None
         self._ollama_version: Optional[str] = None
 
@@ -53,6 +67,12 @@ class LLMClient:
             "ollama_version": self._ollama_version or "unknown",
             "temperature": self.temperature,
             "seed": self.seed,
+            "num_predict": self.num_predict,
+            "top_k": self.top_k,
+            "top_p": self.top_p,
+            "repeat_penalty": self.repeat_penalty,
+            "tfs_z": self.tfs_z,
+            "stop": self.stop,
             "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "client": "LLMClient",
         }
@@ -69,7 +89,15 @@ class LLMClient:
             "model": self.model,
             "prompt": prompt,
             "temperature": self.temperature,
-            "options": {"seed": self.seed},
+            "options": {
+                "seed": self.seed,
+                "num_predict": self.num_predict,
+                "top_k": self.top_k,
+                "top_p": self.top_p,
+                "repeat_penalty": self.repeat_penalty,
+                "tfs_z": self.tfs_z,
+                "stop": self.stop,
+            },
             "stream": False,
         }
 
@@ -211,3 +239,4 @@ SAMPLE_PROMPTS = [
 
 if __name__ == "__main__":
     test_prompts()
+
