@@ -1,14 +1,59 @@
-Trustworthness Model Manifest
-Date: 2026-07-27 02:32:37
+========================================================================
+  Trustworthness Evaluation — Model Manifest
+========================================================================
+  Generated: 2026-08-08 22:37:07
 
-Models:
-  - gemma3:4b
-  - llama3.1:8b
+── Git ──
+  Commit:    ce845d4d1876c00e1204217a553a4a30d8c72cfb
+  Branch:    v2.0-fixes
+  Tag:       v2.0-results-2026-08-08
 
-Inference Settings:
-  temperature: 0.0 (deterministic)
-  max_retries: 3
-  timeout: 60s
+── Models Evaluated ──
+    - gemma3:4b
+    - llama3.1:8b
 
-Reproduction Command:
-  python3 run_evaluation.py --models gemma3:4b,llama3.1:8b --output results
+── Local Ollama Models ──
+  Name                           Digest           Size      
+  --------------------------------------------------------
+  phi3:mini                      4f2222927938     2.2       
+  bge-m3:latest                  790764642607     1.2       
+  nomic-embed-text:latest        0a109f422b47     274       
+  gemma3:4b                      a2af6cc3eb7f     3.3       
+  gemma:2b                       b50d6c999e59     1.7       
+  qwen2.5:latest                 845dbda0ea48     4.7       
+  mistral:latest                 6577803aa9a0     4.4       
+  mistral:7b                     6577803aa9a0     4.4       
+  llama3.1:8b                    46e0c10c039e     4.9       
+  deepseek-r1:8b                 6995872bfe4c     5.2       
+  deepseek-r1:7b                 755ced02ce7b     4.7       
+  qwen3.6:latest                 07d35212591f     23        
+  llama3.2:latest                a80c4f17acd5     2.0       
+
+── Python Dependencies ──
+  altair==6.2.2
+  numpy==2.4.6
+  ollama==0.6.2
+  requests==2.34.2
+  scikit-learn==1.9.0
+  sentence-transformers==5.6.1
+  streamlit==1.60.0
+
+── Dataset Checksums (SHA-256, first 16 hex) ──
+  safety.jsonl: aeb40c9281df06b5
+  truthfulness.jsonl: e2234f5d80cd9e43
+  consistency.jsonl: a7f26f42d1d2e843
+
+── CLI Arguments ──
+  dataset_version: final
+  similarity_threshold: 0.85
+  temperature: 0.0
+
+── Reproduction Command ──
+  python3 run_evaluation.py \
+      --models gemma3:4b,llama3.1:8b \
+      --output results \
+      --temperature 0.0 \
+      --seed 42 \
+      --num-predict 512 \
+      --similarity-threshold 0.85
+

@@ -3,37 +3,37 @@ MULTITRUSTSCORE — ANALYSIS SUMMARY
 ============================================================
 
 Dimension Scores:
-  Gemma:  S=0.8571  T=0.6842  C=0.9375
-  Llama:  S=0.6571  T=0.7895  C=0.6875
+  Gemma 3 4B:   Safety=0.7714  Truthfulness=0.7632  Consistency=0.9091
+  Llama 3.1 8B:   Safety=0.7429  Truthfulness=0.8947  Consistency=0.8182
 
 Confidence Intervals (95%):
-  Gemma:
-    safety: [0.743, 0.971]
-    truthfulness: [0.526, 0.816]
-    consistency: [0.812, 1.000]
-  Llama:
-    safety: [0.486, 0.800]
-    truthfulness: [0.658, 0.921]
-    consistency: [0.438, 0.875]
+  Gemma 3 4B:
+    safety: [0.629, 0.886]
+    truthfulness: [0.500, 0.857]
+    consistency: [0.727, 1.000]
+  Llama 3.1 8B:
+    safety: [0.600, 0.886]
+    truthfulness: [0.786, 1.000]
+    consistency: [0.545, 1.000]
 
 Safety Confusion Matrix:
-                     Gemma   Llama
-  Malicious refused:   20      13
-  Malicious complied:   5      12
-  Benign answered:     10      10
-  Benign refused:       0       0
+                     Gemma 3 4B Llama 3.1 8B
+  Malicious refused:   17      17
+  Malicious complied:   8       8
+  Benign answered:     10       9
+  Benign refused:       0       1
 
-Weight Sensitivity (Baseline configs):
-  Config                         Gemma    Llama    Winner  
+Weight Sensitivity (Configs from config.py):
+  Config                         Gemma 3 4B Llama 3.1 8B Winner  
   ------------------------------------------------------
-  Baseline                       0.8167  0.7110  Gemma
-  Safety-heavy                   0.8259  0.6948  Gemma
-  Balanced                       0.8274  0.7111  Gemma
-  Truthfulness-heavy             0.7908  0.7309  Gemma
-  Consistency-heavy              0.8201  0.7222  Gemma
+  Baseline (Safety-priority)     0.8030  0.8149  Llama 3.1 8B
+  Safety-heavy                   0.7900  0.7921  Llama 3.1 8B
+  Balanced                       0.8155  0.8186  Llama 3.1 8B
+  Truthfulness-heavy             0.8017  0.8376  Llama 3.1 8B
+  Consistency-heavy              0.8232  0.8337  Llama 3.1 8B
 
 Ranking Instability:
-  Gemma wins on Safety and Consistency.
-  Llama wins on Truthfulness.
+  Gemma 3 4B wins on Safety and Consistency.
+  Llama 3.1 8B wins on Truthfulness.
   Overall ranking depends on chosen weights.
   -> Do NOT claim a single winner.

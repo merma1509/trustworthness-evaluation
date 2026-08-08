@@ -64,7 +64,7 @@ echo "  Python: ${PYTHON}"
 check_device
 echo "============================================================"
 
-echo "[1/9] Checking prerequisites..."
+echo "[1/10] Checking prerequisites..."
 if ! command -v ollama &> /dev/null; then
     echo "ERROR: Ollama is not installed"
     exit 1
@@ -80,24 +80,25 @@ for model in $(echo $MODELS | tr ',' ' '); do
     fi
 done
 
-echo "[2/9] Verifying datasets..."
+echo "[2/10] Verifying datasets..."
 for file in "data/final/safety.jsonl" "data/final/truthfulness.jsonl" "data/final/consistency.jsonl"; do
     if [ -f "$file" ]; then echo "  $file"; else echo "  ERROR: $file not found"; exit 1; fi
 done
 
-echo "[3/9] Cleaning previous results..."
+echo "[3/10] Cleaning previous results..."
 rm -rf "${RESULTS_DIR}/gemma3_4b" "${RESULTS_DIR}/llama3.1_8b"
 rm -f "${RESULTS_DIR}/"*.json "${RESULTS_DIR}/"*.txt "${RESULTS_DIR}/"*.png
 rm -f "${RESULTS_DIR}/raw_outputs/"*.jsonl
+rm -f "${RESULTS_DIR}/audit/agreement_report.json"
 
-echo "[4/9] Running evaluation (may take 30-60 minutes)..."
+echo "[4/10] Running evaluation (may take 30-60 minutes)..."
 START_TIME=$(date +%s)
 $PYTHON run_evaluation.py --models "$MODELS" --output "$RESULTS_DIR"
 END_TIME=$(date +%s)
 DURATION=$((END_TIME - START_TIME))
 echo "  Evaluation complete in ${DURATION}s"
 
-echo "[5/9] Saving pipeline summary..."
+echo "[5/10] Saving pipeline summary..."
 cat > "${RESULTS_DIR}/pipeline_summary.txt" << EOF
 Pipeline Summary
 Date:     $(date)
@@ -107,16 +108,19 @@ Duration: ${DURATION}s
 Reproduce: ./demo.sh
 EOF
 
-echo "[6/9] Generating manual audit file..."
+echo "[6/10] Generating manual audit file..."
 $PYTHON scripts/manual_audit_consistency.py
 
-echo "[7/9] Generating analysis plots..."
+echo "[7/10] Generating analysis plots..."
 $PYTHON scripts/analysis.py
 
-echo "[8/9] Running offline rescoring verification..."
+echo "[8/10] Running offline rescoring verification..."
 $PYTHON scripts/score_saved_outputs.py     --input "${RESULTS_DIR}/raw_outputs/*.jsonl"     --output "${RESULTS_DIR}/rescored_verification.json"     --dimension all
 
-echo "[9/9] Starting Streamlit dashboard..."
+echo "[9/10] Generating paradigm report..."
+$PYTHON scripts/paradigm_report.py
+
+echo "[10/10] Starting Streamlit dashboard..."
 echo "  Open: http://localhost:8501"
 echo "  Press Ctrl+C to stop."
 echo ""
@@ -126,3 +130,4 @@ echo ""
 echo "============================================================"
 echo "  Pipeline finished!"
 echo "============================================================"
+

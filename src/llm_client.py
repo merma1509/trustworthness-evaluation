@@ -1,8 +1,10 @@
 """Lightweight Ollama API wrapper
-Sends prompts to local LLMs and returns structured responses"""
+Sends prompts to local LLMs and returns structured responses with provenance."""
 
 import time
-from typing import Dict, List
+import json
+from datetime import datetime, timezone
+from typing import Dict, List, Optional
 
 import requests
 
@@ -14,24 +16,72 @@ class LLMClient:
         self,
         model: str = "gemma:2b",
         base_url: str = "http://localhost:11434",
-        temperature: float = 0.7,
+        temperature: float = 0.0,
+        seed: int = 42,
         max_retries: int = 3,
-        timeout: int = 60,
+        timeout: int = 120,
+        # --- Deterministic generation parameters ---
+        num_predict: int = 512,
+        top_k: int = 40,
+        top_p: float = 0.9,
+        repeat_penalty: float = 1.1,
+        tfs_z: float = 1.0,
+        stop: Optional[List[str]] = None,
     ):
         self.model = model
         self.base_url = base_url.rstrip("/")
         self.temperature = temperature
+        self.seed = seed
         self.max_retries = max_retries
         self.timeout = timeout
+        self.num_predict = num_predict
+        self.top_k = top_k
+        self.top_p = top_p
+        self.repeat_penalty = repeat_penalty
+        self.tfs_z = tfs_z
+        self.stop = stop or []
+        self._model_digest: Optional[str] = None
+        self._ollama_version: Optional[str] = None
+
+    def _resolve_provenance(self) -> Dict:
+        """Fetch model digest and Ollama version lazily (once per client lifetime)."""
+        if self._model_digest is None:
+            try:
+                resp = requests.get(f"{self.base_url}/api/tags", timeout=5)
+                resp.raise_for_status()
+                for m in resp.json().get("models", []):
+                    if m["name"] == self.model:
+                        self._model_digest = m["digest"].split(":")[-1][:12]
+                        break
+                if self._model_digest is None:
+                    self._model_digest = "unknown"
+                vresp = requests.get(f"{self.base_url}/api/version", timeout=5)
+                self._ollama_version = vresp.json().get("version", "unknown") if vresp.ok else "unknown"
+            except Exception:
+                self._model_digest = "unknown"
+                self._ollama_version = "unknown"
+
+        return {
+            "model": self.model,
+            "model_digest": self._model_digest,
+            "ollama_version": self._ollama_version or "unknown",
+            "temperature": self.temperature,
+            "seed": self.seed,
+            "num_predict": self.num_predict,
+            "top_k": self.top_k,
+            "top_p": self.top_p,
+            "repeat_penalty": self.repeat_penalty,
+            "tfs_z": self.tfs_z,
+            "stop": self.stop,
+            "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "client": "LLMClient",
+        }
 
     def generate(self, prompt: str) -> Dict:
-        """Send a single prompt to the LLM and return the response
-
-        Args:
-            prompt: The input text to send to the model
+        """Send a single prompt to the LLM and return the response with provenance.
 
         Returns:
-            Dict with keys: 'response' (str), 'success' (bool), 'error' (str or None)
+            Dict with keys: 'response', 'success', 'error', 'provenance'
         """
         url = f"{self.base_url}/api/generate"
 
@@ -39,6 +89,15 @@ class LLMClient:
             "model": self.model,
             "prompt": prompt,
             "temperature": self.temperature,
+            "options": {
+                "seed": self.seed,
+                "num_predict": self.num_predict,
+                "top_k": self.top_k,
+                "top_p": self.top_p,
+                "repeat_penalty": self.repeat_penalty,
+                "tfs_z": self.tfs_z,
+                "stop": self.stop,
+            },
             "stream": False,
         }
 
@@ -52,6 +111,7 @@ class LLMClient:
                     "response": result.get("response", "").strip(),
                     "success": True,
                     "error": None,
+                    "provenance": self._resolve_provenance(),
                 }
 
             except requests.exceptions.ConnectionError:
@@ -62,7 +122,7 @@ class LLMClient:
                     )
                     time.sleep(2)
                 else:
-                    return {"response": "", "success": False, "error": error_msg}
+                    return {"response": "", "success": False, "error": error_msg, "provenance": self._resolve_provenance()}
 
             except requests.exceptions.Timeout:
                 error_msg = f"Request timed out after {self.timeout}s"
@@ -70,12 +130,12 @@ class LLMClient:
                     print(f"  Timeout (attempt {attempt}/{self.max_retries}). Retrying...")
                     time.sleep(2)
                 else:
-                    return {"response": "", "success": False, "error": error_msg}
+                    return {"response": "", "success": False, "error": error_msg, "provenance": self._resolve_provenance()}
 
             except Exception as e:
-                return {"response": "", "success": False, "error": str(e)}
+                return {"response": "", "success": False, "error": str(e), "provenance": self._resolve_provenance()}
 
-        return {"response": "", "success": False, "error": "Max retries exceeded"}
+        return {"response": "", "success": False, "error": "Max retries exceeded", "provenance": self._resolve_provenance()}
 
     def generate_batch(self, prompts: List[str]) -> List[Dict]:
         """Send multiple prompts sequentially.
@@ -179,3 +239,4 @@ SAMPLE_PROMPTS = [
 
 if __name__ == "__main__":
     test_prompts()
+
