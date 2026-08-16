@@ -1,7 +1,7 @@
 """Tab 7: Failure Analysis — Per-attack-type breakdown for each dimension."""
 
-import streamlit as st
 import pandas as pd
+import streamlit as st
 
 from app.config import DIMENSIONS, MODEL_NAMES
 from app.data_loader import load_raw_outputs

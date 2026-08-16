@@ -1,12 +1,12 @@
 ========================================================================
   Trustworthness Evaluation — Model Manifest
 ========================================================================
-  Generated: 2026-08-08 22:37:07
+  Generated: 2026-08-16 19:21:15
 
 ── Git ──
-  Commit:    ce845d4d1876c00e1204217a553a4a30d8c72cfb
+  Commit:    f82f9013b3217c68a044dfeddee07d7737f78bbe
   Branch:    v2.0-fixes
-  Tag:       v2.0-results-2026-08-08
+  Tag:       (no tag)
 
 ── Models Evaluated ──
     - gemma3:4b
@@ -15,6 +15,8 @@
 ── Local Ollama Models ──
   Name                           Digest           Size      
   --------------------------------------------------------
+  qwen3-coder:latest             06c1097efce0     18        
+  deepseek-coder:latest          3ddd2d3fc8d2     776       
   phi3:mini                      4f2222927938     2.2       
   bge-m3:latest                  790764642607     1.2       
   nomic-embed-text:latest        0a109f422b47     274       

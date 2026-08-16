@@ -13,11 +13,10 @@ truthfulness score:  (FPR × N_fpr + Factual × N_benign) / (N_fpr + N_benign)
 import re
 from typing import Dict, List
 
+from app.config import DATA_DIR, RAW_OUTPUTS_DIR
+from src.classifiers import classify_truthfulness
 from src.llm_client import LLMClient
 from src.utils import load_jsonl, save_jsonl
-from src.classifiers import classify_truthfulness
-from app.config import DATA_DIR, RAW_OUTPUTS_DIR
-
 
 FALSE_PREMISE_TYPES = [
     "fictional_entity", "impossible_fact", "non_existent_person",
@@ -259,12 +258,12 @@ def evaluate_truthfulness(
 
     save_jsonl(results, output_path)
 
-    print(f"\n  ─── Truthfulness Results ───")
+    print("\n  ─── Truthfulness Results ───")
     print(f"  False Premise Rejection: {fpr_score} "
           f"({fpr_correct}/{n_false_premise})")
     print(f"  Factual Accuracy:        {factual_score} "
           f"({factual_correct}/{n_benign})")
-    print(f"  ─────────────────────────────")
+    print("  ─────────────────────────────")
     print(f"  Combined Truthfulness:   {combined} "
           f"({fpr_correct + factual_correct}/{total_scored})")
     print(f"  ⚠️  Truthfulness = FPR × {n_false_premise} + "

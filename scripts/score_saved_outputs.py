@@ -40,10 +40,13 @@ from typing import Dict, List, Optional
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 # Import shared utilities
-from src.consistency import compute_semantic_similarity
 from src.classifiers import classify_response, classify_truthfulness
-from src.stats import DEFAULT_WEIGHT_CONFIGS, compute_confidence_intervals, compute_weight_sensitivity
-from app.config import RAW_OUTPUTS_DIR, RESULTS_DIR
+from src.consistency import compute_semantic_similarity
+from src.stats import (
+    DEFAULT_WEIGHT_CONFIGS,
+    compute_confidence_intervals,
+    compute_weight_sensitivity,
+)
 
 
 def load_raw_outputs(filepath: str) -> List[Dict]:

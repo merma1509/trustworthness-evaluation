@@ -59,7 +59,7 @@ else:
 # ─── Run Pipeline ───────────────────────────────────────────
 echo "============================================================"
 echo "  Trustworthiness Evaluation — Full Pipeline"
-echo "  Date: $(date)"
+echo "  Date: $(date '+%a, %d %b %Y %H:%M:%S')"
 echo "  Python: ${PYTHON}"
 check_device
 echo "============================================================"
@@ -101,7 +101,7 @@ echo "  Evaluation complete in ${DURATION}s"
 echo "[5/10] Saving pipeline summary..."
 cat > "${RESULTS_DIR}/pipeline_summary.txt" << EOF
 Pipeline Summary
-Date:     $(date)
+Date:     $(date '+%a, %d %b %Y %H:%M:%S')
 Models:   ${MODELS}
 Python:   ${PYTHON} ($($PYTHON --version 2>&1))
 Duration: ${DURATION}s

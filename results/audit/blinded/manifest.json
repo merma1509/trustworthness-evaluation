@@ -1,0 +1,8 @@
+{
+  "total_records": 30,
+  "total_units": 24,
+  "calibration_records": 22,
+  "heldout_records": 8,
+  "calibration_ratio": 0.7,
+  "note": "Blinded: prompt+response only; auto_label & similarity REMOVED."
+}

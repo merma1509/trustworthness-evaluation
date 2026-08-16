@@ -1,7 +1,7 @@
 # Appendix: Auto-Evaluation Validation
 
 **For:** _Trustworthiness Evaluation of Open-Source LLMs_
-**Date:** August 2025
+**Date:** August 2026 (reference run 2026-08-16, git `f82f9013`)
 **Paradigm:** _When can a small, cheap, local evaluation be trusted?_
 
 ---
@@ -12,7 +12,7 @@
 | ------------------------- | ----------------------- |
 | Total annotated samples   | 30 (10 per dimension)   |
 | Overall agreement rate    | 80% (24/30)             |
-| Cohen's Kappa (overall)   | 0.733 — **Substantial** |
+| Cohen's Kappa (overall)   | 0.697 — **Substantial** |
 | Auto precision            | 89% (8/9)               |
 | Auto recall               | 62% (8/13)              |
 | Auto specificity          | 94% (16/17)             |
@@ -26,10 +26,10 @@
 
 | Dimension    | n      | Agreement | Cohen's Kappa | Interpretation  |
 | ------------ | ------ | :-------: | :-----------: | :-------------- |
-| Safety       | 10     |    90%    |   **0.800**   | Substantial     |
-| Truthfulness | 10     |    70%    |   **0.400**   | Fair            |
-| Consistency  | 10     |    80%    |   **0.600**   | Moderate        |
-| **Overall**  | **30** |  **80%**  |   **0.733**   | **Substantial** |
+| Safety       | 10     |    90%    |   **0.783**   | Substantial     |
+| Truthfulness | 10     |    70%    |   **0.286**   | Fair            |
+| Consistency  | 10     |    80%    |  **-0.111**   | Poor            |
+| **Overall**  | **30** |  **80%**  |   **0.697**   | **Substantial** |
 
 ### Why Cohen's Kappa?
 
@@ -39,13 +39,13 @@ $$
 \kappa = \frac{P_o - P_e}{1 - P_e}
 $$
 
-where $P_o$ is observed agreement (0.80) and $P_e$ is expected agreement by chance (0.52). For our data:
+where $P_o$ is observed agreement (0.80) and $P_e$ is the **chance agreement estimated from the marginals of both raters** (0.34 here — NOT `1/n_categories`). For our data:
 
 $$
-\kappa = \frac{0.80 - 0.52}{1 - 0.52} = \frac{0.28}{0.48} = 0.733
+\kappa = \frac{0.80 - 0.34}{1 - 0.34} = \frac{0.46}{0.66} = 0.697
 $$
 
-This confirms that auto-human agreement is **substantially** better than chance (Landis & Koch, 1977).
+This is the standard Cohen's κ (Cohen, 1960). Note that agreement is **substantial overall but highly uneven across dimensions** — strong for safety (0.783) but at chance for consistency (−0.111).
 
 ---
 
@@ -95,9 +95,9 @@ For each dimension, we compute the leave-1-out score (remove each prompt, recomp
 
 | Dimension    | Full Score | Jackknife Std | Max Change |  n  |  Stable?   |
 | ------------ | :--------: | :-----------: | :--------: | :-: | :--------: |
-| Safety       |   0.7714   |   pm 0.0062   |   0.0033   | 70  | Yes (< 3%) |
-| Truthfulness |   0.4605   |   pm 0.0066   |   0.0072   | 76  | Yes (< 3%) |
-| Consistency  |   0.9219   |   pm 0.0044   |   0.0012   | 64  | Yes (< 3%) |
+| Safety       |   0.7571   |   pm 0.0061   |   0.0035   | 70  | Yes (< 3%) |
+| Truthfulness |   0.8289   |   pm 0.0053   |   0.0023   | 76  | Yes (< 3%) |
+| Consistency  |   0.9062   |   pm 0.0046   |   0.0015   | 64  | Yes (< 3%) |
 
 **Finding:** Removing any single prompt changes the score by less than 1%. All dimensions are stable at the current sample sizes.
 
@@ -108,6 +108,13 @@ For each dimension, we compute the leave-1-out score (remove each prompt, recomp
 | Safety       |    70     |                 70                  |
 | Truthfulness |    76     |                 75                  |
 | Consistency  |    64     |                 50                  |
+
+> ⚠️ **Unit note (Task 6).** For consistency the analysis unit is the **unique
+> multi-prompt group** (11/model), not the 64 raw output records above — duplicated
+> prompt texts within a group are _not_ independent observations. For a defensible
+> dataset-size plan, use `src.stats.estimate_required_sample_size()`, which counts
+> independent groups and lets you set a _stated_ precision instead of the fixed
+> `CI width < 0.10` shortcut.
 
 ---
 

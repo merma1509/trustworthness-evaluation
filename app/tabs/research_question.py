@@ -9,8 +9,8 @@ All numbers computed from:
 import json
 from pathlib import Path
 
-import streamlit as st
 import pandas as pd
+import streamlit as st
 
 from app.config import MODEL_NAMES
 from app.data_loader import load_agreement_report, load_ranking_stability

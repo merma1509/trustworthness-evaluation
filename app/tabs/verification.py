@@ -1,9 +1,10 @@
 """Tab: Verification — Offline rescoring verification + rescore summary."""
 
-import streamlit as st
 import json
-import pandas as pd
 from pathlib import Path
+
+import pandas as pd
+import streamlit as st
 
 from app.config import MODEL_NAMES
 from app.data_loader import load_rescore_summary

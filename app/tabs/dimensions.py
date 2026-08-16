@@ -1,10 +1,10 @@
 """Tab 2: Dimensions — Bar chart, confidence intervals, consistency details."""
 
-import streamlit as st
 import pandas as pd
+import streamlit as st
 
-from app.config import DIMENSIONS, MODEL_NAMES
 from app.components.charts import create_dimension_bar_chart
+from app.config import DIMENSIONS, MODEL_NAMES
 from app.data_loader import get_dimension_score, load_scores
 
 

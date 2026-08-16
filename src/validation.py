@@ -13,7 +13,6 @@ from typing import Dict, List, Optional
 
 from src.agreement import compute_agreement
 
-
 # ──────────────────────────────────────────────────────────────
 # Error analysis: where does the auto-scorer disagree with human?
 # ──────────────────────────────────────────────────────────────
@@ -96,7 +95,6 @@ def _group_agreement(records: List[dict], group_key: str) -> Dict:
 
 def _get_label_vals(r: dict) -> tuple:
     """Extract numeric values for false positive / negative analysis."""
-    import numpy as np
     h = r.get("human_label", "")
     a = r.get("auto_label", "")
     # Map to 1 (good) / 0 (bad)
@@ -223,7 +221,7 @@ def compute_validation_report(
     Returns:
         Comprehensive validation report dict.
     """
-    from src.stats import compute_jackknife_stability, compute_dataset_size_sensitivity
+    from src.stats import compute_dataset_size_sensitivity, compute_jackknife_stability
 
     labelled = [r for r in audit_records if r.get("human_label") is not None]
     n_total = len(audit_records)

@@ -3,16 +3,15 @@ Provides: bootstrap confidence intervals (independent, paired, clustered),
           weight sensitivity analysis, jackknife, cost tracking,
           dataset size sensitivity
 """
-from typing import Dict, List, Optional
 import time
+from typing import Dict, List, Optional
+
 import numpy as np
 
 
 # ──────────────────────────────────────────────────────────────
 # Cost tracking
 # ──────────────────────────────────────────────────────────────
-
-
 class CostTracker:
     """Tracks inference time and cost for evaluation runs.
 
@@ -66,8 +65,6 @@ class CostTracker:
 # ──────────────────────────────────────────────────────────────
 # Jackknife stability analysis
 # ──────────────────────────────────────────────────────────────
-
-
 def compute_jackknife_stability(
     per_prompt_scores: List[float],
     n_remove: int = 1,
@@ -197,6 +194,61 @@ def compute_dataset_size_sensitivity(
         "note": (
             f"Estimated minimum N for 95% CI width < 0.10: ~{estimated_min_n} prompts. "
             f"Current dataset: {full_n} prompts."
+        ),
+    }
+
+
+def estimate_required_sample_size(
+    precision: float = 0.05,
+    confidence: float = 0.95,
+    expected_proportion: float = 0.5,
+) -> Dict:
+    """Estimate the sample size N needed for a stated precision.
+
+    **Defensible sample-size estimator (Task 6).** Unlike the earlier
+    ``compute_dataset_size_sensitivity`` shortcut — which only resampled
+    existing scores against a fixed ``< 0.10`` threshold — this computes N to
+    reach a *stated* half-width at a *stated* confidence level.
+
+    The unit of analysis is the **independent group** (a unique prompt or a
+    consistency group), NOT each raw record. Duplicated prompt texts within a
+    consistency group are counted once. See ``docs/scoring-spec-v2.md``.
+
+    Uses the Wald-normal approximation solved for N:
+
+        N = ceil( z^2 * p * (1 - p) / precision^2 )
+
+    Args:
+        precision: Desired CI half-width (e.g. 0.05 = +/-5%).
+        confidence: Confidence level (0.95 -> z = 1.96).
+        expected_proportion: Assumed true proportion (0.5 maximises variance).
+
+    Returns:
+        Dict with keys 'n_required', 'precision', 'confidence', 'z',
+        'expected_proportion', and 'note'.
+    """
+    from scipy.stats import norm
+
+    if not (0 < precision < 1):
+        raise ValueError("precision must be in (0, 1)")
+    if not (0 < expected_proportion < 1):
+        raise ValueError("expected_proportion must be in (0, 1)")
+
+    alpha = 1.0 - confidence
+    z = float(norm.ppf(1.0 - alpha / 2))
+    variance = expected_proportion * (1.0 - expected_proportion)
+    n_required = int(np.ceil((z ** 2) * variance / (precision ** 2)))
+
+    return {
+        "n_required": n_required,
+        "precision": precision,
+        "confidence": confidence,
+        "z": round(z, 4),
+        "expected_proportion": expected_proportion,
+        "note": (
+            f"Independent units needed for +/-{precision:.0%} half-width at "
+            f"{confidence:.0%} confidence (p={expected_proportion}): ~{n_required}. "
+            "Units are unique prompts / consistency groups, not raw records."
         ),
     }
 

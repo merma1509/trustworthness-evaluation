@@ -31,18 +31,18 @@ from app.data_loader import (
     load_rescore_summary,
     models_available,
 )
-
-# ─── Tab modules ──────────────────────────────────────────
-from app.tabs.overview import render as render_overview
-from app.tabs.dimensions import render as render_dimensions
 from app.tabs.confusion import render as render_confusion
-from app.tabs.weight_sensitivity import render as render_weights
-from app.tabs.research_question import render as render_research
+from app.tabs.dimensions import render as render_dimensions
 from app.tabs.failure_analysis import render as render_failure
 from app.tabs.human_annotation import render as render_human
 from app.tabs.manual_audit_tab import render as render_audit
-from app.tabs.verification import render as render_verification
+
+# ─── Tab modules ──────────────────────────────────────────
+from app.tabs.overview import render as render_overview
 from app.tabs.raw_outputs import render as render_raw
+from app.tabs.research_question import render as render_research
+from app.tabs.verification import render as render_verification
+from app.tabs.weight_sensitivity import render as render_weights
 
 # ─── Sidebar ──────────────────────────────────────────────
 st.sidebar.title("Trustworthiness Eval")

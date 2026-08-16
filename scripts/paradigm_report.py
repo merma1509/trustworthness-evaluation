@@ -24,21 +24,13 @@ Output:
 import argparse
 import json
 import sys
-from collections import defaultdict
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.validation import compute_validation_report, compute_error_analysis
-from src.stats import (
-    compute_jackknife_stability,
-    compute_dataset_size_sensitivity,
-    compute_confidence_intervals,
-)
-from src.utils import load_jsonl, save_jsonl
-from src.agreement import compute_agreement
 from app.config import DIMENSIONS, RAW_OUTPUTS_DIR, RESULTS_DIR
-
+from src.utils import load_jsonl
+from src.validation import compute_validation_report
 
 # ──────────────────────────────────────────────────────────────
 # Report generation
@@ -101,40 +93,40 @@ def print_report(report: dict):
 
     # ── RQ1 ──────────────────────────────────────────────
     print(f"\n{'─' * 72}")
-    print(f"  RQ1: Насколько автоматические метки совпадают с человеческими?")
+    print("  RQ1: How well do the automatic labels match the human ones?")
     print(f"{'─' * 72}")
 
     rq1 = report.get("rq1_agreement", {})
     if rq1 and "overall" in rq1:
         oa = rq1["overall"]
-        print(f"\n  Overall:")
+        print("\n  Overall:")
         print(f"    Agreement rate:  {oa.get('agreement_rate',0)*100:.1f}%")
         print(f"    Cohen's Kappa:   {oa.get('cohens_kappa',0):.4f}  ({_format_agreement_badge(oa.get('cohens_kappa',0))})")
         print(f"    n = {oa.get('n_valid_pairs',0)}")
 
         if "by_dimension" in rq1:
-            print(f"\n  Per dimension:")
+            print("\n  Per dimension:")
             for dim, da in sorted(rq1["by_dimension"].items()):
                 badge = _format_agreement_badge(da.get("cohens_kappa", 0))
                 print(f"    {dim:<15}  n={da['n']:<3}  κ={da['cohens_kappa']:.3f}  ({badge})")
 
         if "by_attack_type" in rq1:
-            print(f"\n  Per attack type:")
+            print("\n  Per attack type:")
             for atype, da in sorted(rq1["by_attack_type"].items()):
                 badge = _format_agreement_badge(da.get("cohens_kappa", 0))
                 print(f"    {atype:<25}  n={da['n']:<3}  κ={da['cohens_kappa']:.3f}  ({badge})")
 
         fp = rq1.get("false_positives", [])
         fn = rq1.get("false_negatives", [])
-        print(f"\n  Error analysis:")
+        print("\n  Error analysis:")
         print(f"    False positives (auto too optimistic): {len(fp)}")
         print(f"    False negatives (auto too pessimistic): {len(fn)}")
     else:
-        print(f"\n  ⚠  No labelled data. Run annotation first.")
+        print("\n  ⚠  No labelled data. Run annotation first.")
 
     # ── RQ2 ──────────────────────────────────────────────
     print(f"\n{'─' * 72}")
-    print(f"  RQ2: Какие факторы влияют на agreement?")
+    print("  RQ2: Which factors influence agreement?")
     print(f"{'─' * 72}")
 
     rq2 = report.get("rq2_factors", {})
@@ -152,16 +144,16 @@ def print_report(report: dict):
             print(f"\n  Worst agreement:  {worst[0]}={worst[1]}  (κ={worst[2]:.3f}, n={worst[3]})")
             print(f"  Best agreement:   {best[0]}={best[1]}  (κ={best[2]:.3f}, n={best[3]})")
 
-            print(f"\n  All factors (sorted by κ):")
+            print("\n  All factors (sorted by κ):")
             for factor, sub, k, n in all_factors:
                 bar = "█" * int(abs(k) * 30)
                 print(f"    {factor:<15} {sub:<25} κ={k:.3f}  n={n:<3}  {bar}")
     else:
-        print(f"\n  ⚠  No factor data available.")
+        print("\n  ⚠  No factor data available.")
 
     # ── RQ3 ──────────────────────────────────────────────
     print(f"\n{'─' * 72}")
-    print(f"  RQ3: Какой минимальный размер датасета нужен для стабильной оценки?")
+    print("  RQ3: What minimum dataset size is needed for a stable evaluation?")
     print(f"{'─' * 72}")
 
     rq3 = report.get("rq3_dataset_stability", {})
@@ -192,17 +184,17 @@ def print_report(report: dict):
             if jackknife:
                 std = jackknife.get("std_jackknife", 0)
                 if std < 0.03:
-                    print(f"    → STABLE: removing 1 prompt changes score by < 3%")
+                    print("    → STABLE: removing 1 prompt changes score by < 3%")
                 elif std < 0.05:
-                    print(f"    → MODERATE: removing 1 prompt changes score by < 5%")
+                    print("    → MODERATE: removing 1 prompt changes score by < 5%")
                 else:
-                    print(f"    → UNSTABLE: score is sensitive to individual prompts")
+                    print("    → UNSTABLE: score is sensitive to individual prompts")
     else:
-        print(f"\n  ⚠  No stability data available.")
+        print("\n  ⚠  No stability data available.")
 
     # ── RQ4 ──────────────────────────────────────────────
     print(f"\n{'─' * 72}")
-    print(f"  RQ4: Сколько стоит автоматическая оценка vs. ручная?")
+    print("  RQ4: How much does automatic evaluation cost vs. manual?")
     print(f"{'─' * 72}")
 
     rq4 = report.get("rq4_cost", {})
@@ -238,20 +230,20 @@ def print_report(report: dict):
         print(f"    {label_h:<25} {human_t:>6.1f}h  ${human_c:>6.2f}  {human_note}")
         print(f"    {label_hyb:<25} {hybrid_t:>6.1f}h  ${hybrid_c:>6.2f}  {hybrid_note}")
 
-        print(f"\n  Recommendation:")
+        print("\n  Recommendation:")
         print(f"    {rq4.get('recommendation','')}")
 
         measured = rq4.get("measured_times")
         if measured:
-            print(f"\n  Measured times:")
+            print("\n  Measured times:")
             for rec in measured.get("records", []):
                 print(f"    {rec.get('label','')}: {rec.get('elapsed_seconds',0)}s "
                       f"({rec.get('seconds_per_prompt',0):.2f}s/prompt)")
     else:
-        print(f"\n  ⚠  No cost data available.")
+        print("\n  ⚠  No cost data available.")
 
     print(f"\n{'=' * 72}")
-    print(f"  END OF VALIDATION REPORT")
+    print("  END OF VALIDATION REPORT")
     print(f"{'=' * 72}\n")
 
 
@@ -291,7 +283,7 @@ def main():
     # Load audit records
     if not Path(args.audit).exists():
         print(f"  Audit file not found: {args.audit}")
-        print(f"  Generate first: python3 scripts/generate_audit_samples.py")
+        print("  Generate first: python3 scripts/generate_audit_samples.py")
         sys.exit(1)
 
     audit_records = load_jsonl(args.audit)
@@ -312,7 +304,7 @@ def main():
             print(f"  Cost tracker data loaded: {cost_data.get('total_prompts',0)} prompts")
 
     # Compute validation report
-    print(f"\n  Computing validation report...")
+    print("\n  Computing validation report...")
     report = compute_validation_report(
         audit_records=audit_records,
         per_prompt_scores=per_prompt_scores,
@@ -350,13 +342,13 @@ def main():
         print(f"  Agreement report saved to {agreement_path} "
               f"(n={n}, κ={k:.4f})")
     else:
-        print(f"  ⚠  No agreement data found — skipping agreement_report.json")
+        print("  ⚠  No agreement data found — skipping agreement_report.json")
 
     # Print formatted report
     print_report(report)
 
     # Final summary
-    print(f"\n  Summary:")
+    print("\n  Summary:")
     rq1 = report.get("rq1_agreement", {}).get("overall", {})
     rq3 = report.get("rq3_dataset_stability", {})
     if rq3:

@@ -1,4 +1,4 @@
-.PHONY: help setup run clean lint audit dashboard eval offlinescore
+.PHONY: help setup run clean lint audit dashboard eval offlinescore test
 
 SHELL := /bin/bash
 RESULTS := results
@@ -16,6 +16,7 @@ help:
 	@echo "  make clean        Remove generated results"
 	@echo "  make lint         Check code quality with ruff"
 	@echo "  make audit        Generate manual audit file"
+	@echo "  make test         Run automated test suite (fails closed)"
 
 setup:
 	@echo "Installing dependencies with uv..."
@@ -61,3 +62,9 @@ audit:
 	@echo "Generating manual audit file..."
 	python3 scripts/manual_audit_consistency.py
 	@echo "Manual audit generated"
+
+test:
+	@echo "Running automated test suite (fails closed)..."
+	.venv/bin/python -m pytest tests/ -v
+	@echo "All tests passed"
+

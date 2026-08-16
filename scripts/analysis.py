@@ -22,11 +22,10 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.config import (
-    RESULTS_DIR,
-    MODEL_NAMES,
     DIMENSIONS,
+    MODEL_NAMES,
+    RESULTS_DIR,
     WEIGHT_CONFIGS,
-    DEFAULT_WEIGHTS,
 )
 
 
@@ -53,9 +52,6 @@ def generate_ci_plot():
     """Bar chart with confidence interval error bars"""
     try:
         import matplotlib.pyplot as plt
-
-        gemma = load_scores("gemma3_4b")
-        llama = load_scores("llama3.1_8b")
 
         dimensions = [d.capitalize() for d in DIMENSIONS]
         colors = ["#3498db", "#e74c3c"]
