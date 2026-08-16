@@ -1,8 +1,9 @@
 """Tab 8: Human Annotation — Validation of auto-labels against human judgment."""
 
-import streamlit as st
-import pandas as pd
 from pathlib import Path
+
+import pandas as pd
+import streamlit as st
 
 
 def render(available):

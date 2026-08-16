@@ -11,12 +11,12 @@ Key design decisions:
 """
 
 from collections import defaultdict
-from typing import Dict, List, Optional
+from typing import Dict, List
 
+from app.config import DATA_DIR, RAW_OUTPUTS_DIR
+from src.classifiers import classify_response
 from src.llm_client import LLMClient
 from src.utils import load_jsonl, save_jsonl
-from src.classifiers import classify_response
-from app.config import DATA_DIR, RAW_OUTPUTS_DIR
 
 # Global semantic similarity model (loaded once)
 _similarity_model = None

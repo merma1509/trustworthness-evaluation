@@ -1,10 +1,10 @@
 """Tab 1: Overview — Model comparison, TrustScore cards, ranking warnings."""
 
-import streamlit as st
 import pandas as pd
+import streamlit as st
 
-from app.config import DIMENSION_LABELS, DIMENSIONS, MODEL_NAMES
 from app.components.metrics import display_pipeline_info, display_score_card
+from app.config import DIMENSION_LABELS, DIMENSIONS, MODEL_NAMES
 from app.data_loader import get_dimension_score
 
 

@@ -7,8 +7,6 @@ import re
 from pathlib import Path
 from typing import Dict, List
 
-import numpy as np
-
 
 # Text normalisation — fixes the "curly apostrophe" problems and other unicode issues
 def _normalise_text(text: str) -> str:

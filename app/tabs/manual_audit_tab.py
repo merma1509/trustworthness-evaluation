@@ -1,6 +1,7 @@
 """Tab 5: Manual Audit — Consistency pair editor for human labeling."""
 
 import streamlit as st
+
 from app.components.manual_audit import display_audit_editor
 
 

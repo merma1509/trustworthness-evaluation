@@ -3,15 +3,14 @@ Core utilities for generating manual audit samples
 Supports stratified sampling across all configured dimensions.
 """
 
-import json
 import random
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
+from app.config import DIMENSIONS, RAW_OUTPUTS_DIR
 from src.classifiers import classify_response, classify_truthfulness
 from src.utils import load_jsonl
-from app.config import DIMENSIONS, RAW_OUTPUTS_DIR
 
 
 def load_model_outputs(

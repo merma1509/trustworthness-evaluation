@@ -21,7 +21,7 @@ def display_score_card(label, score, color="#3498db", help_text=""):
 
 
 def display_pipeline_info():
-    from app.config import MODEL_NAMES, DIMENSIONS
+    from app.config import DIMENSIONS, MODEL_NAMES
 
     st.markdown("### Pipeline Info")
     info_cols = st.columns(3)

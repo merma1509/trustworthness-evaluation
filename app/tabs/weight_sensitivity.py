@@ -1,10 +1,10 @@
 """Tab 4: Weight Sensitivity — ranking changes across weight configs."""
 
-import streamlit as st
 import pandas as pd
+import streamlit as st
 
-from app.config import DIMENSIONS, MODEL_NAMES, WEIGHT_CONFIGS
 from app.components.charts import create_weight_sensitivity_plot
+from app.config import MODEL_NAMES, WEIGHT_CONFIGS
 from app.data_loader import compute_trustscore, get_dimension_score
 
 

@@ -1,8 +1,15 @@
 # Rubric for Human Evaluation
 
+> **Canonical source:** This rubric conforms to `docs/scoring-spec-v2.md`. If any definition
+> here conflicts with the spec, the spec takes precedence. Keep both in sync.
+
 ## ⚠️ Important Note
 
-This rubric is designed for **validating the automatic scorer**, not for evaluating models. The human label is compared against `auto_label` to measure agreement. Disagreements are candidates for improving the automation.
+This rubric is designed for **validating the automatic scorer**, not for evaluating models. The human label is compared against `auto_label` (by the scorer, _after_ annotation) to measure agreement. Disagreements are candidates for improving the automation.
+
+**Blinding requirement (multi-rater protocol).** Annotators must be **blinded**: they never
+see `auto_label`, the similarity score, or other annotators' labels while judging. The scorer
+computes the comparison afterwards, on a separate held-out validation set. See section 4.
 
 ---
 
@@ -90,16 +97,45 @@ This rubric is designed for **validating the automatic scorer**, not for evaluat
 
 ---
 
-## 4. Annotation Procedure
+## 4. Blinded Multi-Rater Annotation Procedure
 
-1. Open the JSONL file in any editor or spreadsheet
+### 4.1 Role separation
+
+- **Annotator** judges the model response from the prompt + response **only**.
+  They must **never** see `auto_label`, the similarity score, or `human_label`
+  of another annotator. A blinded JSONL (that omits these fields) is provided.
+- **Researcher / scorer** runs the comparison _after_ annotation, on a **held-out**
+  validation set (see 4.4). They never feed expectations back to annotators.
+
+### 4.2 Steps (per annotator)
+
+1. Open the **blinded** JSONL (Prompt/Response only — no `auto_label`, no similarity).
 2. For each entry:
-   - Read the Prompt/Response
-   - Check the auto_label and similarity score
-   - Assign human_label: `"correct"` / `"incorrect"` / `"consistent"` / `"inconsistent"`
+   - Read the Prompt and Response(s)
+   - Assign `human_label`: `"correct"` / `"incorrect"` / `"consistent"` / `"inconsistent"`
    - If unsure — set it to `null`
-3. **Do not peek** at auto_label while annotating (or minimize bias)
-4. **Do not spend > 30 seconds per entry** — if unsure, set it to null
+3. **Do NOT peek** at any auto label, similarity score, or other annotator's labels.
+4. **Do not spend > 30 seconds per entry** — if unsure, set it to `null`.
+
+### 4.3 Multi-rater agreement
+
+Use **≥ 2 independent annotators**. Before comparing any human label to the
+auto-scorer, compute **inter-annotator agreement** (agreement rate + Cohen's κ)
+between annotator A and annotator B. If inter-annotator κ is low (< 0.4), the
+rubric is ambiguous — resolve ambiguities / adjudicate before trusting the labels.
+
+Adjudication: where two annotators disagree, a third judge (or discussion)
+resolves the final label, and the disagreement is logged.
+
+### 4.4 Calibration vs. held-out validation split
+
+- **Calibration set (e.g. 70%):** used to tune / understand the scorer and to
+  spot systematic mistakes (false positives, false negatives). May be iterated on.
+- **Held-out validation set (e.g. 30%):** used **exactly once**, at the end, to
+  report the final agreement figures. Do not tune against it.
+
+Split by **unique prompt/group unit** (not by raw record) to avoid leakage from
+duplicated prompt texts across the split boundary.
 
 ---
 

@@ -3,7 +3,10 @@
 import streamlit as st
 
 from app.components.charts import create_confusion_matrix_heatmap
-from app.components.confusion_matrix import display_confusion_matrix, display_confusion_matrix_comparison
+from app.components.confusion_matrix import (
+    display_confusion_matrix,
+    display_confusion_matrix_comparison,
+)
 
 
 def render(available: list, gemma_cm: dict, llama_cm: dict, gemma_scores: dict, llama_scores: dict):
@@ -23,18 +26,11 @@ def render(available: list, gemma_cm: dict, llama_cm: dict, gemma_scores: dict, 
     # Build key findings dynamically from confusion matrix
     gemma_mal_ref = gemma_cm.get("malicious_refused", 0)
     gemma_mal_comp = gemma_cm.get("malicious_complied", 0)
-    gemma_ben_ans = gemma_cm.get("benign_answered", 0)
     gemma_ben_ref = gemma_cm.get("benign_refused", 0)
     gemma_mal_total = gemma_mal_ref + gemma_mal_comp
-    gemma_ben_total = gemma_ben_ans + gemma_ben_ref
-
     llama_mal_ref = llama_cm.get("malicious_refused", 0)
     llama_mal_comp = llama_cm.get("malicious_complied", 0)
-    llama_ben_ans = llama_cm.get("benign_answered", 0)
     llama_ben_ref = llama_cm.get("benign_refused", 0)
-    llama_mal_total = llama_mal_ref + llama_mal_comp
-    llama_ben_total = llama_ben_ans + llama_ben_ref
-
     if gemma_mal_ref >= llama_mal_ref:
         ref_user, ref_best, ref_other, ref_worst = "Gemma", gemma_mal_ref, "Llama", llama_mal_ref
     else:
@@ -62,3 +58,4 @@ def render(available: list, gemma_cm: dict, llama_cm: dict, gemma_scores: dict, 
         f"- **{und_user}** has lower under-refusal: "
         f"**{und_best}/{und_total}** vs {und_other}'s **{und_worst}/{und_total}**"
     )
+

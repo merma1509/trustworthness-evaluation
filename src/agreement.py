@@ -1,33 +1,170 @@
 """agreement.py
 Computes inter-rater agreement between human labels and auto-scorer labels.
 Provides: Cohen's Kappa, agreement rate, per-dimension breakdown, confusion matrix.
+
+Note on Cohen's Kappa:
+    The chance agreement p_e is estimated from the *marginals* of BOTH raters'
+    observed distributions, per the standard definition (Cohen, 1960):
+
+        p_o = (1/N) * sum_k C_kk
+        p_e = sum_k (row_k / N) * (col_k / N)
+        k   = (p_o - p_e) / (1 - p_e)
+
+    An earlier implementation used p_e = 1/n_categories, which is only correct
+    when all marginal label frequencies are equal. That simplification produced
+    inflated kappa values and has been removed.
 """
 
-from collections import Counter, defaultdict
-from typing import Dict, List, Optional, Tuple
+from collections import defaultdict
+from typing import Dict, List, Sequence, Tuple
+
+import numpy as np
 
 
-def _cohen_kappa(observed_agree: float, n_categories: int) -> float:
-    """Compute Cohen's Kappa from observed agreement and number of categories.
+def cohen_kappa(
+    confusion: Dict[str, Dict[str, int]],
+    weighted: bool = False,
+) -> Tuple[float, float, float]:
+    """Compute the standard Cohen's Kappa from a confusion matrix.
+
+    The confusion matrix is indexed ``{auto_label: {human_label: count}}``.
 
     Args:
-        observed_agree: Proportion of observed agreement (0-1).
-        n_categories: Number of label categories (e.g. 2 for binary).
+        confusion: Nested dict {auto_label: {human_label: count}}.
+        weighted: If True, compute quadratic weighted kappa (suitable for
+            ordered, multi-class labels). If False, use the unweighted kappa.
 
     Returns:
-        Kappa value (0-1, could be negative if agreement < expected by chance).
-    """
-    expected_by_chance = 1.0 / n_categories if n_categories > 0 else 0.0
-    if expected_by_chance == 1.0:
-        return 1.0  # Only one category → perfect agreement by definition
+        Tuple of (kappa, p_observed, p_expected).
 
-    kappa = (observed_agree - expected_by_chance) / (1.0 - expected_by_chance)
-    return round(kappa, 4)
+    Reference:
+        Cohen, J. (1960). A Coefficient of Agreement for Nominal Scales.
+        Educational and Psychological Measurement, 20(1), 37–46.
+    """
+    labels = sorted(
+        set(confusion.keys()) | {h for row in confusion.values() for h in row}
+    )
+    if not labels:
+        return 0.0, 0.0, 0.0
+
+    n_categories = len(labels)
+    # Build a dense, diagonal-aligned matrix over the union of labels.
+    mat = np.zeros((n_categories, n_categories), dtype=float)
+    for i, a in enumerate(labels):
+        for j, h in enumerate(labels):
+            mat[i, j] = confusion.get(a, {}).get(h, 0)
+
+    n_total = mat.sum()
+    if n_total == 0:
+        return 0.0, 0.0, 0.0
+
+    p_observed = float(np.trace(mat)) / n_total
+
+    if n_categories == 1:
+        # Only one category -> perfect agreement by definition (kappa = 1).
+        return 1.0, p_observed, 0.0
+
+    # Marginals: row (auto) and column (human) observed distributions.
+    row_marginal = mat.sum(axis=1) / n_total
+    col_marginal = mat.sum(axis=0) / n_total
+    # Chance agreement from the marginals (standard Cohen, 1960).
+    p_expected = float(np.dot(row_marginal, col_marginal))
+
+    if not weighted:
+        # Unweighted (nominal) kappa.
+        denominator = 1.0 - p_expected
+        if denominator == 0:
+            return 0.0, p_observed, p_expected
+        kappa = (p_observed - p_expected) / denominator
+    else:
+        # Quadratic weighted kappa for ordered categories: weights grow
+        # quadratically with category distance, so near-misses are penalised
+        # less than far-misses.
+        indices = np.arange(n_categories)
+        weights = (indices[:, None] - indices[None, :]) ** 2
+        expected = np.outer(row_marginal, col_marginal) * n_total
+        observed_numerator = float((mat * weights).sum()) / n_total
+        # Equivalent closed form for quadratic weighted kappa.
+        expected_numerator = float((expected * weights).sum()) / n_total
+        if expected_numerator == 0:
+            return 0.0, p_observed, p_expected
+        kappa = 1.0 - (observed_numerator / expected_numerator)
+
+    return round(kappa, 4), round(p_observed, 4), round(p_expected, 4)
+
+
+def kappa_bootstrap_ci(
+    human_labels: Sequence[str],
+    auto_labels: Sequence[str],
+    n_bootstrap: int = 1000,
+    ci: float = 0.95,
+    weighted: bool = False,
+    random_seed: int = 42,
+) -> Dict:
+    """Bootstrap confidence interval for Cohen's Kappa.
+
+    Resamples the labelled *records* (pairs) with replacement, recomputes
+    kappa on each resample, and returns the percentile interval.
+
+    Args:
+        human_labels: Human-assigned labels (one per record).
+        auto_labels: Auto-scorer labels (one per record, same order).
+        n_bootstrap: Number of bootstrap resamples (default 1000).
+        ci: Confidence level (default 0.95).
+        weighted: Whether to bootstrap the weighted kappa instead.
+        random_seed: RNG seed for reproducibility.
+
+    Returns:
+        Dict with keys 'kappa', 'ci_lower', 'ci_upper', 'n', 'n_bootstrap'.
+    """
+    pairs = [
+        (h, a) for h, a in zip(human_labels, auto_labels)
+        if h is not None and h != "" and a is not None and a != ""
+    ]
+    n = len(pairs)
+    if n == 0:
+        return {"kappa": 0.0, "ci_lower": 0.0, "ci_upper": 0.0, "n": 0, "n_bootstrap": 0}
+
+    rng = np.random.RandomState(random_seed)
+    base_confusion = _build_confusion(pairs)
+    point_kappa, _, _ = cohen_kappa(base_confusion, weighted=weighted)
+
+    boot_vals = []
+    for _ in range(n_bootstrap):
+        idx = rng.randint(0, n, size=n)
+        sample = [pairs[i] for i in idx]
+        conf = _build_confusion(sample)
+        k, _, _ = cohen_kappa(conf, weighted=weighted)
+        boot_vals.append(k)
+
+    alpha = (1.0 - ci) / 2.0
+    ci_lower = float(np.percentile(boot_vals, alpha * 100))
+    ci_upper = float(np.percentile(boot_vals, (1.0 - alpha) * 100))
+
+    return {
+        "kappa": round(float(point_kappa), 4),
+        "ci_lower": round(ci_lower, 4),
+        "ci_upper": round(ci_upper, 4),
+        "n": n,
+        "n_bootstrap": n_bootstrap,
+        "weighted": weighted,
+        "ci_level": ci,
+    }
+
+
+def _build_confusion(pairs: List[Tuple[str, str]]) -> Dict[str, Dict[str, int]]:
+    """Build a {auto_label: {human_label: count}} confusion matrix."""
+    confusion: Dict[str, Dict[str, int]] = defaultdict(lambda: defaultdict(int))
+    for human, auto in pairs:
+        confusion[auto][human] += 1
+    return {auto: dict(human_counts) for auto, human_counts in sorted(confusion.items())}
 
 
 def compute_agreement(
     human_labels: List[str],
     auto_labels: List[str],
+    with_ci: bool = False,
+    n_bootstrap: int = 1000,
 ) -> Dict:
     """Compute agreement statistics between human and auto labels.
 
@@ -35,15 +172,20 @@ def compute_agreement(
         human_labels: List of human-assigned labels (strings).
         auto_labels: List of auto-scorer labels (strings).
             Must be the same length and in corresponding order.
+        with_ci: If True, additionally compute a bootstrap CI on kappa.
+        n_bootstrap: Number of bootstrap resamples when ``with_ci`` is True.
 
     Returns:
         Dict with keys:
             'n': number of labelled pairs
             'agreement_rate': proportion of exact matches
-            'cohens_kappa': Cohen's Kappa (binary: equal to agreement_rate
-                            adjusted for chance)
+            'cohens_kappa': standard Cohen's Kappa (chance-corrected)
+            'weighted_kappa': quadratic weighted kappa (for ordered labels)
+            'p_observed': observed agreement (0-1)
+            'p_expected': chance agreement (0-1)
             'confusion_matrix': {auto_label: {human_label: count}}
             'per_label_agreement': {label: {precision, recall, support}}
+            'kappa_ci': (optional) bootstrap CI dict when ``with_ci`` is True
     """
     if len(human_labels) != len(auto_labels):
         raise ValueError(
@@ -61,7 +203,7 @@ def compute_agreement(
             "per_label_agreement": {},
         }
 
-    # Remove None/null entries
+    # Drop unlabelled pairs.
     pairs = [
         (h, a) for h, a in zip(human_labels, auto_labels)
         if h is not None and h != ""
@@ -78,23 +220,21 @@ def compute_agreement(
             "note": "No human labels found. Run annotation first.",
         }
 
-    # Confusion matrix: auto → human
-    confusion = defaultdict(lambda: defaultdict(int))
-    for h, a in pairs:
-        confusion[a][h] += 1
+    # Confusion matrix: auto -> human.
+    confusion = _build_confusion(pairs)
 
-    # Agreement rate
+    # Agreement rate.
     matches = sum(1 for h, a in pairs if h == a)
     agreement_rate = matches / n_valid
 
-    # Cohen's Kappa (binary case: 2 categories)
-    unique_labels = set(h for h, _ in pairs) | set(a for _, a in pairs)
-    categories = sorted(unique_labels)
-    n_categories = len(categories)
+    # Standard Cohen's Kappa (unweighted) from the confusion-matrix marginals.
+    categories = sorted(
+        {h for h, _ in pairs} | {a for _, a in pairs}
+    )
+    kappa, p_observed, p_expected = cohen_kappa(confusion, weighted=False)
+    weighted_kappa, _, _ = cohen_kappa(confusion, weighted=True)
 
-    kappa = _cohen_kappa(agreement_rate, n_categories)
-
-    # Per-label precision/recall/support
+    # Per-label precision/recall/support.
     per_label = {}
     for label in categories:
         auto_count = sum(1 for _, a in pairs if a == label)
@@ -117,20 +257,25 @@ def compute_agreement(
             "human_count": human_count,
         }
 
-    # Convert confusion matrix to plain dict
-    confusion_out = {}
-    for auto_label, human_counts in sorted(confusion.items()):
-        confusion_out[auto_label] = dict(human_counts)
-
-    return {
+    out = {
         "n": n,
         "n_valid_pairs": n_valid,
         "agreement_rate": round(agreement_rate, 4),
-        "cohens_kappa": round(kappa, 4),
+        "cohens_kappa": kappa,
+        "weighted_kappa": weighted_kappa,
+        "p_observed": p_observed,
+        "p_expected": p_expected,
         "categories": categories,
-        "confusion_matrix": confusion_out,
+        "confusion_matrix": confusion,
         "per_label_agreement": per_label,
     }
+
+    if with_ci:
+        out["kappa_ci"] = kappa_bootstrap_ci(
+            human_labels, auto_labels, n_bootstrap=n_bootstrap, weighted=False
+        )
+
+    return out
 
 
 def compute_per_dimension_agreement(
@@ -150,8 +295,7 @@ def compute_per_dimension_agreement(
     Returns:
         Dict mapping dimension -> agreement stats dict.
     """
-    # Group by dimension
-    by_dim = defaultdict(list)
+    by_dim: Dict[str, List[Tuple[str, str]]] = defaultdict(list)
     for r in records:
         dim = r.get(dimension_field, "unknown")
         h = r.get(human_field)
