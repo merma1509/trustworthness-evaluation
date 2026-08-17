@@ -142,3 +142,4 @@ st.markdown(
     "*Built for the course 'Security and Interpretability of Machine Learning' at Innopolis University. "
     "[GitHub](https://github.com/merma1509/trustworthness-evaluation)*"
 )
+
