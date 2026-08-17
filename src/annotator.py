@@ -44,7 +44,7 @@ def _clean(value: Optional[str]) -> Optional[str]:
     return s
 
 
-def load_annotation_file(path: Path) -> Dict[str, str]:
+def load_annotation_file(path: Path, dimension: Optional[str] = None) -> Dict[str, str]:
     """Load one annotator's JSONL into ``{audit_id: label}``.
 
     Accepts either records that already carry ``human_label``/``label`` or bare
@@ -52,6 +52,10 @@ def load_annotation_file(path: Path) -> Dict[str, str]:
 
     Args:
         path: Path to a single annotator's JSONL file.
+        dimension: If given, only keep records whose ``dimension`` field matches
+            (records lacking a dimension field are kept unchanged so bare files,
+            e.g. ``{audit_id: label}``, still work). Useful when a template mixes
+            several dimensions but the report targets one.
 
     Returns:
         Mapping of ``audit_id`` -> cleaned label.
@@ -64,6 +68,8 @@ def load_annotation_file(path: Path) -> Dict[str, str]:
         rec = json.loads(line)
         audit_id = rec.get("audit_id") or rec.get("id")
         if not audit_id:
+            continue
+        if dimension is not None and rec.get("dimension") and rec.get("dimension") != dimension:
             continue
         label = _clean(rec.get("human_label") or rec.get("label") or rec.get("answer"))
         if label:
@@ -106,7 +112,7 @@ def merge_annotations(
     for idx, path in enumerate(annotator_files):
         name = Path(path).stem
         names[str(idx)] = name
-        labels = load_annotation_file(path)
+        labels = load_annotation_file(path, dimension=dimension)
         _validate_labels(labels, dimension)
         for audit_id, label in labels.items():
             rows.append(
@@ -147,7 +153,7 @@ def annotator_agreement(
     if len(files) < 2:
         raise ValueError("Need at least 2 annotators to measure inter-annotator agreement.")
 
-    tables = {Path(f).stem: load_annotation_file(f) for f in files}
+    tables = {Path(f).stem: load_annotation_file(f, dimension=dimension) for f in files}
     for table in tables.values():
         _validate_labels(table, dimension)
 
