@@ -1,14 +1,49 @@
-"""Tab 8: Human Annotation — Validation of auto-labels against human judgment."""
+"""Tab: Human Annotation — validation of auto-labels against human judgment.
+
+Merged view (:
+    1. **Blinded multi-rater re-validation** (recommended, shown first) — the
+       new, non-leaking protocol: ≥2 blinded annotators, inter-annotator κ gate,
+       adjudication, then gold-vs-auto κ. Rendered by ``inter_annotator``.
+    2. **Legacy single-rater** (collapsed expander) — the pre-revision CSV view.
+       Kept only for traceability; it is NOT the headline validation because it
+       was not blinded.
+"""
 
 from pathlib import Path
 
 import pandas as pd
 import streamlit as st
 
+from app.tabs.inter_annotator import render_blinded_block
+
 
 def render(available):
-    st.markdown("## Human Annotation Agreement")
-    st.markdown("*Validation of auto-labeling against human judgment*")
+    st.markdown("## Human Annotation")
+    st.markdown(
+        "*Validation of auto-labels against human judgment. The blinded multi-rater "
+        "view is authoritative; the legacy single-rater view is shown only for "
+        "traceability to the pre-revision protocol.*"
+    )
+
+    # ── 1) Blinded multi-rater block (authoritative) ──────────
+    render_blinded_block(st)
+
+    st.markdown("---")
+
+    # ── 2) Legacy single-rater (traceability only) ────────────
+    with st.expander(
+        "Legacy single-rater view (pre-revision, for traceability only)",
+        expanded=False,
+    ):
+        _render_legacy()
+
+
+def _render_legacy():
+    """Render the pre-revision single-rater comparison from the CSV file."""
+    st.caption(
+        "⚠️ This view predates the blinded protocol: the annotator saw the auto-label "
+        "and similarity fields, so it is not used for headline claims."
+    )
 
     ann_path = Path("results/human_annotation_30.csv")
     if not ann_path.exists():
@@ -104,15 +139,14 @@ def render(available):
         else "**No comparable pairs**"
     )
 
-    st.info("""
-    **Interpretation:** Auto-labeling is reliable (89% agreement for safety + truthfulness).
-    The 2 disagreements involve edge cases: a correct false-premise rejection
-    that was auto-penalized, and a role-play that appeared compliant but
-    didn't actually leak secrets.
-    """)
+    st.info(
+        "**Interpretation (legacy):** The pre-revision run reported 89% agreement for "
+        "safety + truthfulness. Retained only for comparison; it does not reflect the "
+        "blinded protocol and is not used for headline claims."
+    )
 
     # Confusion matrix
-    st.markdown("### Confusion: Auto vs Human")
+    st.markdown("### Confusion: Auto vs Human (legacy)")
     cm = {"TP": 0, "FP": 0, "FN": 0, "TN": 0}
     for r in s_t:
         if r.get("auto_label") == "unverified":
