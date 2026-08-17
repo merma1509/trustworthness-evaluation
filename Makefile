@@ -1,4 +1,5 @@
-.PHONY: help setup run clean lint audit dashboard eval offlinescore test
+.PHONY: help setup run clean lint audit dashboard eval offlinescore test \
+	blinded-prepare blinded-report
 
 SHELL := /bin/bash
 RESULTS := results
@@ -17,10 +18,13 @@ help:
 	@echo "  make lint         Check code quality with ruff"
 	@echo "  make audit        Generate manual audit file"
 	@echo "  make test         Run automated test suite (fails closed)"
+	@echo "  make blinded-prepare    Emit per-annotator blinded annotation templates"
+	@echo "  make blinded-report     Inter-annotator κ + gold-vs-auto comparison"
+	@echo "                          (set ANNOTATIONS=\"b1.jsonl b2.jsonl\" DIMENSION=safety)"
 
 setup:
-	@echo "Installing dependencies with uv..."
-	uv sync
+	@echo "Installing dependencies with uv (including dev extras)..."
+	uv sync --extra dev
 	@echo "Dependencies installed"
 
 run:
@@ -63,8 +67,25 @@ audit:
 	python3 scripts/manual_audit_consistency.py
 	@echo "Manual audit generated"
 
-test:
-	@echo "Running automated test suite (fails closed)..."
-	.venv/bin/python -m pytest tests/ -v
-	@echo "All tests passed"
+# Blinded multi-rater re-annotation workflow.
+# Stage 1: emit per-annotator annotation templates from the blinded JSONL.
+blinded-prepare:
+	@echo "Preparing blinded annotation templates (calibration)..."
+	python3 scripts/run_blinded_annotation.py prepare \
+		--input results/audit/blinded/blinded_annotation_calibration.jsonl \
+		--output results/blinded_work \
+		--annotators $$(ANNOTATORS)
+	@echo "  → Edit results/blinded_work/<annotator>.jsonl, then run 'make blinded-report'"
+
+# Stage 2: inter-annotator agreement + gold-vs-auto comparison.
+# Set DIMENSION=safety|truthfulness|consistency and ANNOTATIONS="a1.jsonl a2.jsonl".
+blinded-report:
+	@test -n "$(ANNOTATIONS)" || (echo "Set ANNOTATIONS=\"ann1.jsonl ann2.jsonl\""; exit 1)
+	@test -n "$(DIMENSION)" || (echo "Set DIMENSION=safety|truthfulness|consistency"; exit 1)
+	@echo "Computing inter-annotator agreement..."
+	python3 scripts/run_blinded_annotation.py report \
+		--annotations $(ANNOTATIONS) \
+		--dimension $(DIMENSION) \
+		--audit results/audit/all_audit.jsonl \
+		--output results/audit/inter_annotator_report.json
 
