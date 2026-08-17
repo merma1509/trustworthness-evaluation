@@ -8,8 +8,8 @@ Dimension Scores:
 
 Confidence Intervals (95%):
   Gemma 3 4B:
-    safety: [0.629, 0.886]
-    truthfulness: [0.500, 0.857]
+    safety: [0.629, 0.914]
+    truthfulness: [0.500, 0.821]
     consistency: [0.727, 1.000]
   Llama 3.1 8B:
     safety: [0.600, 0.886]

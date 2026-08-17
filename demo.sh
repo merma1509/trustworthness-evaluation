@@ -64,7 +64,7 @@ echo "  Python: ${PYTHON}"
 check_device
 echo "============================================================"
 
-echo "[1/10] Checking prerequisites..."
+echo "[1/12] Checking prerequisites..."
 if ! command -v ollama &> /dev/null; then
     echo "ERROR: Ollama is not installed"
     exit 1
@@ -80,25 +80,25 @@ for model in $(echo $MODELS | tr ',' ' '); do
     fi
 done
 
-echo "[2/10] Verifying datasets..."
+echo "[2/12] Verifying datasets..."
 for file in "data/final/safety.jsonl" "data/final/truthfulness.jsonl" "data/final/consistency.jsonl"; do
     if [ -f "$file" ]; then echo "  $file"; else echo "  ERROR: $file not found"; exit 1; fi
 done
 
-echo "[3/10] Cleaning previous results..."
+echo "[3/12] Cleaning previous results..."
 rm -rf "${RESULTS_DIR}/gemma3_4b" "${RESULTS_DIR}/llama3.1_8b"
 rm -f "${RESULTS_DIR}/"*.json "${RESULTS_DIR}/"*.txt "${RESULTS_DIR}/"*.png
 rm -f "${RESULTS_DIR}/raw_outputs/"*.jsonl
 rm -f "${RESULTS_DIR}/audit/agreement_report.json"
 
-echo "[4/10] Running evaluation (may take 30-60 minutes)..."
+echo "[4/12] Running evaluation (may take 30-60 minutes)..."
 START_TIME=$(date +%s)
 $PYTHON run_evaluation.py --models "$MODELS" --output "$RESULTS_DIR"
 END_TIME=$(date +%s)
 DURATION=$((END_TIME - START_TIME))
 echo "  Evaluation complete in ${DURATION}s"
 
-echo "[5/10] Saving pipeline summary..."
+echo "[5/12] Saving pipeline summary..."
 cat > "${RESULTS_DIR}/pipeline_summary.txt" << EOF
 Pipeline Summary
 Date:     $(date '+%a, %d %b %Y %H:%M:%S')
@@ -108,19 +108,50 @@ Duration: ${DURATION}s
 Reproduce: ./demo.sh
 EOF
 
-echo "[6/10] Generating manual audit file..."
+echo "[6/12] Generating manual audit file..."
 $PYTHON scripts/manual_audit_consistency.py
 
-echo "[7/10] Generating analysis plots..."
+echo "[7/12] Generating analysis plots..."
 $PYTHON scripts/analysis.py
 
-echo "[8/10] Running offline rescoring verification..."
+echo "[8/12] Running offline rescoring verification..."
 $PYTHON scripts/score_saved_outputs.py     --input "${RESULTS_DIR}/raw_outputs/*.jsonl"     --output "${RESULTS_DIR}/rescored_verification.json"     --dimension all
 
-echo "[9/10] Generating paradigm report..."
+echo "[9/12] Generating paradigm report..."
 $PYTHON scripts/paradigm_report.py
 
-echo "[10/10] Starting Streamlit dashboard..."
+echo "[10/12] Preparing blinded annotation templates..."
+# Emit one annotation template per annotator (blinded: no auto_label/similarity).
+# A human annotator then fills in human_label / confidence / notes for each record.
+if [ -f "${RESULTS_DIR}/audit/blinded/blinded_annotation_calibration.jsonl" ]; then
+  $PYTHON scripts/run_blinded_annotation.py prepare \
+      --input "${RESULTS_DIR}/audit/blinded/blinded_annotation_calibration.jsonl" \
+      --output "${RESULTS_DIR}/blinded_work" \
+      --annotators ann1 ann2
+  echo "  → Edit results/blinded_work/ann1.jsonl and ann2.jsonl, then run 'make blinded-report'."
+else
+  echo "  Skipping (${RESULTS_DIR}/audit/blinded/blinded_annotation_calibration.jsonl not found)"
+fi
+
+echo "[11/12] Building blinded re-annotation report (if templates are filled)..."
+# Only build the inter-annotator report if an annotation file exists AND has been
+# filled by a human (non-empty human_label); otherwise the pipeline must NOT fail.
+if [ -f "${RESULTS_DIR}/blinded_work/ann1.jsonl" ] && [ -f "${RESULTS_DIR}/blinded_work/ann2.jsonl" ]; then
+  if grep -q '"human_label": "[^"]' "${RESULTS_DIR}/blinded_work/ann1.jsonl"; then
+    echo "  Inter-annotator agreement (DIMENSION=safety):"
+    $PYTHON scripts/run_blinded_annotation.py report \
+        --annotations "${RESULTS_DIR}/blinded_work/ann1.jsonl" "${RESULTS_DIR}/blinded_work/ann2.jsonl" \
+        --dimension safety \
+        --audit "${RESULTS_DIR}/audit/all_audit.jsonl" \
+        --output "${RESULTS_DIR}/audit/inter_annotator_report.json" || echo "  (report failed — continuing)"
+  else
+    echo "  Skipping report (annotation templates not filled yet by humans)"
+  fi
+else
+  echo "  Skipping report (annotation templates not present)"
+fi
+
+echo "[12/12] Starting Streamlit dashboard..."
 echo "  Open: http://localhost:8501"
 echo "  Press Ctrl+C to stop."
 echo ""
@@ -130,4 +161,5 @@ echo ""
 echo "============================================================"
 echo "  Pipeline finished!"
 echo "============================================================"
+
 

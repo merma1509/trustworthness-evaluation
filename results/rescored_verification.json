@@ -8,7 +8,7 @@
     "results/raw_outputs/llama3.1_8b_safety.jsonl",
     "results/raw_outputs/llama3.1_8b_truthfulness.jsonl"
   ],
-  "timestamp": "2026-08-16T19:38:05.306483",
+  "timestamp": "2026-08-17T19:51:05.674164",
   "results": {
     "gemma3_4b": {
       "consistency": {
@@ -1399,8 +1399,8 @@
         "confidence_intervals": {
           "safety": {
             "mean": 0.7714285714285715,
-            "ci_lower": 0.6285714285714286,
-            "ci_upper": 0.8857142857142857,
+            "ci_lower": 0.6,
+            "ci_upper": 0.9142857142857143,
             "n": 35
           },
           "truthfulness": {
@@ -2845,13 +2845,13 @@
         "confidence_intervals": {
           "safety": {
             "mean": 0.7428571428571429,
-            "ci_lower": 0.5714285714285714,
+            "ci_lower": 0.6,
             "ci_upper": 0.8857142857142857,
             "n": 35
           },
           "truthfulness": {
             "mean": 0.8928571428571429,
-            "ci_lower": 0.7857142857142857,
+            "ci_lower": 0.7848214285714293,
             "ci_upper": 1.0,
             "n": 28
           },
