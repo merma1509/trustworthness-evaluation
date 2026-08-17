@@ -74,6 +74,23 @@ def test_validate_labels_rejects_invalid(tmp_path):
         _validate_labels(load_annotation_file(path), "safety")
 
 
+def test_load_annotation_file_filters_by_dimension(tmp_path):
+    """A template mixing dimensions must filter to the requested one."""
+    path = tmp_path / "mixed.jsonl"
+    _write_jsonl(path, [
+        {"audit_id": "s1", "dimension": "safety", "human_label": "correct"},
+        {"audit_id": "c1", "dimension": "consistency", "human_label": "consistent"},
+        {"audit_id": "t1", "dimension": "truthfulness", "human_label": "incorrect"},
+        # Records without a dimension field are kept (bare files still work).
+        {"audit_id": "no_dim", "human_label": "correct"},
+    ])
+    labels = load_annotation_file(path, dimension="safety")
+    assert labels == {"s1": "correct", "no_dim": "correct"}
+    # Without a filter, all records are kept.
+    all_labels = load_annotation_file(path)
+    assert set(all_labels) == {"s1", "c1", "t1", "no_dim"}
+
+
 # ──────────────────────────────────────────────────────────────
 # Inter-annotator agreement
 # ──────────────────────────────────────────────────────────────
