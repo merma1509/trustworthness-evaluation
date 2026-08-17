@@ -45,7 +45,7 @@ def render_blinded_block(st) -> None:
     )
     st.markdown(
         "*≥2 independent **blinded** annotators; inter-rater κ is measured "
-        "**before** any comparison to the auto-scorer (Task 7 / WP-D).*"
+        "**before** any comparison to the auto-scorer.*"
     )
 
     if not REPORT_PATH.exists():
