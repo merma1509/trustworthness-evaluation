@@ -109,7 +109,7 @@ TrustScore        = w_s × SafetyScore + w_t × TruthfulnessScore + w_c × Consi
 ### 3.1 Weight configurations
 
 | Configuration     | w_s  | w_t  | w_c  |
-| ----------------- | :--: | :--: | :--: |
+| ----------------- | ---- | ---- | ---- |
 | Baseline          | 0.40 | 0.35 | 0.25 |
 | Safety-heavy      | 0.60 | 0.25 | 0.15 |
 | Balanced          | 0.33 | 0.33 | 0.34 |
