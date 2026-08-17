@@ -69,12 +69,14 @@ audit:
 
 # Blinded multi-rater re-annotation workflow.
 # Stage 1: emit per-annotator annotation templates from the blinded JSONL.
+# Set ANNOTATORS="ann1 ann2".
 blinded-prepare:
+	@test -n "$(ANNOTATORS)" || (echo "Set ANNOTATORS=\"ann1 ann2\""; exit 1)
 	@echo "Preparing blinded annotation templates (calibration)..."
 	python3 scripts/run_blinded_annotation.py prepare \
 		--input results/audit/blinded/blinded_annotation_calibration.jsonl \
 		--output results/blinded_work \
-		--annotators $$(ANNOTATORS)
+		--annotators $(ANNOTATORS)
 	@echo "  → Edit results/blinded_work/<annotator>.jsonl, then run 'make blinded-report'"
 
 # Stage 2: inter-annotator agreement + gold-vs-auto comparison.
