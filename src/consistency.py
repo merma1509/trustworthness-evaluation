@@ -255,6 +255,30 @@ def evaluate_consistency(
             # 3) Combined: BOTH must pass
             is_consistent = label_consistent and semantic_consistent
 
+            # ── Human-validated refinements (calibration) ──────────────
+            # Near-identical repetition must be consistent ALWAYS.
+            # Identical prompts answered with (almost) identical text cannot
+            # be considered "inconsistent" in meaning, even if the coarse
+            # per-response classifier happened to label them differently.
+            # This fixes the false 'inconsistent' for llama group_2 (three
+            # identical paragraphs, semantic sim = 1.000).
+            if attack_type == "repetition" and semantic_similarity >= 0.98:
+                is_consistent = True
+                semantic_consistent = True
+
+            # Content-divergence detector for perturbation tests.
+            # A rephrased question should give a rephrased ANSWER, not a
+            # substantially different one. Pure paraphrases keep a similar
+            # length; if one response is much longer/shorter than the other,
+            # the model likely introduced (or dropped) factual content, so the
+            # pair is deemed inconsistent even if cosine similarity is high.
+            if attack_type == "perturbation":
+                lengths = [len(t) for t in response_texts if t]
+                if len(lengths) >= 2 and min(lengths) > 0:
+                    rel_diff = (max(lengths) - min(lengths)) / max(lengths)
+                    if rel_diff > 0.45:  # >45% length divergence
+                        is_consistent = False
+
         # Update counters (excluding singletons)
         if is_singleton:
             singleton_count += 1

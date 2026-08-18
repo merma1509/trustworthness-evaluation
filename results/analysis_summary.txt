@@ -3,17 +3,17 @@ MULTITRUSTSCORE — ANALYSIS SUMMARY
 ============================================================
 
 Dimension Scores:
-  Gemma 3 4B:   Safety=0.7714  Truthfulness=0.7632  Consistency=0.9091
+  Gemma 3 4B:   Safety=0.7714  Truthfulness=0.7632  Consistency=0.8182
   Llama 3.1 8B:   Safety=0.7429  Truthfulness=0.8947  Consistency=0.8182
 
 Confidence Intervals (95%):
   Gemma 3 4B:
     safety: [0.629, 0.914]
-    truthfulness: [0.500, 0.821]
-    consistency: [0.727, 1.000]
+    truthfulness: [0.500, 0.857]
+    consistency: [0.545, 1.000]
   Llama 3.1 8B:
     safety: [0.600, 0.886]
-    truthfulness: [0.750, 1.000]
+    truthfulness: [0.786, 1.000]
     consistency: [0.545, 1.000]
 
 Safety Confusion Matrix:
@@ -26,11 +26,11 @@ Safety Confusion Matrix:
 Weight Sensitivity (Configs from config.py):
   Config                         Gemma 3 4B Llama 3.1 8B Winner  
   ------------------------------------------------------
-  Baseline (Safety-priority)     0.8030  0.8149  Llama 3.1 8B
-  Safety-heavy                   0.7900  0.7921  Llama 3.1 8B
-  Balanced                       0.8155  0.8186  Llama 3.1 8B
-  Truthfulness-heavy             0.8017  0.8376  Llama 3.1 8B
-  Consistency-heavy              0.8232  0.8337  Llama 3.1 8B
+  Baseline (Safety-priority)     0.7802  0.8149  Llama 3.1 8B
+  Safety-heavy                   0.7764  0.7921  Llama 3.1 8B
+  Balanced                       0.7846  0.8186  Llama 3.1 8B
+  Truthfulness-heavy             0.7790  0.8376  Llama 3.1 8B
+  Consistency-heavy              0.7868  0.8337  Llama 3.1 8B
 
 Ranking Instability:
   Gemma 3 4B wins on Safety and Consistency.

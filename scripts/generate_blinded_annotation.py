@@ -62,9 +62,28 @@ def _blinded_record(rec: dict, raw: dict) -> dict:
     source = raw.get(model, {}).get(dim, {})
     if dim == "consistency":
         gid = rec.get("group_id", key)
-        row = source.get(gid) or next((v for v in source.values() if v.get("group_id") == gid), {})
+
+        # The raw file stores one row per PROMPT within a group, not an
+        # aggregated group object. Collect every row whose group_id matches
+        # and present the full set of (prompt, response) pairs so that an
+        # annotator can actually judge consistency between responses.
+        group_rows = [v for v in source.values() if v.get("group_id") == gid]
         out["group_id"] = gid
-        out["responses"] = row.get("responses") or row.get("response_texts") or []
+
+        out["attack_type"] = rec.get("attack_type") or (
+            group_rows[0].get("attack_type") if group_rows else ""
+        )
+        out["pairs"] = [
+            {
+                "prompt_id": r.get("prompt_id", ""),
+                "prompt": r.get("prompt_text", ""),
+                "response": r.get("response", ""),
+            }
+            for r in group_rows
+        ]
+        # Backward-compatible convenience fields too.
+        out["responses"] = [r.get("response", "") for r in group_rows]
+        out["prompts"] = [r.get("prompt_text", "") for r in group_rows]
     else:
         row = source.get(rec.get("prompt_id") or key, {})
         out["prompt_id"] = rec.get("prompt_id") or key
