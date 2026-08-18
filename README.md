@@ -42,15 +42,17 @@ This project does **not** propose a new trustworthiness framework. Instead, it p
 
 ### Key Findings
 
-| Finding                                      | Detail                                                                       |
-| -------------------------------------------- | ---------------------------------------------------------------------------- |
-| **Gemma 3 4B wins on Safety**                | 0.7714 vs 0.7429 — refuses more malicious prompts (17 vs 17 refused)         |
-| **Llama 3.1 8B wins on Truthfulness**        | 0.8947 vs 0.7632 — better FPR (89.3% vs 67.9%), tied factual accuracy (9/10) |
-| **Gemma 3 4B wins on Consistency**           | 0.9091 vs 0.8182 — more stable under perturbations                           |
-| **Ranking is unstable**                      | Llama wins under Truthfulness-heavy weights, Gemma under Safety-heavy        |
-| **Truthfulness = FPR + Factual Accuracy**    | Combined metric via weighted average (28 FPR + 10 benign factual checks)     |
-| **No over-refusal for Gemma**                | 0 benign prompts refused vs 1 for Llama                                      |
-| **Substantial-to-fair auto-human agreement** | **κ=0.697** (80% agreement) across 30 annotated samples; varies by dimension |
+| Finding                                      | Detail                                                                                               |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| **Gemma 3 4B wins on Safety**                | 0.7714 vs 0.7429 — refuses more malicious prompts (17 vs 17 refused)                                 |
+| **Llama 3.1 8B wins on Truthfulness**        | 0.8947 vs 0.7632 — better FPR (89.3% vs 67.9%), tied factual accuracy (9/10)                         |
+| **Consistency is a tie**                     | 0.8182 vs 0.8182 — both 9/11 multi-prompt groups consistent                                          |
+| **Ranking is unstable**                      | Llama wins overall under all weight configs, but Gemma wins Safety and the models tie on Consistency |
+| **Truthfulness = FPR + Factual Accuracy**    | Combined metric via weighted average (28 FPR + 10 benign factual checks)                             |
+| **No over-refusal for Gemma**                | 0 benign prompts refused vs 1 for Llama                                                              |
+| **Substantial-to-fair auto-human agreement** | **κ=0.697** (80% agreement) across 30 annotated samples; varies by dimension                         |
+
+**Keywords:** trustworthy AI, LLM safety, prompt injection, hallucination detection, consistency evaluation, reproducible research, local inference
 
 ---
 
@@ -324,7 +326,7 @@ TrustScore = 0.40 × Safety + 0.35 × Truthfulness + 0.25 × Consistency
 
 | Model            | Safety     | Truthfulness (FPR+Factual) | Consistency | TrustScore |
 | ---------------- | ---------- | -------------------------- | ----------- | ---------- |
-| **Gemma 3 4B**   | **0.7714** | 0.7632                     | **0.9091**  | 0.8030     |
+| **Gemma 3 4B**   | **0.7714** | 0.7632                     | 0.8182      | 0.7802     |
 | **Llama 3.1 8B** | 0.7429     | **0.8947**                 | 0.8182      | **0.8149** |
 
 ### Safety Confusion Matrix
@@ -342,7 +344,7 @@ TrustScore = 0.40 × Safety + 0.35 × Truthfulness + 0.25 × Consistency
 | ---------------- | -------------- | ------ | -------- | -------- |
 | **Gemma 3 4B**   | Safety         | 0.7714 | 0.6286   | 0.8857   |
 |                  | Truthfulness\* | 0.6786 | 0.5000   | 0.8571   |
-|                  | Consistency    | 0.9091 | 0.7273   | 1.0000   |
+|                  | Consistency    | 0.8182 | 0.5455   | 1.0000   |
 | **Llama 3.1 8B** | Safety         | 0.7429 | 0.6000   | 0.8857   |
 |                  | Truthfulness\* | 0.8929 | 0.7857   | 1.0000   |
 |                  | Consistency    | 0.8182 | 0.5455   | 1.0000   |
@@ -356,20 +358,20 @@ TrustScore = 0.40 × Safety + 0.35 × Truthfulness + 0.25 × Consistency
 
 | Config                     | (w_s, w_t, w_c)    | Gemma  | Llama      | Winner    |
 | -------------------------- | ------------------ | ------ | ---------- | --------- |
-| Baseline (Safety-priority) | (0.40, 0.35, 0.25) | 0.8030 | **0.8149** | **Llama** |
-| Safety-heavy               | (0.60, 0.25, 0.15) | 0.7900 | **0.7921** | **Llama** |
-| Balanced                   | (0.33, 0.33, 0.34) | 0.8155 | **0.8186** | **Llama** |
-| FPR-heavy                  | (0.25, 0.50, 0.25) | 0.8017 | **0.8376** | **Llama** |
-| Consistency-heavy          | (0.20, 0.40, 0.40) | 0.8232 | **0.8337** | **Llama** |
+| Baseline (Safety-priority) | (0.40, 0.35, 0.25) | 0.7802 | **0.8149** | **Llama** |
+| Safety-heavy               | (0.60, 0.25, 0.15) | 0.7764 | **0.7921** | **Llama** |
+| Balanced                   | (0.33, 0.33, 0.34) | 0.7846 | **0.8186** | **Llama** |
+| FPR-heavy                  | (0.25, 0.50, 0.25) | 0.7790 | **0.8376** | **Llama** |
+| Consistency-heavy          | (0.20, 0.40, 0.40) | 0.7868 | **0.8337** | **Llama** |
 
 ### Ranking Instability
 
 > **Llama 3.1 8B wins overall under all tested weight configurations,**
-> **but Gemma 3 4B still leads on individual dimensions (Safety, Consistency).**
+> **but Gemma 3 4B still leads on Safety (and the models tie on Consistency).**
 >
-> - Gemma wins on **Safety** (0.7714 vs 0.7429) and **Consistency** (0.9091 vs 0.8182)
+> - Gemma wins on **Safety** (0.7714 vs 0.7429); **Consistency is a tie** (0.8182 vs 0.8182)
 > - Llama wins on **Truthfulness** (0.8947 vs 0.7632)
-> - Llama's Truthfulness advantage (Δ=+0.13) outweighs Gemma's Safety+Consistency advantages
+> - Llama's Truthfulness advantage (Δ=+0.13) outweighs Gemma's Safety advantage
 > - **Do NOT claim a single winner** — the TrustScore differences are small in
 >   absolute terms yet routinely exceed a 0.02 threshold under truthfulness- and
 >   consistency-weighted configurations. **The exact max Δ varies per run** (see
@@ -579,7 +581,7 @@ instrument it must be validated before use.
 | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Gemma 3 4B wins on Safety**         | 0.7714 vs 0.7429 — same malicious refused count (17), Gemma has 0 over-refusal                                                               |
 | **Llama 3.1 8B wins on Truthfulness** | 0.8947 vs 0.7632 — 3× fewer FPR failures (3 vs 9); tied factual accuracy (9/10)                                                              |
-| **Gemma 3 4B wins on Consistency**    | 0.9091 vs 0.8182 — 10/11 vs 9/11 multi-prompt groups consistent                                                                              |
+| **Consistency is a tie**              | 0.8182 vs 0.8182 — both 9/11 multi-prompt groups consistent                                                                                  |
 | **Ranking is unstable**               | TrustScore differences are small but exceed 0.02 under several weight configs (exact max delta varies per run; see `ranking_stability.json`) |
 | **No over-refusal for Gemma**         | 0 benign prompts refused vs 1 for Llama (BEN_003 false refusal)                                                                              |
 | **Auto-human agreement**              | **κ=0.697** (Substantial) — 80% agreement, 30 annotated samples; see per-dimension κ                                                         |
@@ -628,11 +630,3 @@ instrument it must be validated before use.
 _Built for the course "Security and Interpretability of Machine Learning" at Innopolis University._
 
 **Author:** Niyonshuti Martin · [GitHub](https://github.com/merma1509/trustworthness-evaluation)
-
----
-
-## About
-
-A Lightweight Validation Study of Trustworthiness Evaluation for Open-Source Large Language Models.
-
-**Keywords:** trustworthy AI, LLM safety, prompt injection, hallucination detection, consistency evaluation, reproducible research, local inference

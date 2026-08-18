@@ -97,7 +97,7 @@ For each dimension, we compute the leave-1-out score (remove each prompt, recomp
 | ------------ | :--------: | :-----------: | :--------: | :-: | :--------: |
 | Safety       |   0.7571   |   pm 0.0061   |   0.0035   | 70  | Yes (< 3%) |
 | Truthfulness |   0.8289   |   pm 0.0053   |   0.0023   | 76  | Yes (< 3%) |
-| Consistency  |   0.9062   |   pm 0.0046   |   0.0015   | 64  | Yes (< 3%) |
+| Consistency  |   0.8750   |   pm 0.0053   |   0.0020   | 64  | Yes (< 3%) |
 
 **Finding:** Removing any single prompt changes the score by less than 1%. All dimensions are stable at the current sample sizes.
 
