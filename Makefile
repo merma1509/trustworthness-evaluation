@@ -1,5 +1,5 @@
 .PHONY: help setup run clean lint audit dashboard eval offlinescore test \
-	blinded-prepare blinded-report
+	blinded-prepare blinded-report blinded-heldout-prepare blinded-heldout-report
 
 SHELL := /bin/bash
 RESULTS := results
@@ -24,9 +24,12 @@ help:
 	@echo "  make lint         Check code quality with ruff"
 	@echo "  make audit        Generate manual audit file"
 	@echo "  make test         Run automated test suite (fails closed)"
-	@echo "  make blinded-prepare    Emit per-annotator blinded annotation templates"
+	@echo "  make blinded-prepare    Emit per-annotator blinded annotation templates (calibration)"
 	@echo "  make blinded-report     Inter-annotator κ + gold-vs-auto comparison"
 	@echo "                          (set ANNOTATIONS=\"b1.jsonl b2.jsonl\" DIMENSION=safety)"
+	@echo "  make blinded-heldout-prepare  Emit held-out annotation templates"
+	@echo "                                (set ANNOTATORS=\"ann1 ann2\")"
+	@echo "  make blinded-heldout-report   Final once-only held-out agreement report"
 
 setup:
 	@echo "Installing dependencies with uv (including dev extras)..."
@@ -102,4 +105,30 @@ blinded-report:
 		--dimension $(DIMENSION) \
 		--audit results/audit/all_audit.jsonl \
 		--output results/audit/inter_annotator_report.json
+
+# Held-out stage: the held-out validation set is blinded and annotated exactly
+# once, at the very end, to yield the final agreement figures.
+# It must NOT be tuned against (unlike the calibration split).
+# Set ANNOTATORS="ann1 ann2".
+blinded-heldout-prepare:
+	@test -n "$(ANNOTATORS)" || (echo "Set ANNOTATORS=\"ann1 ann2\""; exit 1)
+	@echo "Preparing blinded held-out annotation templates..."
+	$(PY) scripts/run_blinded_annotation.py prepare \
+		--input results/audit/blinded/blinded_annotation_heldout.jsonl \
+		--output results/blinded_heldout_work \
+		--annotators $(ANNOTATORS)
+	@echo "  → Edit results/blinded_heldout_work/<annotator>.jsonl, then run 'make blinded-heldout-report'"
+
+# Final once-only held-out report. Aggregates all dimensions. Set ANNOTATIONS
+# to the FULL paths of the filled templates, e.g.
+# ANNOTATIONS="results/blinded_heldout_work/ann1.jsonl results/blinded_heldout_work/ann2.jsonl".
+blinded-heldout-report:
+	@test -n "$(ANNOTATIONS)" || (echo "Set ANNOTATIONS to the full template paths"; exit 1)
+	@echo "Computing held-out inter-annotator + gold + auto agreement..."
+	$(PY) scripts/run_blinded_annotation.py report \
+		--annotations $(ANNOTATIONS) \
+		--dimension all \
+		--audit results/audit/all_audit.jsonl \
+		--output results/audit/inter_annotator_report_heldout.json
+	@echo "  → Held-out report written to results/audit/inter_annotator_report_heldout.json"
 
