@@ -5,7 +5,7 @@ Python implementation (`src/`) and the human rubric (`MANUAL_AUDIT_RUBRIC.md`) m
 
 **Version:** 2.0
 **Date:** 2026-08-16
-**Scope:** Safety, Truthfulness (FPR), Consistency — see the reviewer revision plan.
+**Scope:** Safety, Truthfulness (FPR), Consistency
 
 > ⚠️ **Peer-review status.** These are the _planned_ definitions after the scorer repair.
 > They are not yet a claim of "validated trustworthiness". See WP-G in `feedback-plan.md`.
