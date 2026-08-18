@@ -85,15 +85,102 @@ def _load_audit(audit_path: Path) -> List[Dict]:
     return [json.loads(line) for line in audit_path.open() if line.strip()]
 
 
-def _run_report(args) -> int:
-    files = [Path(p) for p in args.annotations]
-    if len(files) < 2:
-        print("  ✗ Need at least 2 annotation files to measure inter-annotator agreement.")
-        return 1
+
+
+
+
+
+# All dimensions we want to aggregate into a single report. Keeping them
+# in one file (instead of one file per dimension) lets the dashboard show a
+# full blinded re-validation rather than just the last dimension that ran.
+ALL_DIMENSIONS = ("safety", "truthfulness", "consistency")
+
+
+def _run_single_dimension(files, audit, dimension, tie_breaker):
+    """Run one dimension of the blinded re-validation.
+
+    Returns a dict with the per-dimension inter-annotator agreement,
+    adjudication and gold-vs-auto comparison.
+    """
+    # a) Inter-annotator agreement (the gate).
+
+
+
+    agreement = annotator_agreement(files, dimension=dimension, with_ci=True)
+    print(f"\n  [{dimension}] Inter-annotator agreement:")
+    print(f"    {agreement['report_text']}")
+    for pair, stats in agreement["pairwise"].items():
+        if stats.get("n"):
+            print(
+
+                f"      {pair:<30} n={stats['n']:<3} "
+                f"κ={stats['cohens_kappa']:.3f}  ag={stats['agreement_rate']*100:.1f}%"
+            )
+        else:
+
+            print(f"      {pair:<30} {stats.get('note','')}")
+
+    # b) Adjudication.
+
+
+    rows, _names = merge_annotations(files, dimension=dimension)
+    gold = adjudicate(rows, tie_breaker=tie_breaker)
+    n_unresolved = sum(1 for g in gold if g["needs_adjudication"])
+    print(
+
+        f"  [{dimension}] Adjudicated {len(gold)} records; "
+        f"{n_unresolved} need human adjudication (ties)."
+    )
+
+    # c) Gold vs. auto-scorer (headline κ).
+
+    comparison = compare_to_auto(audit, gold)
+
+    print(f"  [{dimension}] Gold vs. auto-scorer agreement (headline κ):")
+    print(
+        f"    n={comparison.get('n_valid_pairs', 0)}  "
+        f"κ={comparison.get('cohens_kappa', 0):.3f}  "
+        f"agreement={comparison.get('agreement_rate', 0)*100:.1f}%"
+    )
+
+
+
+
+
+
+    return {
+        "inter_annotator": agreement,
+        "adjudicated": {
+            "n_total": len(gold),
+            "n_needs_adjudication": n_unresolved,
+            "records": gold,
+        },
+        "auto_comparison": comparison,
+    }
+
+
+# ──────────────────────────────────────────────────────────────
+# Stage 2: inter-annotator agreement + gold + auto comparison
+# ──────────────────────────────────────────────────────────────
+def _load_audit(audit_path: Path) -> List[Dict]:
+    return [json.loads(line) for line in audit_path.open() if line.strip()]
+
+# All dimensions we aggregate into a single report. Keeping them in one file
+# (rather than one file per dimension) lets the dashboard show the full
+# blinded re-validation instead of only the last dimension that ran.
+ALL_DIMENSIONS = ("safety", "truthfulness", "consistency")
+
+
+def _run_single_dimension(files, audit, dimension, tie_breaker):
+    """Run one dimension of the blinded re-validation.
+
+    Returns a dict with that dimension's inter-annotator agreement,
+    adjudication and gold-vs-auto comparison.
+    """
+    print(f"\n  === [{dimension}] ===")
 
     # a) Inter-annotator agreement (the gate).
-    print("\n  Computing inter-annotator agreement...")
-    agreement = annotator_agreement(files, dimension=args.dimension, with_ci=args.with_ci)
+    agreement = annotator_agreement(files, dimension=dimension, with_ci=True)
     print(f"  {agreement['report_text']}")
     for pair, stats in agreement["pairwise"].items():
         if stats.get("n"):
@@ -105,29 +192,24 @@ def _run_report(args) -> int:
             print(f"    {pair:<30} {stats.get('note','')}")
 
     # b) Adjudication.
-    rows, _names = merge_annotations(files, dimension=args.dimension)
-    gold = adjudicate(rows, tie_breaker=args.tie_breaker)
+    rows, _names = merge_annotations(files, dimension=dimension)
+    gold = adjudicate(rows, tie_breaker=tie_breaker)
     n_unresolved = sum(1 for g in gold if g["needs_adjudication"])
     print(
-        f"\n  Adjudicated {len(gold)} records; "
+        f"  Adjudicated {len(gold)} records; "
         f"{n_unresolved} need human adjudication (ties)."
     )
 
     # c) Gold vs. auto-scorer (headline κ).
-    audit = _load_audit(Path(args.audit))
     comparison = compare_to_auto(audit, gold)
-    print("\n  Gold vs. auto-scorer agreement (headline κ):")
+    print("  Gold vs. auto-scorer agreement (headline κ):")
     print(
         f"    n={comparison.get('n_valid_pairs', 0)}  "
         f"κ={comparison.get('cohens_kappa', 0):.3f}  "
         f"agreement={comparison.get('agreement_rate', 0)*100:.1f}%"
     )
 
-    # Save everything.
-    out_path = Path(args.output)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    report = {
-        "stage": "report",
+    return {
         "inter_annotator": agreement,
         "adjudicated": {
             "n_total": len(gold),
@@ -135,16 +217,65 @@ def _run_report(args) -> int:
             "records": gold,
         },
         "auto_comparison": comparison,
+    }
+
+
+def _run_report(args) -> int:
+    files = [Path(p) for p in args.annotations]
+    if len(files) < 2:
+        print("  ✗ Need at least 2 annotation files to measure inter-annotator agreement.")
+        return 1
+
+    audit = _load_audit(Path(args.audit))
+
+    # Aggregate every dimension into a single report so the dashboard shows the
+    # full blinded re-validation, not just the last dimension that ran.
+    if args.dimension and args.dimension != "all":
+        dimensions = [args.dimension]
+    else:
+        dimensions = list(ALL_DIMENSIONS)
+
+    by_dimension = {}
+    for dim in dimensions:
+        by_dimension[dim] = _run_single_dimension(
+            files, audit, dim, args.tie_breaker
+        )
+
+    # Overall / pooled view (across all dimensions).
+    rows_all, _names_all = merge_annotations(files, dimension=None)
+    gold_all = adjudicate(rows_all, tie_breaker=args.tie_breaker)
+    comparison_all = compare_to_auto(audit, gold_all)
+    n_unresolved_all = sum(1 for g in gold_all if g["needs_adjudication"])
+
+    print("\n  OVERALL (pooled across dimensions):")
+    print(f"    n={comparison_all.get('n_valid_pairs', 0)}  "
+          f"κ={comparison_all.get('cohens_kappa', 0):.3f}  "
+          f"agreement={comparison_all.get('agreement_rate', 0)*100:.1f}%")
+
+    out_path = Path(args.output)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    report = {
+        "stage": "report",
+        "by_dimension": by_dimension,
+        "overall": {
+            "inter_annotator": annotator_agreement(files, dimension=None, with_ci=True),
+            "adjudicated": {
+                "n_total": len(gold_all),
+                "n_needs_adjudication": n_unresolved_all,
+                "records": gold_all,
+            },
+            "auto_comparison": comparison_all,
+        },
         "note": (
             "First verify inter_annotator.mean_kappa meets your quality gate "
-            "before trusting auto_comparison."
+            "before trusting auto_comparison. Per-dimension results are under "
+            "`by_dimension`; a pooled overall view is under `overall`."
         ),
     }
     with out_path.open("w") as f:
         json.dump(report, f, indent=2, ensure_ascii=False)
     print(f"\n  Report written to {out_path}")
     return 0
-
 
 # ──────────────────────────────────────────────────────────────
 # CLI
@@ -160,8 +291,9 @@ def main():
 
     p_report = sub.add_parser("report", help="Compute inter-annotator + gold + auto agreement.")
     p_report.add_argument("--annotations", nargs="+", required=True, help="Filled annotation JSONL files.")
-    p_report.add_argument("--dimension", choices=["safety", "truthfulness", "consistency"],
-                          required=True, help="Dimension for label validation.")
+    p_report.add_argument("--dimension", choices=["safety", "truthfulness", "consistency", "all"],
+                          default="all", help="Dimension for label validation, or 'all' to "
+                          "aggregate every dimension into one report (default: all).")
     p_report.add_argument("--audit", default="results/audit/all_audit.jsonl")
     p_report.add_argument("--tie-breaker", default=None, help="Annotator to prefer on ties.")
     p_report.add_argument("--with-ci", action="store_true", help="Include bootstrap CIs.")

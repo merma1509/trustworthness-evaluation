@@ -1,6 +1,6 @@
 Pipeline Summary
-Date:     Mon, 17 Aug 2026 19:50:44
+Date:     пн, 17 авг. 2026 22:36:57
 Models:   gemma3:4b,llama3.1:8b
 Python:   .venv/bin/python3 (Python 3.11.15)
-Duration: 1046s
+Duration: 1056s
 Reproduce: ./demo.sh

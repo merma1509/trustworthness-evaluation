@@ -310,6 +310,15 @@ TrustScore = 0.40 × Safety + 0.35 × Truthfulness + 0.25 × Consistency
 ## Results
 
 > **Note:** Results below are from our reference run. Run `make run` to generate results for your environment.
+>
+> ⚠️ **The exact numeric values in this section are run-specific.** The pipeline
+> is intentionally stochastic where it matters (and small-sample), so the precise
+> dimension scores, TrustScores, and the exact max weight-config Δ drift between
+> runs. Do **not** treat the numbers here as stable headline claims — the
+> _reproducible_ findings are the qualitative ones (which dimension each model
+> wins, that no single model wins under all weights, and that all CIs overlap).
+> Always defer to the freshly generated `results/analysis_summary.txt` and
+> `results/results_summary.json` for the authoritative figures of a given run.
 
 ### Dimension Scores
 
@@ -361,8 +370,12 @@ TrustScore = 0.40 × Safety + 0.35 × Truthfulness + 0.25 × Consistency
 > - Gemma wins on **Safety** (0.7714 vs 0.7429) and **Consistency** (0.9091 vs 0.8182)
 > - Llama wins on **Truthfulness** (0.8947 vs 0.7632)
 > - Llama's Truthfulness advantage (Δ=+0.13) outweighs Gemma's Safety+Consistency advantages
-> - **Do NOT claim a single winner** — the TrustScore differences are small but can
->   exceed 0.02 (max Δ ≈ 0.036 under the Truthfulness-heavy configuration)
+> - **Do NOT claim a single winner** — the TrustScore differences are small in
+>   absolute terms yet routinely exceed a 0.02 threshold under truthfulness- and
+>   consistency-weighted configurations. **The exact max Δ varies per run** (see
+>   `results/ranking_stability.json`); the stable, reproducible finding is that
+>   the ranking gap is smaller than measurement error, not that it is fixed at
+>   any single value.
 
 Use the interactive dashboard to explore: `make dashboard`
 
@@ -562,16 +575,16 @@ instrument it must be validated before use.
 
 ### Key Findings
 
-| Finding                               | Detail                                                                               |
-| ------------------------------------- | ------------------------------------------------------------------------------------ |
-| **Gemma 3 4B wins on Safety**         | 0.7714 vs 0.7429 — same malicious refused count (17), Gemma has 0 over-refusal       |
-| **Llama 3.1 8B wins on Truthfulness** | 0.8947 vs 0.7632 — 3× fewer FPR failures (3 vs 9); tied factual accuracy (9/10)      |
-| **Gemma 3 4B wins on Consistency**    | 0.9091 vs 0.8182 — 10/11 vs 9/11 multi-prompt groups consistent                      |
-| **Ranking is unstable**               | TrustScore differences are small but >0.02 under some weights (max Δ≈0.036)          |
-| **No over-refusal for Gemma**         | 0 benign prompts refused vs 1 for Llama (BEN_003 false refusal)                      |
-| **Auto-human agreement**              | **κ=0.697** (Substantial) — 80% agreement, 30 annotated samples; see per-dimension κ |
-| **Stability (jackknife)**             | All dimensions **stable** (std < 1% with leave-1-out)                                |
-| **Cost ratio**                        | Auto is **121× cheaper** than human evaluation                                       |
+| Finding                               | Detail                                                                                                                                       |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Gemma 3 4B wins on Safety**         | 0.7714 vs 0.7429 — same malicious refused count (17), Gemma has 0 over-refusal                                                               |
+| **Llama 3.1 8B wins on Truthfulness** | 0.8947 vs 0.7632 — 3× fewer FPR failures (3 vs 9); tied factual accuracy (9/10)                                                              |
+| **Gemma 3 4B wins on Consistency**    | 0.9091 vs 0.8182 — 10/11 vs 9/11 multi-prompt groups consistent                                                                              |
+| **Ranking is unstable**               | TrustScore differences are small but exceed 0.02 under several weight configs (exact max delta varies per run; see `ranking_stability.json`) |
+| **No over-refusal for Gemma**         | 0 benign prompts refused vs 1 for Llama (BEN_003 false refusal)                                                                              |
+| **Auto-human agreement**              | **κ=0.697** (Substantial) — 80% agreement, 30 annotated samples; see per-dimension κ                                                         |
+| **Stability (jackknife)**             | All dimensions **stable** (std < 1% with leave-1-out)                                                                                        |
+| **Cost ratio**                        | Auto is **121× cheaper** than human evaluation                                                                                               |
 
 ---
 

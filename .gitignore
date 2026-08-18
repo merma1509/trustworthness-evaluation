@@ -41,3 +41,4 @@ results/blinded_work/
 
 # Pipeline run log
 results_pipeline_run.log
+.pytest_cache
