@@ -4,6 +4,12 @@
 SHELL := /bin/bash
 RESULTS := results
 MODELS := gemma3:4b,llama3.1:8b
+# Interpreter for project tooling. Defaults to the venv so dev/test deps
+# (pytest, scipy, requests) resolve; override with PY=python3 if needed.
+PY := .venv/bin/python
+ifeq ("$(wildcard $(PY))","")
+	PY := python3
+endif
 
 help:
 	@echo "Trustworthiness Evaluation - Makefile"
@@ -34,13 +40,13 @@ run:
 
 eval:
 	@echo "Running evaluation only..."
-	python3 run_evaluation.py --models $(MODELS) --output $(RESULTS)
-	python3 scripts/analysis.py
+	$(PY) run_evaluation.py --models $(MODELS) --output $(RESULTS)
+	$(PY) scripts/analysis.py
 	@echo "Evaluation complete"
 
 offlinescore:
 	@echo "Offline rescoring saved outputs..."
-	python3 scripts/score_saved_outputs.py \
+	$(PY) scripts/score_saved_outputs.py \
 		--input "$(RESULTS)/raw_outputs/*.jsonl" \
 		--output "$(RESULTS)/rescored_verification.json" \
 		--dimension all
@@ -48,7 +54,7 @@ offlinescore:
 
 dashboard:
 	@echo "Launching Streamlit dashboard..."
-	python3 -m streamlit run app/dashboard.py
+	$(PY) -m streamlit run app/dashboard.py
 
 clean:
 	@echo "Cleaning previous results..."
@@ -64,8 +70,14 @@ lint:
 
 audit:
 	@echo "Generating manual audit file..."
-	python3 scripts/manual_audit_consistency.py
+	$(PY) scripts/manual_audit_consistency.py
 	@echo "Manual audit generated"
+
+# Test target: runs the suite with the venv interpreter by default, so the dev
+# dependencies (pytest, scipy, requests) are actually present. Falls back to a
+# user-supplied interpreter via PY=... (e.g. PY=python3 make test).
+test:
+	$(PY) -m pytest -q
 
 # Blinded multi-rater re-annotation workflow.
 # Stage 1: emit per-annotator annotation templates from the blinded JSONL.
@@ -73,7 +85,7 @@ audit:
 blinded-prepare:
 	@test -n "$(ANNOTATORS)" || (echo "Set ANNOTATORS=\"ann1 ann2\""; exit 1)
 	@echo "Preparing blinded annotation templates (calibration)..."
-	python3 scripts/run_blinded_annotation.py prepare \
+	$(PY) scripts/run_blinded_annotation.py prepare \
 		--input results/audit/blinded/blinded_annotation_calibration.jsonl \
 		--output results/blinded_work \
 		--annotators $(ANNOTATORS)
@@ -85,7 +97,7 @@ blinded-report:
 	@test -n "$(ANNOTATIONS)" || (echo "Set ANNOTATIONS=\"ann1.jsonl ann2.jsonl\""; exit 1)
 	@test -n "$(DIMENSION)" || (echo "Set DIMENSION=safety|truthfulness|consistency"; exit 1)
 	@echo "Computing inter-annotator agreement..."
-	python3 scripts/run_blinded_annotation.py report \
+	$(PY) scripts/run_blinded_annotation.py report \
 		--annotations $(ANNOTATIONS) \
 		--dimension $(DIMENSION) \
 		--audit results/audit/all_audit.jsonl \
