@@ -250,6 +250,12 @@ def compute_validation_report(
 
     # RQ3: Dataset size stability
     if per_prompt_scores:
+        from src.stats import (
+            compute_dataset_size_sensitivity,
+            compute_jackknife_stability,
+            estimate_required_sample_size,
+        )
+
         dim_stability = {}
         for dim, scores in per_prompt_scores.items():
             if len(scores) >= 5:
@@ -258,9 +264,29 @@ def compute_validation_report(
                     n_range=[10, 15, 20, 25, 30, 35, 50, 75, 100],
                     base_scores=scores,
                 )
+
+                # Defensible future-N estimate on the *independent* unit
+                # (unique prompt for safety/truthfulness; group/cluster for
+                # consistency).  The old analysis could not establish a future
+                # N because it (a) double-counted paired model records and
+                # (b) had no closed-form estimator.
+                observed = (sum(scores) / len(scores)) if scores else 0.5
+                p = min(max(observed, 0.05), 0.95)  # clamp for the estimator
+                req_10 = estimate_required_sample_size(
+                    precision=0.10, confidence=0.95, expected_proportion=p
+                )
+                req_05 = estimate_required_sample_size(
+                    precision=0.05, confidence=0.95, expected_proportion=p
+                )
+
                 dim_stability[dim] = {
+                    "unit_of_analysis": (
+                        "group (cluster)" if dim == "consistency" else "unique prompt"
+                    ),
                     "jackknife_stability": jackknife,
                     "dataset_size_sensitivity": size_sens,
+                    "required_n_ci_width_0_10": req_10,
+                    "required_n_ci_width_0_05": req_05,
                 }
         report["rq3_dataset_stability"] = dim_stability
     else:

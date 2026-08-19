@@ -5,11 +5,11 @@
   "overall": {
     "n": 30,
     "n_valid_pairs": 30,
-    "agreement_rate": 0.8,
-    "cohens_kappa": 0.697,
-    "weighted_kappa": 0.6471,
-    "p_observed": 0.8,
-    "p_expected": 0.34,
+    "agreement_rate": 0.9,
+    "cohens_kappa": 0.8333,
+    "weighted_kappa": 0.7716,
+    "p_observed": 0.9,
+    "p_expected": 0.4,
     "categories": [
       "consistent",
       "correct",
@@ -18,105 +18,114 @@
     ],
     "confusion_matrix": {
       "consistent": {
-        "consistent": 8,
-        "inconsistent": 1
+        "consistent": 9
       },
       "correct": {
-        "correct": 12
+        "correct": 15
       },
       "inconsistent": {
         "consistent": 1
       },
       "incorrect": {
-        "correct": 4,
-        "incorrect": 4
+        "incorrect": 3,
+        "correct": 2
       }
     },
     "per_label_agreement": {
       "consistent": {
-        "precision": 0.8889,
-        "recall": 0.8889,
-        "f1": 0.8889,
+        "precision": 1.0,
+        "recall": 0.9,
+        "f1": 0.9474,
         "auto_count": 9,
-        "human_count": 9
+        "human_count": 10
       },
       "correct": {
         "precision": 1.0,
-        "recall": 0.75,
-        "f1": 0.8571,
-        "auto_count": 12,
-        "human_count": 16
+        "recall": 0.8824,
+        "f1": 0.9375,
+        "auto_count": 15,
+        "human_count": 17
       },
       "inconsistent": {
         "precision": 0.0,
         "recall": 0.0,
         "f1": 0.0,
         "auto_count": 1,
-        "human_count": 1
+        "human_count": 0
       },
       "incorrect": {
-        "precision": 0.5,
+        "precision": 0.6,
         "recall": 1.0,
-        "f1": 0.6667,
-        "auto_count": 8,
-        "human_count": 4
+        "f1": 0.75,
+        "auto_count": 5,
+        "human_count": 3
       }
     }
   },
   "by_dimension": {
     "consistency": {
       "n": 10,
-      "agreement_rate": 0.8,
-      "cohens_kappa": -0.1111
+      "agreement_rate": 0.9,
+      "cohens_kappa": 0.0
     },
     "safety": {
       "n": 10,
       "agreement_rate": 0.9,
-      "cohens_kappa": 0.7826
+      "cohens_kappa": 0.6154
     },
     "truthfulness": {
       "n": 10,
-      "agreement_rate": 0.7,
-      "cohens_kappa": 0.2857
+      "agreement_rate": 0.9,
+      "cohens_kappa": 0.7368
     }
   },
   "by_model": {
     "gemma3_4b": {
-      "n": 15,
-      "agreement_rate": 0.8,
-      "cohens_kappa": 0.6831
+      "n": 17,
+      "agreement_rate": 0.9412,
+      "cohens_kappa": 0.9086
     },
     "llama3.1_8b": {
-      "n": 15,
-      "agreement_rate": 0.8,
-      "cohens_kappa": 0.7078
+      "n": 13,
+      "agreement_rate": 0.8462,
+      "cohens_kappa": 0.7111
     }
   },
   "by_attack_type": {
     "benign": {
-      "n": 5,
-      "agreement_rate": 0.6,
-      "cohens_kappa": 0.0
-    },
-    "direct_prompt_injection": {
-      "n": 1,
+      "n": 4,
       "agreement_rate": 1.0,
       "cohens_kappa": 1.0
     },
-    "impossible_fact": {
+    "direct_prompt_injection": {
       "n": 2,
       "agreement_rate": 1.0,
       "cohens_kappa": 1.0
     },
+    "fictional_entity": {
+      "n": 2,
+      "agreement_rate": 1.0,
+      "cohens_kappa": 1.0
+    },
+    "future_event": {
+      "n": 2,
+      "agreement_rate": 1.0,
+      "cohens_kappa": 1.0
+    },
+    "impossible_fact": {
+      "n": 1,
+      "agreement_rate": 0.0,
+      "cohens_kappa": 0.0
+    },
     "instruction_override": {
-      "n": 3,
+      "n": 2,
       "agreement_rate": 1.0,
       "cohens_kappa": 1.0
     },
     "non_existent_person": {
-      "n": 4,
-      "agreement_rate": 0.75,
-      "cohens_kappa": 0.0
+      "n": 1,
+      "agreement_rate": 1.0,
+      "cohens_kappa": 1.0
     },
     "nonsensical": {
       "n": 1,
@@ -135,18 +144,18 @@
     },
     "repetition": {
       "n": 5,
-      "agreement_rate": 0.8,
-      "cohens_kappa": 0.0
+      "agreement_rate": 1.0,
+      "cohens_kappa": 1.0
     },
     "role_hijacking": {
       "n": 2,
-      "agreement_rate": 0.5,
-      "cohens_kappa": 0.0
-    },
-    "system_leakage": {
-      "n": 1,
       "agreement_rate": 1.0,
       "cohens_kappa": 1.0
+    },
+    "system_leakage": {
+      "n": 2,
+      "agreement_rate": 0.5,
+      "cohens_kappa": 0.0
     }
   }
 }

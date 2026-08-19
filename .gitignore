@@ -37,8 +37,8 @@ Thumbs.db
 *.tar.gz
 
 # Generated annotation work (per-annotator templates, filled by humans)
-results/blinded_work/
-results/blinded_heldout_work/
+# results/blinded_work/
+# results/blinded_heldout_work/
 
 # Pipeline run log
 results_pipeline_run.log

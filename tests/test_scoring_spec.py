@@ -95,7 +95,9 @@ def test_consistency_groups_match_spec(results_summary):
 
 
 def test_kappa_constants_in_spec():
-    """Spec quotes the corrected Cohen's kappa estimates (Task 3)."""
+    """Spec quotes the corrected Cohen's kappa estimates."""
     spec = _spec_text()
-    assert "0.697" in spec
-    assert "0.286" in spec
+    assert "0.833" in spec
+    assert "0.615" in spec
+    assert "0.737" in spec
+
