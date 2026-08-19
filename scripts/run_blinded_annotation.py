@@ -85,86 +85,6 @@ def _load_audit(audit_path: Path) -> List[Dict]:
     return [json.loads(line) for line in audit_path.open() if line.strip()]
 
 
-
-
-
-
-
-# All dimensions we want to aggregate into a single report. Keeping them
-# in one file (instead of one file per dimension) lets the dashboard show a
-# full blinded re-validation rather than just the last dimension that ran.
-ALL_DIMENSIONS = ("safety", "truthfulness", "consistency")
-
-
-def _run_single_dimension(files, audit, dimension, tie_breaker):
-    """Run one dimension of the blinded re-validation.
-
-    Returns a dict with the per-dimension inter-annotator agreement,
-    adjudication and gold-vs-auto comparison.
-    """
-    # a) Inter-annotator agreement (the gate).
-
-
-
-    agreement = annotator_agreement(files, dimension=dimension, with_ci=True)
-    print(f"\n  [{dimension}] Inter-annotator agreement:")
-    print(f"    {agreement['report_text']}")
-    for pair, stats in agreement["pairwise"].items():
-        if stats.get("n"):
-            print(
-
-                f"      {pair:<30} n={stats['n']:<3} "
-                f"κ={stats['cohens_kappa']:.3f}  ag={stats['agreement_rate']*100:.1f}%"
-            )
-        else:
-
-            print(f"      {pair:<30} {stats.get('note','')}")
-
-    # b) Adjudication.
-
-
-    rows, _names = merge_annotations(files, dimension=dimension)
-    gold = adjudicate(rows, tie_breaker=tie_breaker)
-    n_unresolved = sum(1 for g in gold if g["needs_adjudication"])
-    print(
-
-        f"  [{dimension}] Adjudicated {len(gold)} records; "
-        f"{n_unresolved} need human adjudication (ties)."
-    )
-
-    # c) Gold vs. auto-scorer (headline κ).
-
-    comparison = compare_to_auto(audit, gold)
-
-    print(f"  [{dimension}] Gold vs. auto-scorer agreement (headline κ):")
-    print(
-        f"    n={comparison.get('n_valid_pairs', 0)}  "
-        f"κ={comparison.get('cohens_kappa', 0):.3f}  "
-        f"agreement={comparison.get('agreement_rate', 0)*100:.1f}%"
-    )
-
-
-
-
-
-
-    return {
-        "inter_annotator": agreement,
-        "adjudicated": {
-            "n_total": len(gold),
-            "n_needs_adjudication": n_unresolved,
-            "records": gold,
-        },
-        "auto_comparison": comparison,
-    }
-
-
-# ──────────────────────────────────────────────────────────────
-# Stage 2: inter-annotator agreement + gold + auto comparison
-# ──────────────────────────────────────────────────────────────
-def _load_audit(audit_path: Path) -> List[Dict]:
-    return [json.loads(line) for line in audit_path.open() if line.strip()]
-
 # All dimensions we aggregate into a single report. Keeping them in one file
 # (rather than one file per dimension) lets the dashboard show the full
 # blinded re-validation instead of only the last dimension that ran.
@@ -227,6 +147,22 @@ def _run_report(args) -> int:
         return 1
 
     audit = _load_audit(Path(args.audit))
+
+    # Guard against silently writing a misleading (all-zero) report from
+    # UNFILLED templates: an empty human_label today reads as "not annotated".
+    # If no annotator has actually cast any label, fail loudly instead of
+    # emitting a report that would be misread as a validated null result.
+    n_annotated = sum(
+        1 for f in files for line in f.open() if line.strip()
+        and json.loads(line).get("human_label")
+    )
+    if n_annotated == 0:
+        print("  ✗ No filled 'human_label' values found in the annotation files.")
+        print("    The templates appear to be UNFILLED. An empty report would be")
+        print("    misleading — refusing to write it. Fill human_label first,")
+        print("    e.g. 'make blinded-prepare' then edit results/blinded_work/*.jsonl,")
+        print("    or 'make blinded-heldout-prepare' for the held-out set.")
+        return 2
 
     # Aggregate every dimension into a single report so the dashboard shows the
     # full blinded re-validation, not just the last dimension that ran.

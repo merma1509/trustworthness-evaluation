@@ -13,30 +13,29 @@ Runs the full evaluation pipeline:
     6. Save all results
 """
 
+import argparse
 import hashlib
 import json
 import subprocess
 import sys
-import argparse
 from collections import defaultdict
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from src.consistency import evaluate_consistency
 from src.llm_client import LLMClient
 from src.safety import evaluate_safety
-from src.truthfulness import evaluate_truthfulness
-from src.consistency import evaluate_consistency
-from src.trustscore import compute_trustscore
-from src.utils import save_jsonl
 from src.stats import (
     DEFAULT_WEIGHT_CONFIGS,
-    compute_paired_difference_ci,
     compute_clustered_consistency_ci,
+    compute_paired_difference_ci,
 )
-
+from src.trustscore import compute_trustscore
+from src.truthfulness import evaluate_truthfulness
+from src.utils import save_jsonl
 
 # ──────────────────────────────────────────────────────────────
 # Reproducibility helpers
@@ -195,7 +194,7 @@ def create_manifest(
 
     lines.extend([
         "── Reproduction Command ──",
-        f"  python3 run_evaluation.py \\",
+        "  python3 run_evaluation.py \\",
         f"      --models {','.join(models)} \\",
         f"      --output {output_dir} \\",
         f"      --temperature {extra_args.get('temperature', 0.0)} \\",
@@ -313,7 +312,7 @@ def print_ranking_warning(all_results: dict, models: list):
         return
 
     print(f"\n  {'=' * 60}")
-    print(f"  RANKING STABILITY — WARNING")
+    print("  RANKING STABILITY — WARNING")
     print(f"  {'=' * 60}")
 
     names = []
@@ -350,10 +349,10 @@ def print_ranking_warning(all_results: dict, models: list):
                         print(f"  -> Tie on {dim_label}")
 
     print()
-    print(f"  The overall TrustScore ranking depends heavily on weights.")
-    print(f"  -> Do NOT claim a single 'winner'.")
-    print(f"  -> Always report ranking as weight-dependent.")
-    print(f"  -> See weight_sensitivity.json & paired_comparison.json.")
+    print("  The overall TrustScore ranking depends heavily on weights.")
+    print("  -> Do NOT claim a single 'winner'.")
+    print("  -> Always report ranking as weight-dependent.")
+    print("  -> See weight_sensitivity.json & paired_comparison.json.")
     print(f"  {'=' * 60}")
 
 
@@ -445,7 +444,7 @@ def main():
     for dim, path in dataset_paths.items():
         if not Path(path).exists():
             print(f"  Dataset not found: {path}")
-            print(f"  Available versions under data/:")
+            print("  Available versions under data/:")
             for d in sorted(Path("data").iterdir()):
                 if d.is_dir():
                     print(f"    - {d.name}/")
@@ -462,7 +461,6 @@ def main():
     # ── Setup ─────────────────────────────────────────────
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
-    git_info = _git_info()
     create_manifest(
         models,
         output_dir,
@@ -543,7 +541,7 @@ def main():
               f"{model_results['dimension_scores']['truthfulness']['score']:.4f}")
         print(f"  Consistency:  "
               f"{model_results['dimension_scores']['consistency']['score']:.4f}")
-        print(f"  ─────────────────────────────")
+        print("  ─────────────────────────────")
         print(f"  TrustScore:   "
               f"{model_results['trustworthiness_score']:.4f}")
         print(f"  {'=' * 40}")
@@ -570,7 +568,7 @@ def main():
             )
 
             print(f"\n  {'=' * 60}")
-            print(f"  PAIRED MODEL COMPARISON")
+            print("  PAIRED MODEL COMPARISON")
             print(f"  {'=' * 60}")
             for dim, cr in paired_results.items():
                 n = cr.get("n_pairs") or cr.get("n_groups", "?")
@@ -610,10 +608,10 @@ def main():
     print_ranking_warning(all_results, models)
 
     print(f"\n{'=' * 60}")
-    print(f"EVALUATION COMPLETE")
+    print("EVALUATION COMPLETE")
     print(f"{'=' * 60}")
     print(f"All results saved to {output_dir}/")
-    print(f"\nTo reproduce:")
+    print("\nTo reproduce:")
     print(f"  python3 run_evaluation.py "
           f"--models {','.join(models)} --output {output_dir}")
     print(f"{'=' * 60}")

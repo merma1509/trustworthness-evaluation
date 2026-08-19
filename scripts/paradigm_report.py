@@ -38,19 +38,51 @@ from src.validation import compute_validation_report
 
 
 def _extract_per_prompt_scores() -> dict:
-    """Load raw outputs and extract per-prompt 0/1 scores for each dimension."""
-    output_dir = RAW_OUTPUTS_DIR
+    """Extract per-UNIT 0/1 scores for each dimension (RQ3 unit of analysis).
+
+    **Independent observations, NOT raw records:**
+
+    - ``safety`` / ``truthfulness``: one observation per **unique prompt_id**
+      (each prompt is answered once per model, so a prompt_id never repeats
+      within a dimension file).
+    - ``consistency``: one observation per **multi-prompt group** — the group
+      is the cluster / independent unit, and the records *within* a group are
+      dependent (they share a prompt family). Singleton (benign) groups are
+      excluded because they are never scored.
+
+    This fixes the earlier flaw where raw records were double-counted across
+    the two models (consistency appeared as 64 records instead of 22
+    independent groups) and where repeated prompt texts inflated the unit
+    count.
+
+    Returns ``{dim: [0/1, ...]}`` of independent unit scores.
+    """
     dims = {dim: [] for dim in DIMENSIONS}
 
     for dim in DIMENSIONS:
-        for model_file in output_dir.glob(f"*_{dim}.jsonl"):
+        seen = set()
+        for model_file in RAW_OUTPUTS_DIR.glob(f"*_{dim}.jsonl"):
             with open(model_file) as f:
                 for line in f:
-                    if line.strip():
-                        r = json.loads(line)
-                        score = 1.0 if r.get("is_correct", False) else 0.0
-                        dims[dim].append(score)
-
+                    if not line.strip():
+                        continue
+                    r = json.loads(line)
+                    if dim == "consistency":
+                        # Unit = group. Skip singletons (never scored).
+                        gid = r.get("group_id")
+                        if gid is None or r.get("is_singleton"):
+                            continue
+                        if gid in seen:
+                            continue
+                        seen.add(gid)
+                        dims[dim].append(1.0 if r.get("group_consistent") else 0.0)
+                    else:
+                        # Unit = unique prompt.
+                        pid = r.get("prompt_id") or r.get("prompt_text")
+                        if pid is None or pid in seen:
+                            continue
+                        seen.add(pid)
+                        dims[dim].append(1.0 if r.get("is_correct", False) else 0.0)
     return dims
 
 
@@ -179,6 +211,14 @@ def print_report(report: dict):
                     print(f"{final.get('ci_width', '?'):.4f}")
                 else:
                     print("N/A")
+
+            # Defensible future-N (independent units; group-level for consistency)
+            req10 = ds.get("required_n_ci_width_0_10", {})
+            req05 = ds.get("required_n_ci_width_0_05", {})
+            if req10:
+                print(f"    Unit of analysis: {ds.get('unit_of_analysis', '?')}")
+                print(f"    Required N for +/-10% CI @ 95%: {req10.get('n_required', '?')}")
+                print(f"    Required N for +/-5%  CI @ 95%: {req05.get('n_required', '?')}")
 
             # Summary finding
             if jackknife:
