@@ -44,3 +44,7 @@ Thumbs.db
 results_pipeline_run.log
 .pytest_cache
 feedback-plan.md
+
+# Pre-publication draft (not for public release)
+docs/pre-publication-report.md
+
