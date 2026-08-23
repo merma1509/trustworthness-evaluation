@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""Generate a blinded, multi-rater annotation dataset.
+"""Generate a blinded, multi-rater annotation dataset
 
 The audit leaks ``auto_label`` and similarity fields
 to the annotator, and that there was no calibration / held-out split. This
 script builds an *annotatable* blinded JSONL (prompt + response only, no
 ``auto_label``, no similarity) with a calibration / held-out split made at the
-**unique prompt/group unit** level.
+**unique prompt/group unit** level
 
 The audit file (``all_audit.jsonl``) may hold only label metadata; the actual
-prompt/response text is joined from ``results/raw_outputs/*.jsonl``.
+prompt/response text is joined from ``results/raw_outputs/*.jsonl``
 
 Usage:
     python3 scripts/generate_blinded_annotation.py \
@@ -27,7 +27,7 @@ MODEL_TOKENS = ["gemma3_4b", "llama3_1_8b", "llama3.1_8b"]
 
 
 def _parse_audit_id(audit_id: str) -> tuple:
-    """Return (model, dimension, key) from e.g. ``gemma3_4b_truth_BEN_003``."""
+    """Return (model, dimension, key) from e.g. ``gemma3_4b_truth_BEN_003``"""
     for mtok in MODEL_TOKENS:
         if audit_id.startswith(mtok + "_"):
             rest = audit_id[len(mtok) + 1:]
@@ -39,6 +39,24 @@ def _parse_audit_id(audit_id: str) -> tuple:
 
 
 def _load_raw_lookup(raw_dir: Path) -> dict:
+    """Build a {model: {dimension: {key: rows}}} lookup from raw outputs
+
+    IMPORTANT (duplication bug fix):
+    A consistency record carries BOTH ``prompt_id`` and ``group_id``. Previously
+    every such record was keyed by both fields, so ``source.values()`` contained
+    the same record twice and consistency groups in the blinded output ended up
+    with duplicated members (e.g. ``CON_027`` appearing 3x in ``group_11``)
+
+    The structure must reflect the dimension:
+
+      * consistency   -> ``group_id -> [row, ...]``  (a LIST of member rows, so
+                         no member is dropped nor duplicated within its group)
+      * safety/truth  -> ``prompt_id -> row`` (one row per prompt)
+
+    Returns:
+        ``lookup[model][dim][key]`` is a *single row* for safety/truthfulness
+        and a *list of rows* for consistency
+    """
     lookup = {}
     for path in raw_dir.glob("*.jsonl"):
         tokens = path.stem.split("_")
@@ -47,10 +65,43 @@ def _load_raw_lookup(raw_dir: Path) -> dict:
         lookup.setdefault(model, {}).setdefault(dim, {})
         for line in path.open():
             rec = json.loads(line)
-            for key in ("prompt_id", "group_id"):
-                if rec.get(key):
-                    lookup[model][dim][rec[key]] = rec
+            if dim == "consistency":
+                # Group members: append each row under its group_id
+                gid = rec.get("group_id")
+                if gid:
+                    lookup[model][dim].setdefault(gid, []).append(rec)
+            else:
+                # Safety / truthfulness: index by prompt_id only
+                pid = rec.get("prompt_id")
+                if pid:
+                    lookup[model][dim][pid] = rec
     return lookup
+
+
+def _deduplicate_group_rows(rows: list) -> list:
+    """Drop duplicate *prompt* members within a consistency group
+
+    Defensive backstop for the raw-output join. The live pipeline keeps all
+    copies of *repetition* prompts intentionally (we test same-question
+    stability), so the dedup here is only an idempotent guard -- a genuinely
+    duplicated prompt (same ``prompt_id`` AND same ``prompt``) must never be
+    shown to an annotator twice
+
+    Args:
+        rows: Raw records for one consistency group (already group_id filtered)
+
+    Returns:
+        Records with duplicate (prompt_id, prompt) pairs collapsed to one copy
+    """
+    seen = set()
+    unique = []
+    for r in rows:
+        marker = (r.get("prompt_id"), r.get("prompt_text"))
+        if marker in seen:
+            continue
+        seen.add(marker)
+        unique.append(r)
+    return unique
 
 
 def _blinded_record(rec: dict, raw: dict) -> dict:
@@ -63,11 +114,10 @@ def _blinded_record(rec: dict, raw: dict) -> dict:
     if dim == "consistency":
         gid = rec.get("group_id", key)
 
-        # The raw file stores one row per PROMPT within a group, not an
-        # aggregated group object. Collect every row whose group_id matches
-        # and present the full set of (prompt, response) pairs so that an
-        # annotator can actually judge consistency between responses.
-        group_rows = [v for v in source.values() if v.get("group_id") == gid]
+        # ``source[gid]`` is now the LIST of member rows for the group (each
+        # raw row appears exactly once). Present the full set of (prompt,
+        # response) pairs so an annotator can judge intra-group consistency
+        group_rows = _deduplicate_group_rows(source.get(gid, []))
         out["group_id"] = gid
 
         out["attack_type"] = rec.get("attack_type") or (

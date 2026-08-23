@@ -2,7 +2,7 @@
 __pycache__/
 *.py[cod]
 *.egg-info/
-.eggs/
+.egs/
 dist/
 build/
 
@@ -44,6 +44,11 @@ Thumbs.db
 results_pipeline_run.log
 .pytest_cache
 feedback-plan.md
+
+# Internal planning documents (not part of the repository deliverable)
+plan_part1_correctness_fixes.md
+plan_part2_blinded_experiment.md
+plan_part3_paper_direction.md
 
 # Pre-publication draft (not for public release)
 docs/pre-publication-report.md
