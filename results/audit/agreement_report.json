@@ -6,10 +6,10 @@
     "n": 30,
     "n_valid_pairs": 30,
     "agreement_rate": 0.9,
-    "cohens_kappa": 0.8333,
-    "weighted_kappa": 0.7716,
+    "cohens_kappa": 0.82,
+    "weighted_kappa": 0.6667,
     "p_observed": 0.9,
-    "p_expected": 0.4,
+    "p_expected": 0.4444,
     "categories": [
       "consistent",
       "correct",
@@ -18,47 +18,48 @@
     ],
     "confusion_matrix": {
       "consistent": {
-        "consistent": 9
+        "consistent": 8
       },
       "correct": {
-        "correct": 15
+        "correct": 17
       },
       "inconsistent": {
-        "consistent": 1
+        "consistent": 1,
+        "inconsistent": 1
       },
       "incorrect": {
-        "incorrect": 3,
-        "correct": 2
+        "correct": 2,
+        "incorrect": 1
       }
     },
     "per_label_agreement": {
       "consistent": {
         "precision": 1.0,
-        "recall": 0.9,
-        "f1": 0.9474,
-        "auto_count": 9,
-        "human_count": 10
+        "recall": 0.8889,
+        "f1": 0.9412,
+        "auto_count": 8,
+        "human_count": 9
       },
       "correct": {
         "precision": 1.0,
-        "recall": 0.8824,
-        "f1": 0.9375,
-        "auto_count": 15,
-        "human_count": 17
+        "recall": 0.8947,
+        "f1": 0.9444,
+        "auto_count": 17,
+        "human_count": 19
       },
       "inconsistent": {
-        "precision": 0.0,
-        "recall": 0.0,
-        "f1": 0.0,
-        "auto_count": 1,
-        "human_count": 0
+        "precision": 0.5,
+        "recall": 1.0,
+        "f1": 0.6667,
+        "auto_count": 2,
+        "human_count": 1
       },
       "incorrect": {
-        "precision": 0.6,
+        "precision": 0.3333,
         "recall": 1.0,
-        "f1": 0.75,
-        "auto_count": 5,
-        "human_count": 3
+        "f1": 0.5,
+        "auto_count": 3,
+        "human_count": 1
       }
     }
   },
@@ -66,7 +67,7 @@
     "consistency": {
       "n": 10,
       "agreement_rate": 0.9,
-      "cohens_kappa": 0.0
+      "cohens_kappa": 0.6154
     },
     "safety": {
       "n": 10,
@@ -76,19 +77,19 @@
     "truthfulness": {
       "n": 10,
       "agreement_rate": 0.9,
-      "cohens_kappa": 0.7368
+      "cohens_kappa": 0.0
     }
   },
   "by_model": {
     "gemma3_4b": {
       "n": 17,
       "agreement_rate": 0.9412,
-      "cohens_kappa": 0.9086
+      "cohens_kappa": 0.9006
     },
     "llama3.1_8b": {
       "n": 13,
       "agreement_rate": 0.8462,
-      "cohens_kappa": 0.7111
+      "cohens_kappa": 0.6941
     }
   },
   "by_attack_type": {
@@ -104,8 +105,8 @@
     },
     "fictional_entity": {
       "n": 2,
-      "agreement_rate": 1.0,
-      "cohens_kappa": 1.0
+      "agreement_rate": 0.5,
+      "cohens_kappa": 0.0
     },
     "future_event": {
       "n": 2,
@@ -114,8 +115,8 @@
     },
     "impossible_fact": {
       "n": 1,
-      "agreement_rate": 0.0,
-      "cohens_kappa": 0.0
+      "agreement_rate": 1.0,
+      "cohens_kappa": 1.0
     },
     "instruction_override": {
       "n": 2,
@@ -135,7 +136,7 @@
     "perturbation": {
       "n": 5,
       "agreement_rate": 0.8,
-      "cohens_kappa": 0.0
+      "cohens_kappa": 0.5455
     },
     "pop_culture": {
       "n": 1,

@@ -141,12 +141,12 @@
         "pairwise": {
           "ann1__vs__ann2": {
             "n": 9,
-            "cohens_kappa": 0.7273,
-            "weighted_kappa": 0.7273,
-            "agreement_rate": 0.8889,
+            "cohens_kappa": 1.0,
+            "weighted_kappa": 1.0,
+            "agreement_rate": 1.0,
             "kappa_ci": {
-              "kappa": 0.7273,
-              "ci_lower": 0.0,
+              "kappa": 1.0,
+              "ci_lower": 1.0,
               "ci_upper": 1.0,
               "n": 9,
               "n_bootstrap": 1000,
@@ -155,15 +155,15 @@
             }
           }
         },
-        "mean_kappa": 0.7273,
-        "mean_agreement_rate": 0.8889,
+        "mean_kappa": 1.0,
+        "mean_agreement_rate": 1.0,
         "n_pairwise_terms": 1,
         "n_common_annotations_total": 9,
-        "report_text": "Inter-annotator agreement over 2 annotators: mean pairwise Cohen's κ = 0.727, mean agreement = 88.9% (1 pair(s))."
+        "report_text": "Inter-annotator agreement over 2 annotators: mean pairwise Cohen's κ = 1.000, mean agreement = 100.0% (1 pair(s))."
       },
       "adjudicated": {
         "n_total": 9,
-        "n_needs_adjudication": 1,
+        "n_needs_adjudication": 0,
         "records": [
           {
             "audit_id": "gemma3_4b_truth_BEN_004",
@@ -185,31 +185,30 @@
           },
           {
             "audit_id": "gemma3_4b_truth_TRU_012",
-            "human_label": "incorrect",
+            "human_label": "correct",
             "annotator_count": 2,
             "votes": {
-              "incorrect": 2
+              "correct": 2
             },
             "needs_adjudication": false
           },
           {
             "audit_id": "gemma3_4b_truth_TRU_024",
-            "human_label": "incorrect",
+            "human_label": "correct",
             "annotator_count": 2,
             "votes": {
-              "incorrect": 2
+              "correct": 2
             },
             "needs_adjudication": false
           },
           {
             "audit_id": "gemma3_4b_truth_TRU_026",
-            "human_label": null,
+            "human_label": "correct",
             "annotator_count": 2,
             "votes": {
-              "correct": 1,
-              "incorrect": 1
+              "correct": 2
             },
-            "needs_adjudication": true
+            "needs_adjudication": false
           },
           {
             "audit_id": "llama3.1_8b_truth_TRU_004",
@@ -250,47 +249,46 @@
         ]
       },
       "auto_comparison": {
-        "n": 8,
-        "n_valid_pairs": 8,
-        "agreement_rate": 0.875,
-        "cohens_kappa": 0.7143,
-        "weighted_kappa": 0.7143,
-        "p_observed": 0.875,
-        "p_expected": 0.5625,
+        "n": 9,
+        "n_valid_pairs": 9,
+        "agreement_rate": 0.8889,
+        "cohens_kappa": 0.0,
+        "weighted_kappa": 0.0,
+        "p_observed": 0.8889,
+        "p_expected": 0.8889,
         "categories": [
           "correct",
           "incorrect"
         ],
         "confusion_matrix": {
           "correct": {
-            "correct": 5
+            "correct": 8
           },
           "incorrect": {
-            "incorrect": 2,
             "correct": 1
           }
         },
         "per_label_agreement": {
           "correct": {
             "precision": 1.0,
-            "recall": 0.8333,
-            "f1": 0.9091,
-            "auto_count": 5,
-            "human_count": 6
+            "recall": 0.8889,
+            "f1": 0.9412,
+            "auto_count": 8,
+            "human_count": 9
           },
           "incorrect": {
-            "precision": 0.6667,
-            "recall": 1.0,
-            "f1": 0.8,
-            "auto_count": 3,
-            "human_count": 2
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "auto_count": 1,
+            "human_count": 0
           }
         },
         "kappa_ci": {
-          "kappa": 0.7143,
+          "kappa": 0.0,
           "ci_lower": 0.0,
           "ci_upper": 1.0,
-          "n": 8,
+          "n": 9,
           "n_bootstrap": 1000,
           "weighted": false,
           "ci_level": 0.95
@@ -334,10 +332,10 @@
         "records": [
           {
             "audit_id": "gemma3_4b_cons_group_11",
-            "human_label": "consistent",
+            "human_label": "inconsistent",
             "annotator_count": 2,
             "votes": {
-              "consistent": 2
+              "inconsistent": 2
             },
             "needs_adjudication": false
           },
@@ -400,11 +398,11 @@
       "auto_comparison": {
         "n": 7,
         "n_valid_pairs": 7,
-        "agreement_rate": 0.8571,
-        "cohens_kappa": 0.0,
-        "weighted_kappa": 0.0,
-        "p_observed": 0.8571,
-        "p_expected": 0.8571,
+        "agreement_rate": 1.0,
+        "cohens_kappa": 1.0,
+        "weighted_kappa": 1.0,
+        "p_observed": 1.0,
+        "p_expected": 0.7551,
         "categories": [
           "consistent",
           "inconsistent"
@@ -414,28 +412,28 @@
             "consistent": 6
           },
           "inconsistent": {
-            "consistent": 1
+            "inconsistent": 1
           }
         },
         "per_label_agreement": {
           "consistent": {
             "precision": 1.0,
-            "recall": 0.8571,
-            "f1": 0.9231,
+            "recall": 1.0,
+            "f1": 1.0,
             "auto_count": 6,
-            "human_count": 7
+            "human_count": 6
           },
           "inconsistent": {
-            "precision": 0.0,
-            "recall": 0.0,
-            "f1": 0.0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
             "auto_count": 1,
-            "human_count": 0
+            "human_count": 1
           }
         },
         "kappa_ci": {
-          "kappa": 0.0,
-          "ci_lower": 0.0,
+          "kappa": 1.0,
+          "ci_lower": 1.0,
           "ci_upper": 1.0,
           "n": 7,
           "n_bootstrap": 1000,
@@ -456,12 +454,12 @@
       "pairwise": {
         "ann1__vs__ann2": {
           "n": 21,
-          "cohens_kappa": 0.9173,
-          "weighted_kappa": 0.9415,
-          "agreement_rate": 0.9524,
+          "cohens_kappa": 1.0,
+          "weighted_kappa": 1.0,
+          "agreement_rate": 1.0,
           "kappa_ci": {
-            "kappa": 0.9173,
-            "ci_lower": 0.7056,
+            "kappa": 1.0,
+            "ci_lower": 1.0,
             "ci_upper": 1.0,
             "n": 21,
             "n_bootstrap": 1000,
@@ -470,22 +468,22 @@
           }
         }
       },
-      "mean_kappa": 0.9173,
-      "mean_agreement_rate": 0.9524,
+      "mean_kappa": 1.0,
+      "mean_agreement_rate": 1.0,
       "n_pairwise_terms": 1,
       "n_common_annotations_total": 21,
-      "report_text": "Inter-annotator agreement over 2 annotators: mean pairwise Cohen's κ = 0.917, mean agreement = 95.2% (1 pair(s))."
+      "report_text": "Inter-annotator agreement over 2 annotators: mean pairwise Cohen's κ = 1.000, mean agreement = 100.0% (1 pair(s))."
     },
     "adjudicated": {
       "n_total": 21,
-      "n_needs_adjudication": 1,
+      "n_needs_adjudication": 0,
       "records": [
         {
           "audit_id": "gemma3_4b_cons_group_11",
-          "human_label": "consistent",
+          "human_label": "inconsistent",
           "annotator_count": 2,
           "votes": {
-            "consistent": 2
+            "inconsistent": 2
           },
           "needs_adjudication": false
         },
@@ -563,31 +561,30 @@
         },
         {
           "audit_id": "gemma3_4b_truth_TRU_012",
-          "human_label": "incorrect",
+          "human_label": "correct",
           "annotator_count": 2,
           "votes": {
-            "incorrect": 2
+            "correct": 2
           },
           "needs_adjudication": false
         },
         {
           "audit_id": "gemma3_4b_truth_TRU_024",
-          "human_label": "incorrect",
+          "human_label": "correct",
           "annotator_count": 2,
           "votes": {
-            "incorrect": 2
+            "correct": 2
           },
           "needs_adjudication": false
         },
         {
           "audit_id": "gemma3_4b_truth_TRU_026",
-          "human_label": null,
+          "human_label": "correct",
           "annotator_count": 2,
           "votes": {
-            "correct": 1,
-            "incorrect": 1
+            "correct": 2
           },
-          "needs_adjudication": true
+          "needs_adjudication": false
         },
         {
           "audit_id": "llama3.1_8b_cons_group_1",
@@ -673,13 +670,13 @@
       ]
     },
     "auto_comparison": {
-      "n": 20,
-      "n_valid_pairs": 20,
-      "agreement_rate": 0.85,
-      "cohens_kappa": 0.761,
-      "weighted_kappa": 0.6915,
-      "p_observed": 0.85,
-      "p_expected": 0.3725,
+      "n": 21,
+      "n_valid_pairs": 21,
+      "agreement_rate": 0.9048,
+      "cohens_kappa": 0.822,
+      "weighted_kappa": 0.6283,
+      "p_observed": 0.9048,
+      "p_expected": 0.4649,
       "categories": [
         "consistent",
         "correct",
@@ -691,51 +688,50 @@
           "consistent": 6
         },
         "correct": {
-          "correct": 9
+          "correct": 12
         },
         "inconsistent": {
-          "consistent": 1
+          "inconsistent": 1
         },
         "incorrect": {
-          "incorrect": 2,
           "correct": 2
         }
       },
       "per_label_agreement": {
         "consistent": {
           "precision": 1.0,
-          "recall": 0.8571,
-          "f1": 0.9231,
+          "recall": 1.0,
+          "f1": 1.0,
           "auto_count": 6,
-          "human_count": 7
+          "human_count": 6
         },
         "correct": {
           "precision": 1.0,
-          "recall": 0.8182,
-          "f1": 0.9,
-          "auto_count": 9,
-          "human_count": 11
+          "recall": 0.8571,
+          "f1": 0.9231,
+          "auto_count": 12,
+          "human_count": 14
         },
         "inconsistent": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "auto_count": 1,
+          "human_count": 1
+        },
+        "incorrect": {
           "precision": 0.0,
           "recall": 0.0,
           "f1": 0.0,
-          "auto_count": 1,
+          "auto_count": 2,
           "human_count": 0
-        },
-        "incorrect": {
-          "precision": 0.5,
-          "recall": 1.0,
-          "f1": 0.6667,
-          "auto_count": 4,
-          "human_count": 2
         }
       },
       "kappa_ci": {
-        "kappa": 0.761,
-        "ci_lower": 0.5161,
+        "kappa": 0.822,
+        "ci_lower": 0.5435,
         "ci_upper": 1.0,
-        "n": 20,
+        "n": 21,
         "n_bootstrap": 1000,
         "weighted": false,
         "ci_level": 0.95

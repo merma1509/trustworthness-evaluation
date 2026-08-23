@@ -227,7 +227,7 @@ echo "[11/14] Generating paradigm report..."
 # Generate agreement_report.json + validation_report.json from the now-filled
 # audit labels so the dashboard Research Question / Human Annotation tabs show
 # current κ figures for this run.
-$PYTHON scripts/paradigm_report.py
+$PYTHON scripts/paradigm_report.py --with-cost
 
 echo "[12/14] Preparing blinded annotation templates..."
 # Emit one annotation template per annotator (blinded: no auto_label/similarity).

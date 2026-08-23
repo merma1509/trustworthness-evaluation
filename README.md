@@ -316,7 +316,8 @@ TrustScore = 0.40 × Safety + 0.35 × Truthfulness + 0.25 × Consistency
 > dimension scores, TrustScores, and the exact max weight-config Δ drift between
 > runs. Do **not** treat the numbers here as stable headline claims — the
 > _reproducible_ findings are the qualitative ones (which dimension each model
-> wins, that no single model wins under all weights, and that all CIs overlap).
+> wins, that no single model wins under all weights, and that significance is judged
+> by the paired-difference test, not by overlapping CIs).
 > Always defer to the freshly generated `results/analysis_summary.txt` and
 > `results/results_summary.json` for the authoritative figures of a given run.
 
@@ -345,9 +346,17 @@ TrustScore = 0.40 × Safety + 0.35 × Truthfulness + 0.25 × Consistency
 |                  | Consistency    | 0.9091 | 0.7273   | 1.0000   |
 | **Llama 3.1 8B** | Safety         | 0.7429 | 0.6000   | 0.8857   |
 |                  | Truthfulness\* | 0.8929 | 0.7857   | 1.0000   |
-|                  | Consistency    | 1.0000 | 1.0000   | 1.0000   |
+|                  | Consistency    | 1.0000 | 0.7513   | 1.0000   |
 
-> **All confidence intervals overlap — ranking is NOT statistically significant.**
+> **Paired bootstrap test** — models are compared per-prompt (paired) or per-group
+> (clustered), never by checking whether two independent CIs overlap (that is a
+> statistical anti-pattern; overlapping CIs do **not** imply "no significant
+> difference"). Use `results/paired_comparison.json` for the paired-difference CI
+> and p-value on each dimension.
+>
+> Extreme scores use a **Beta posterior** (Jeffreys prior), not a degenerate bootstrap:
+> a perfect 1.0 (e.g. Llama 11/11 consistency) is reported with a nonzero-width CI
+> (lower bound ≈ 0.75, Rule of Three) rather than a misleading `[1.0, 1.0]`.
 >
 > Truthfulness CI here is for **FPR only** (28 false-premise prompts).  
 > Combined Truthfulness (FPR + Factual Accuracy across all 38 prompts) is used for TrustScore.
@@ -561,7 +570,7 @@ instrument it must be validated before use.
 > **Provisional — you may lean on the auto-scorer when:**
 >
 > - ✅ You care about **relative rankings** (which model wins per dimension)
-> - ✅ You accept **±5% margin of error** (all CIs overlap anyway)
+> - ✅ You accept **±5% margin of error** and decide significance from the paired-difference test (`results/paired_comparison.json`), not from CI-overlap eyeballing
 > - ✅ You spot-check **10% of labels** (≈21 responses, ~3 min)
 > - ✅ The evaluation involves **clear-cut safety and truthfulness** (90% agreement)
 >
@@ -590,17 +599,17 @@ instrument it must be validated before use.
 
 ### Key Findings
 
-| Finding                               | Detail                                                                                                                                                                  |
-| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Gemma 3 4B wins on Safety**         | 0.7714 vs 0.7429 — same malicious refused count (17), Gemma has 0 over-refusal                                                                                          |
-| **Llama 3.1 8B wins on Truthfulness** | 0.8947 vs 0.7632 — 3× fewer FPR failures (3 vs 9); Gemma 10/10 vs Llama 9/10 factual                                                                                    |
-| **Llama 3.1 8B wins on Consistency**  | 1.0 vs 0.9091 — 11/11 vs 10/11 multi-prompt groups consistent                                                                                                           |
-| **Ranking is stable by weights**      | Llama wins overall under every weight config; Gemma wins only Safety (exact max delta varies per run; see `ranking_stability.json`)                                     |
-| **No over-refusal for Gemma**         | 0 benign prompts refused vs 1 for Llama (BEN_003 false refusal)                                                                                                         |
-| **Auto-human agreement**              | **κ=0.833** (Almost perfect) — 90% agreement, 30 annotated samples; see per-dimension κ                                                                                 |
-| **Stability (jackknife)**             | All dimensions **stable** on the _independent-unit_ scale (safety σ≈1.2%, truthfulness σ≈1.1%, consistency σ≈0.0% leave-1-out on groups)                                |
-| **Future N (defensible)**             | To reach ±10% CI @95% need ≈68 (safety), ≈70 (truthfulness), ≈19 groups (consistency); ±5% needs ≈271 / ≈278 / ≈73 — computed on **independent units**, not raw records |
-| **Cost ratio**                        | Auto is **120× cheaper** than human evaluation                                                                                                                          |
+| Finding                               | Detail                                                                                                                                                                                                                               |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Gemma 3 4B wins on Safety**         | 0.7714 vs 0.7429 — same malicious refused count (17), Gemma has 0 over-refusal                                                                                                                                                       |
+| **Llama 3.1 8B wins on Truthfulness** | 0.8947 vs 0.7632 — 3× fewer FPR failures (3 vs 9); Gemma 10/10 vs Llama 9/10 factual                                                                                                                                                 |
+| **Llama 3.1 8B wins on Consistency**  | 1.0 vs 0.9091 — 11/11 vs 10/11 multi-prompt groups consistent                                                                                                                                                                        |
+| **Ranking is stable by weights**      | Llama wins overall under every weight config; Gemma wins only Safety (exact max delta varies per run; see `ranking_stability.json`)                                                                                                  |
+| **No over-refusal for Gemma**         | 0 benign prompts refused vs 1 for Llama (BEN_003 false refusal)                                                                                                                                                                      |
+| **Auto-human agreement**              | **κ=0.820** (Almost perfect) — 90% agreement, 30 annotated samples; see per-dimension κ                                                                                                                                              |
+| **Stability (jackknife)**             | All dimensions **stable** on the _independent-unit_ scale (safety σ≈1.2%, truthfulness σ≈1.1%, consistency σ≈0.0% leave-1-out on groups)                                                                                             |
+| **Future N (defensible)**             | To reach ±10% CI @95% need ≈83 (safety), ≈70 (truthfulness), ≈32 groups (consistency); ±5% Wald needs ≈332 / ≈278 / ≈127 — with **empirical bootstrap** (±5%) ≈234 / ≈235 / ≈92 — computed on **independent units**, not raw records |
+| **Cost ratio**                        | Auto ≈ **70× cheaper** than human evaluation _(MEASURED per-label human time = **8.0 s** from `results/human_timing_measurement.json` (Task 1.5); auto time measured at 4.55 s/prompt from `cost_tracker.json`)_                     |
 
 ---
 

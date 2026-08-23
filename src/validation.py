@@ -16,8 +16,6 @@ from src.agreement import compute_agreement
 # ──────────────────────────────────────────────────────────────
 # Error analysis: where does the auto-scorer disagree with human?
 # ──────────────────────────────────────────────────────────────
-
-
 def compute_error_analysis(
     records: List[dict],
 ) -> Dict:
@@ -106,8 +104,6 @@ def _get_label_vals(r: dict) -> tuple:
 # ──────────────────────────────────────────────────────────────
 # Measurement cost: human vs. auto comparison
 # ──────────────────────────────────────────────────────────────
-
-
 def compute_measurement_budget(
     auto_time_per_prompt_seconds: float = 10.0,
     human_time_per_label_seconds: float = 30.0,
@@ -115,6 +111,7 @@ def compute_measurement_budget(
     num_models: int = 2,
     cost_per_hour_human: float = 20.0,   # hourly wage for annotator
     cost_per_hour_gpu: float = 0.50,     # estimated GPU cost (local = ~0)
+    measured_human_timing: Optional[Dict] = None,
 ) -> Dict:
     """Compare cost of fully automatic vs. fully human evaluation.
 
@@ -130,6 +127,19 @@ def compute_measurement_budget(
         Dict comparing auto vs. human on time, cost, and scalability.
     """
     total_responses = num_prompts * num_models
+
+    # Optional real timing study overrides the placeholder.
+    measured = False
+    timing_src = "default placeholder (not yet measured)"
+    if measured_human_timing and measured_human_timing.get("median_seconds_per_label"):
+        human_time_per_label_seconds = float(
+            measured_human_timing["median_seconds_per_label"]
+        )
+        measured = True
+        timing_src = (
+            f"MEASURED ({measured_human_timing.get('n_measured', '?')} labels, "
+            f"{measured_human_timing.get('measured_at', '?')})"
+        )
 
     # Auto
     auto_seconds = total_responses * auto_time_per_prompt_seconds
@@ -159,6 +169,7 @@ def compute_measurement_budget(
             "total_responses": total_responses,
             "auto_time_per_prompt_sec": auto_time_per_prompt_seconds,
             "human_time_per_label_sec": human_time_per_label_seconds,
+            "human_time_source": timing_src,
             "human_hourly_cost": cost_per_hour_human,
             "gpu_hourly_cost": cost_per_hour_gpu,
         },
@@ -183,10 +194,17 @@ def compute_measurement_budget(
         },
         "recommendation": (
             f"For {total_responses} responses across {num_models} models × {num_prompts} prompts, "
-            f"automatic evaluation is **{human_cost / auto_cost:.0f}× cheaper** "
-            f"than full human evaluation. "
+            f"automatic evaluation is {'MEASURED' if measured else 'an ESTIMATED'} "
+            f"**{human_cost / auto_cost:.0f}× cheaper** "
+            f"than full human evaluation (per-label human time: {timing_src}). "
             f"A hybrid approach (auto + 50% human audit) costs "
             f"${hybrid_cost:.0f} and provides measurement validation."
+        ),
+        "cost_ratio_estimated_x": round(human_cost / auto_cost, 1),
+        "cost_is_measured": measured,
+        "cost_basis": (
+            f"{'MEASURED' if measured else 'ESTIMATE'} — human annotation time "
+            f"({timing_src}) used directly in the ratio."
         ),
     }
 
@@ -194,14 +212,13 @@ def compute_measurement_budget(
 # ──────────────────────────────────────────────────────────────
 # Full validation report
 # ──────────────────────────────────────────────────────────────
-
-
 def compute_validation_report(
     audit_records: List[dict],
     per_prompt_scores: Dict[str, List[float]],  # dim -> list of 0/1 scores
     cost_tracker_data: Optional[Dict] = None,
     auto_time_per_prompt: float = 10.0,
     human_time_per_label: float = 30.0,
+    measured_human_timing: Optional[Dict] = None,
 ) -> Dict:
     """Generate a complete measurement validation report.
 
@@ -217,6 +234,9 @@ def compute_validation_report(
         cost_tracker_data: Optional dict from CostTracker.summary().
         auto_time_per_prompt: Seconds per auto inference.
         human_time_per_label: Seconds per human label.
+        measured_human_timing: Optional dict from a real timing study
+            overriding human_time_per_label for the definitive
+            cost ratio.
 
     Returns:
         Comprehensive validation report dict.
@@ -253,6 +273,7 @@ def compute_validation_report(
         from src.stats import (
             compute_dataset_size_sensitivity,
             compute_jackknife_stability,
+            compute_required_n_empirically,
             estimate_required_sample_size,
         )
 
@@ -278,6 +299,12 @@ def compute_validation_report(
                 req_05 = estimate_required_sample_size(
                     precision=0.05, confidence=0.95, expected_proportion=p
                 )
+                # Empirical counterpart: smallest N whose *measured* bootstrap
+                # CI reaches the target half-width on this data (complements the
+                # theoretical Wald estimate above).
+                req_empirical = compute_required_n_empirically(
+                    scores, target_precision=0.05, n_bootstrap=200
+                )
 
                 dim_stability[dim] = {
                     "unit_of_analysis": (
@@ -287,6 +314,7 @@ def compute_validation_report(
                     "dataset_size_sensitivity": size_sens,
                     "required_n_ci_width_0_10": req_10,
                     "required_n_ci_width_0_05": req_05,
+                    "required_n_ci_width_0_05_empirical": req_empirical,
                 }
         report["rq3_dataset_stability"] = dim_stability
     else:
@@ -298,6 +326,7 @@ def compute_validation_report(
         human_time_per_label_seconds=human_time_per_label,
         num_prompts=105,
         num_models=2,
+        measured_human_timing=measured_human_timing,
     )
     if cost_tracker_data:
         cost["measured_times"] = cost_tracker_data
