@@ -466,7 +466,17 @@ The pipeline executes these steps automatically:
 | 3    | `analysis.py`                 | `results/analysis_summary.txt`, CI + ranking PNGs                             |
 | 4    | `score_saved_outputs.py`      | `results/rescored_verification.json`                                          |
 | 5    | `paradigm_report.py`          | `results/validation_report.json` + `audit/agreement_report.json`              |
-| 6    | `streamlit run dashboard.py`  | Interactive dashboard at `http://localhost:8501`                              |
+| 6    | Part-3 figures                | `budget_plan.json`, `budget_reliability_curve.png`, `error_heatmap.png`       |
+| 7    | Experiment status gate        | prints the Part-2/3 blinded experiment flow status + next commands            |
+| 8    | `streamlit run dashboard.py`  | Interactive dashboard at `http://localhost:8501`                              |
+
+> **Note (steps 6–7):** the Part-3 figures are generated only if the
+> agreement/validation reports exist (i.e. after human labels are filled at the
+> annotation gates). The experiment status gate **does not execute** the blinded
+> full-dataset experiment — it only reports where that separate strict-protocol
+> flow is and which `make experiment-*` commands to run next (`experiment-audit`,
+> `experiment-prepare`, `experiment-blinded-verify`,
+> `experiment-heldout-report`, `experiment-budget`).
 
 ### Step-by-Step (for debugging)
 
