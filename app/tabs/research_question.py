@@ -372,6 +372,18 @@ def render(available, gemma_scores, llama_scores, gemma_cis, llama_cis, all_scor
                 "Tip: `make budget-figure` produces the budget-vs-reliability plot."
             )
 
+        # Auto × Human error heatmap, if generated.
+        heat_path = RESULTS_DIR / "error_heatmap.png"
+        if heat_path.exists():
+            st.image(
+                str(heat_path),
+                caption="Error Heatmap: where the auto-scorer and humans disagree",
+            )
+        else:
+            st.caption(
+                "Tip: `make error-heatmap` produces the Auto×Human error heatmap."
+            )
+
     # ── 9. When to Trust ────────────────────────────────────
     st.markdown("### When to Trust It")
     with st.container(border=True):

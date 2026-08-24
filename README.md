@@ -195,6 +195,7 @@ python3 run_evaluation.py --models gemma3:4b,llama3.1:8b --output results
 | `make audit`                           | Generate manual audit consistency file             |
 | `make experiment-budget REPORT=<json>` | Trust-budget plan: κ-gated human allocation        |
 | `make budget-figure KAPPAS=...`        | Budget-vs-reliability figure                       |
+| `make error-heatmap`                   | Auto×Human error heatmap                           |
 
 ---
 
@@ -538,6 +539,7 @@ python3 run_evaluation.py --models gemma3:4b,llama3.1:8b --dataset-version raw
 | Auto-human agreement report    | `results/audit/agreement_report.json`       | `paradigm_report.py`          |
 | Trust-budget plan              | `results/budget_plan.json`                  | `budget_optimizer.py`         |
 | Budget-vs-reliability figure   | `results/budget_reliability_curve.png`      | `budget_reliability_curve.py` |
+| Error heatmap (Fig 2)          | `results/error_heatmap.png`                 | `error_heatmap.py`            |
 
 ---
 

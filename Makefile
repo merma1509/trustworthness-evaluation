@@ -1,7 +1,8 @@
 .PHONY: help setup run clean clean-all lint audit dashboard eval offlinescore test \
 	blinded-prepare blinded-report blinded-heldout-prepare blinded-heldout-report \
 	generate-audit experiment-prepare experiment-calibration-report \
-	experiment-heldout-report experiment-blinded-verify
+	experiment-heldout-report experiment-blinded-verify \
+	experiment-budget budget-figure error-heatmap
 
 SHELL := /bin/bash
 RESULTS := results
@@ -44,6 +45,7 @@ help:
 	@echo "  make experiment-blinded-verify Verify no auto_label/model/prompt_id leaked"
 	@echo "  make experiment-budget REPORT=<json>  Trust-budget plan (κ-gated human allocation)"
 	@echo "  make budget-figure KAPPAS=...         Budget-vs-reliability figure"
+	@echo "  make error-heatmap                    Auto×Human error heatmap"
 
 setup:
 	@echo "Installing dependencies with uv (including dev extras)..."
@@ -269,4 +271,12 @@ budget-figure:
 	if [ -n "$(KAPPAS)" ]; then KAPPA_ARG="--kappas $(KAPPAS)"; fi; \
 	$(PY) scripts/budget_reliability_curve.py $$REPORT_ARG $$KAPPA_ARG --output results/budget_reliability_curve.png
 	@echo "  → Figure written to results/budget_reliability_curve.png"
+
+# Auto × Human error heatmap from the agreement/validation reports.
+error-heatmap:
+	$(PY) scripts/error_heatmap.py \
+		--agreement results/audit/agreement_report.json \
+		--validation results/validation_report.json \
+		--output results/error_heatmap.png
+	@echo "  → Figure written to results/error_heatmap.png"
 

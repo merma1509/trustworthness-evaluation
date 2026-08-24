@@ -223,11 +223,34 @@ wait_for_annotation \
      (correct / incorrect for safety & truthfulness;
       consistent / inconsistent for consistency)."
 
-echo "[11/14] Generating paradigm report..."
+echo "[11a/14] Generating paradigm report..."
 # Generate agreement_report.json + validation_report.json from the now-filled
 # audit labels so the dashboard Research Question / Human Annotation tabs show
 # current κ figures for this run.
 $PYTHON scripts/paradigm_report.py --with-cost
+
+echo "[11b/14] Generating figures & budget (if reports exist)..."
+# The budget / figure scripts read validation_report.json + agreement_report.json
+# produced in step 11, so they run *after* the human labels are filled. All are
+# optional: if a source report is absent the scripts degrade gracefully.
+if [ -f "${RESULTS_DIR}/validation_report.json" ]; then
+  $PYTHON scripts/budget_reliability_curve.py \
+      --report "${RESULTS_DIR}/validation_report.json" \
+      --output "${RESULTS_DIR}/budget_reliability_curve.png" \
+      || echo "  (skip budget-vs-reliability figure)"
+  $PYTHON scripts/budget_optimizer.py \
+      --report "${RESULTS_DIR}/validation_report.json" \
+      --output "${RESULTS_DIR}/budget_plan.json" \
+      || echo "  (skip budget plan)"
+fi
+if [ -f "${RESULTS_DIR}/audit/agreement_report.json" ]; then
+  $PYTHON scripts/error_heatmap.py \
+      --agreement "${RESULTS_DIR}/audit/agreement_report.json" \
+      --validation "${RESULTS_DIR}/validation_report.json" \
+      --output "${RESULTS_DIR}/error_heatmap.png" \
+      || echo "  (skip error heatmap)"
+fi
+echo "  → Artifacts: budget_plan.json, budget_reliability_curve.png, error_heatmap.png"
 
 echo "[12/14] Preparing blinded annotation templates..."
 # Emit one annotation template per annotator (blinded: no auto_label/similarity).
