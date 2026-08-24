@@ -185,14 +185,16 @@ python3 run_evaluation.py --models gemma3:4b,llama3.1:8b --output results
 
 ## Makefile Commands
 
-| Command          | Description                                        |
-| ---------------- | -------------------------------------------------- |
-| `make setup`     | Install dependencies via `uv sync`                 |
-| `make run`       | Run full evaluation pipeline (`./demo.sh`)         |
-| `make dashboard` | Launch Streamlit dashboard                         |
-| `make clean`     | Remove auto-generated results (keeps manual audit) |
-| `make lint`      | Check code quality with `ruff`                     |
-| `make audit`     | Generate manual audit consistency file             |
+| Command                                | Description                                        |
+| -------------------------------------- | -------------------------------------------------- |
+| `make setup`                           | Install dependencies via `uv sync`                 |
+| `make run`                             | Run full evaluation pipeline (`./demo.sh`)         |
+| `make dashboard`                       | Launch Streamlit dashboard                         |
+| `make clean`                           | Remove auto-generated results (keeps manual audit) |
+| `make lint`                            | Check code quality with `ruff`                     |
+| `make audit`                           | Generate manual audit consistency file             |
+| `make experiment-budget REPORT=<json>` | Trust-budget plan: κ-gated human allocation        |
+| `make budget-figure KAPPAS=...`        | Budget-vs-reliability figure                       |
 
 ---
 
@@ -534,6 +536,8 @@ python3 run_evaluation.py --models gemma3:4b,llama3.1:8b --dataset-version raw
 | Offline rescoring proof        | `results/rescored_verification.json`        | `score_saved_outputs.py`      |
 | Validation report (RQ1–RQ4)    | `results/validation_report.json`            | `paradigm_report.py`          |
 | Auto-human agreement report    | `results/audit/agreement_report.json`       | `paradigm_report.py`          |
+| Trust-budget plan              | `results/budget_plan.json`                  | `budget_optimizer.py`         |
+| Budget-vs-reliability figure   | `results/budget_reliability_curve.png`      | `budget_reliability_curve.py` |
 
 ---
 

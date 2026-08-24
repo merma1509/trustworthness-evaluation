@@ -43,6 +43,7 @@ help:
 	@echo "  make experiment-heldout-report Final held-out report (ANNOTATIONS=\"<2+ filled files>\")"
 	@echo "  make experiment-blinded-verify Verify no auto_label/model/prompt_id leaked"
 	@echo "  make experiment-budget REPORT=<json>  Trust-budget plan (κ-gated human allocation)"
+	@echo "  make budget-figure KAPPAS=...         Budget-vs-reliability figure"
 
 setup:
 	@echo "Installing dependencies with uv (including dev extras)..."
@@ -258,4 +259,14 @@ experiment-budget:
 		$(if $(GATE_TRUST),--gate-trust $(GATE_TRUST)) \
 		$(if $(GATE_UNVERIFIED),--gate-unverified $(GATE_UNVERIFIED))
 	@echo "  → Budget plan written to results/budget_plan.json"
+
+# Budget-vs-reliability figure. Optionally pass REPORT=<json> or
+# inline KAPPAS="safety=0.615 truthfulness=0.0 consistency=0.615".
+budget-figure:
+	@REPORT_ARG=""; \
+	if [ -n "$(REPORT)" ] && [ -f "$(REPORT)" ]; then REPORT_ARG="--report $(REPORT)"; fi; \
+	KAPPA_ARG=""; \
+	if [ -n "$(KAPPAS)" ]; then KAPPA_ARG="--kappas $(KAPPAS)"; fi; \
+	$(PY) scripts/budget_reliability_curve.py $$REPORT_ARG $$KAPPA_ARG --output results/budget_reliability_curve.png
+	@echo "  → Figure written to results/budget_reliability_curve.png"
 
