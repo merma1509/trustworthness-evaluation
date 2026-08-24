@@ -223,11 +223,71 @@ wait_for_annotation \
      (correct / incorrect for safety & truthfulness;
       consistent / inconsistent for consistency)."
 
-echo "[11/14] Generating paradigm report..."
+echo "[11a/14] Generating paradigm report..."
 # Generate agreement_report.json + validation_report.json from the now-filled
 # audit labels so the dashboard Research Question / Human Annotation tabs show
 # current κ figures for this run.
-$PYTHON scripts/paradigm_report.py
+$PYTHON scripts/paradigm_report.py --with-cost
+
+echo "[11b/14] Generating figures & budget (if reports exist)..."
+# The budget / figure scripts read validation_report.json + agreement_report.json
+# produced in step 11, so they run *after* the human labels are filled. All are
+# optional: if a source report is absent the scripts degrade gracefully.
+if [ -f "${RESULTS_DIR}/validation_report.json" ]; then
+  $PYTHON scripts/budget_reliability_curve.py \
+      --report "${RESULTS_DIR}/validation_report.json" \
+      --output "${RESULTS_DIR}/budget_reliability_curve.png" \
+      || echo "  (skip budget-vs-reliability figure)"
+  $PYTHON scripts/budget_optimizer.py \
+      --report "${RESULTS_DIR}/validation_report.json" \
+      --output "${RESULTS_DIR}/budget_plan.json" \
+      || echo "  (skip budget plan)"
+fi
+if [ -f "${RESULTS_DIR}/audit/agreement_report.json" ]; then
+  $PYTHON scripts/error_heatmap.py \
+      --agreement "${RESULTS_DIR}/audit/agreement_report.json" \
+      --validation "${RESULTS_DIR}/validation_report.json" \
+      --output "${RESULTS_DIR}/error_heatmap.png" \
+      || echo "  (skip error heatmap)"
+fi
+echo "  → Artifacts: budget_plan.json, budget_reliability_curve.png, error_heatmap.png"
+
+echo "[11c/14] Experiment flow status (optional)..."
+# The blinded full-dataset experiment is a SEPARATE strict-protocol flow (≥2
+# independent, blinded annotators). It is deliberately NOT executed here — this
+# block only reports where that flow is and what the user should do next, so a
+# fresh `make run` never blocks on humans who aren't present yet.
+if [ -f "experiment/all_audit_full.jsonl" ] && [ -d "experiment/blinded" ]; then
+  echo "  → Experiment audit + anonymised splits are ready (experiment/all_audit_full.jsonl)."
+  FILLED=0
+  TOTAL=0
+  for f in experiment/held_out_work/*.jsonl; do
+    [ -f "$f" ] || continue
+    c=$(count_labelled "$f" "human_label")
+    filled=${c%/*}; total=${c#*/}
+    TOTAL=$((TOTAL + total)); FILLED=$((FILLED + filled))
+  done
+  if [ "$TOTAL" -gt 0 ] && [ "$FILLED" -ge "$TOTAL" ]; then
+    echo "  → Held-out templates fully filled (${FILLED}/${TOTAL})."
+    echo "  → Produce the blinded report with:"
+    echo "      make experiment-heldout-report \\"
+    echo "           ANNOTATIONS=\"experiment/held_out_work/ann1.jsonl experiment/held_out_work/ann2.jsonl\""
+    echo "      make experiment-budget"
+  elif [ "$TOTAL" -gt 0 ]; then
+    echo "  → Held-out templates exist but not yet fully filled (${FILLED}/${TOTAL})."
+    echo "  → ≥2 independent annotators must fill experiment/held_out_work/*.jsonl, then run"
+    echo "      make experiment-heldout-report   (and optionally make experiment-budget)"
+  else
+    echo "  → No held-out templates yet. Prepare them with:"
+    echo "      make experiment-heldout-prepare ANNOTATORS=\"ann1 ann2\""
+  fi
+  echo "  → Verify anonymity first with: make experiment-blinded-verify"
+else
+  echo "  → Experiment flow not started. To enable full-dataset blinded validation:"
+  echo "      make experiment-audit"
+  echo "      make experiment-prepare"
+  echo "      make experiment-blinded-verify"
+fi
 
 echo "[12/14] Preparing blinded annotation templates..."
 # Emit one annotation template per annotator (blinded: no auto_label/similarity).

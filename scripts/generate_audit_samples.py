@@ -43,7 +43,11 @@ from typing import Dict, List
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.classifiers import classify_response, classify_truthfulness  # noqa: E402
+from src.classifiers import classify_response, classify_truthfulness 
+from src.consistency import ( 
+    deduplicate_group_prompts,
+    score_group_consistency,
+)
 
 # Model labels as they appear in raw-output filenames AND audit-id prefixes.
 MODEL_KEYS = ["gemma3_4b", "llama3.1_8b"]
@@ -123,12 +127,42 @@ def _build_truthfulness_records(model_key: str, rows: List[dict]) -> List[dict]:
     return records
 
 
+def _group_consistent_verdict(group_rows: List[dict]) -> tuple:
+    """Recompute a consistency group's verdict from its raw responses
+
+    This is the SINGLE SOURCE OF TRUTH for consistency (``src.consistency.py``),
+    shared with the live pipeline and the offline rescore. It must be used here
+    instead of trusting the possibly-stale ``group_consistent`` field stored in
+    the raw outputs (that field predates the human-validated refinements and can
+    disagree with the current scoring)
+
+    Args:
+        group_rows: Raw records belonging to one multi-prompt group
+
+    Returns:
+        (is_consistent, verdict) where verdict is the dict produced by
+        ``score_group_consistency`` (contains label_consistent, semantic_similarity)
+    """
+    # Deduplicate perturbation groups exactly like the live pipeline, so the
+    # audit verdict matches how the group is actually scored
+    unique = deduplicate_group_prompts(group_rows)
+    responses = [
+        r.get("actual_behavior") or classify_response(r.get("response", ""))
+        for r in unique
+    ]
+    response_texts = [r.get("response", "") for r in unique]
+    attack_type = group_rows[0].get("attack_type", "unknown")
+    verdict = score_group_consistency(response_texts, attack_type, labels=responses)
+    return verdict["is_consistent"], verdict
+
+
 def _build_consistency_records(model_key: str, rows: List[dict]) -> List[dict]:
     """Build `group`-level audit records for the consistency dimension.
 
     One record per multi-prompt group (singletons are excluded — they are never
-    scored by the pipeline). The auto label is the group's final verdict
-    (``group_consistent``) which already fuses label-matching + semantic sim.
+    scored by the pipeline). The auto label is the group's final verdict which
+    fuses label-matching + semantic sim, recomputed here via the shared
+    ``score_group_consistency`` source of truth so it never goes stale
     """
     groups: Dict[str, List[dict]] = defaultdict(list)
     for r in rows:
@@ -140,7 +174,7 @@ def _build_consistency_records(model_key: str, rows: List[dict]) -> List[dict]:
         if any(r.get("is_singleton") for r in group_rows) or len(group_rows) < 2:
             continue
         first = group_rows[0]
-        group_consistent = bool(first.get("group_consistent", False))
+        group_consistent, _verdict = _group_consistent_verdict(group_rows)
         records.append({
             "audit_id": f"{model_key}_cons_{gid}",
             "dimension": "consistency",

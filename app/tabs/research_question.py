@@ -2,7 +2,7 @@
 
 All numbers computed from:
   - results/audit/agreement_report.json  (Cohen's kappa, confusion matrix, 174 records)
-  - results/validation_report.json       (jackknife stability, cost-benefit)
+  - results/validation_report.json       (jackknife stability, cost-benefit, κ-gated budget)
   - results/ranking_stability.json       (ranking sensitivity to weights)
 """
 
@@ -12,8 +12,12 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-from app.config import MODEL_NAMES
+from app.config import MODEL_NAMES, RESULTS_DIR
 from app.data_loader import load_agreement_report, load_ranking_stability
+from scripts.budget_optimizer import DEFAULT_GATES, build_plan
+
+# Icon per trust band, mirroring the "trust region".
+BAND_ICONS = {"trust": "🟢", "caveated": "🟡", "unverified": "🔴", "unknown": "❔"}
 
 
 def _kappa_label(k: float) -> str:
@@ -317,6 +321,68 @@ def render(available, gemma_scores, llama_scores, gemma_cis, llama_cis, all_scor
             )
         else:
             st.info("Cost data not available.")
+
+    # ── Budget Optimization (κ-gated) ─────────────────
+    st.markdown("### Budget Optimization (κ-gated)")
+    with st.container(border=True):
+        st.markdown(
+            "**Trust Budget.** Instead of spending human "
+            "annotation uniformly, the framework routes it *only* to the "
+            "dimensions where the auto-scorer is least reliable: "
+            "`unverified` (κ < gate) → full dimension to humans, "
+            "`caveated` → ~10% spot-check, `trust` → none."
+        )
+        try:
+            plan = build_plan(report, dict(DEFAULT_GATES), source="validation_report")
+        except Exception as exc:  # pragma: no cover - defensive UI
+            st.info(f"Budget plan unavailable: {exc}")
+            plan = None
+
+        if plan:
+            budget_rows = []
+            for rec in plan["by_dimension"]:
+                band = rec["band"]
+                budget_rows.append({
+                    "Dimension": rec["dimension"].capitalize(),
+                    "Auto–human κ": f"{rec['kappa']:.3f}" if rec["kappa"] is not None else "n/a",
+                    "Band": f"{BAND_ICONS.get(band, '')} {band}",
+                    "Annotations needed": rec["annotations_needed"],
+                })
+            st.dataframe(pd.DataFrame(budget_rows), width="stretch", hide_index=True)
+            st.info(
+                f"**Recommendation:** route **{plan['total_human_annotations']}** "
+                f"human annotations (est. **${plan['estimated_human_cost_usd']:.2f}** "
+                f"@{plan.get('human_seconds_per_label', 8.01)} s/label) to the "
+                f"non-trust dimensions. Trust gates: κ ≥ "
+                f"{plan['gates']['trust']} / κ < "
+                f"{plan['gates']['unverified']}."
+            )
+            # Per-dimension one-line rationale.
+            for rec in plan["by_dimension"]:
+                st.caption(f"**{rec['dimension']}:** {rec['recommendation']}")
+        else:
+            st.info("Validation report missing — run `scripts/paradigm_report.py` first.")
+
+        # Budget-vs-reliability figure, if generated.
+        fig_path = RESULTS_DIR / "budget_reliability_curve.png"
+        if fig_path.exists():
+            st.image(str(fig_path), caption="Budget vs Reliability: where human effort buys the most")
+        else:
+            st.caption(
+                "Tip: `make budget-figure` produces the budget-vs-reliability plot."
+            )
+
+        # Auto × Human error heatmap, if generated.
+        heat_path = RESULTS_DIR / "error_heatmap.png"
+        if heat_path.exists():
+            st.image(
+                str(heat_path),
+                caption="Error Heatmap: where the auto-scorer and humans disagree",
+            )
+        else:
+            st.caption(
+                "Tip: `make error-heatmap` produces the Auto×Human error heatmap."
+            )
 
     # ── 9. When to Trust ────────────────────────────────────
     st.markdown("### When to Trust It")

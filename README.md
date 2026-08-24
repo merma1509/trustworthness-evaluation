@@ -185,14 +185,17 @@ python3 run_evaluation.py --models gemma3:4b,llama3.1:8b --output results
 
 ## Makefile Commands
 
-| Command          | Description                                        |
-| ---------------- | -------------------------------------------------- |
-| `make setup`     | Install dependencies via `uv sync`                 |
-| `make run`       | Run full evaluation pipeline (`./demo.sh`)         |
-| `make dashboard` | Launch Streamlit dashboard                         |
-| `make clean`     | Remove auto-generated results (keeps manual audit) |
-| `make lint`      | Check code quality with `ruff`                     |
-| `make audit`     | Generate manual audit consistency file             |
+| Command                                | Description                                        |
+| -------------------------------------- | -------------------------------------------------- |
+| `make setup`                           | Install dependencies via `uv sync`                 |
+| `make run`                             | Run full evaluation pipeline (`./demo.sh`)         |
+| `make dashboard`                       | Launch Streamlit dashboard                         |
+| `make clean`                           | Remove auto-generated results (keeps manual audit) |
+| `make lint`                            | Check code quality with `ruff`                     |
+| `make audit`                           | Generate manual audit consistency file             |
+| `make experiment-budget REPORT=<json>` | Trust-budget plan: κ-gated human allocation        |
+| `make budget-figure KAPPAS=...`        | Budget-vs-reliability figure                       |
+| `make error-heatmap`                   | Auto×Human error heatmap                           |
 
 ---
 
@@ -316,7 +319,8 @@ TrustScore = 0.40 × Safety + 0.35 × Truthfulness + 0.25 × Consistency
 > dimension scores, TrustScores, and the exact max weight-config Δ drift between
 > runs. Do **not** treat the numbers here as stable headline claims — the
 > _reproducible_ findings are the qualitative ones (which dimension each model
-> wins, that no single model wins under all weights, and that all CIs overlap).
+> wins, that no single model wins under all weights, and that significance is judged
+> by the paired-difference test, not by overlapping CIs).
 > Always defer to the freshly generated `results/analysis_summary.txt` and
 > `results/results_summary.json` for the authoritative figures of a given run.
 
@@ -345,9 +349,17 @@ TrustScore = 0.40 × Safety + 0.35 × Truthfulness + 0.25 × Consistency
 |                  | Consistency    | 0.9091 | 0.7273   | 1.0000   |
 | **Llama 3.1 8B** | Safety         | 0.7429 | 0.6000   | 0.8857   |
 |                  | Truthfulness\* | 0.8929 | 0.7857   | 1.0000   |
-|                  | Consistency    | 1.0000 | 1.0000   | 1.0000   |
+|                  | Consistency    | 1.0000 | 0.7513   | 1.0000   |
 
-> **All confidence intervals overlap — ranking is NOT statistically significant.**
+> **Paired bootstrap test** — models are compared per-prompt (paired) or per-group
+> (clustered), never by checking whether two independent CIs overlap (that is a
+> statistical anti-pattern; overlapping CIs do **not** imply "no significant
+> difference"). Use `results/paired_comparison.json` for the paired-difference CI
+> and p-value on each dimension.
+>
+> Extreme scores use a **Beta posterior** (Jeffreys prior), not a degenerate bootstrap:
+> a perfect 1.0 (e.g. Llama 11/11 consistency) is reported with a nonzero-width CI
+> (lower bound ≈ 0.75, Rule of Three) rather than a misleading `[1.0, 1.0]`.
 >
 > Truthfulness CI here is for **FPR only** (28 false-premise prompts).  
 > Combined Truthfulness (FPR + Factual Accuracy across all 38 prompts) is used for TrustScore.
@@ -454,7 +466,17 @@ The pipeline executes these steps automatically:
 | 3    | `analysis.py`                 | `results/analysis_summary.txt`, CI + ranking PNGs                             |
 | 4    | `score_saved_outputs.py`      | `results/rescored_verification.json`                                          |
 | 5    | `paradigm_report.py`          | `results/validation_report.json` + `audit/agreement_report.json`              |
-| 6    | `streamlit run dashboard.py`  | Interactive dashboard at `http://localhost:8501`                              |
+| 6    | Part-3 figures                | `budget_plan.json`, `budget_reliability_curve.png`, `error_heatmap.png`       |
+| 7    | Experiment status gate        | prints the Part-2/3 blinded experiment flow status + next commands            |
+| 8    | `streamlit run dashboard.py`  | Interactive dashboard at `http://localhost:8501`                              |
+
+> **Note (steps 6–7):** the Part-3 figures are generated only if the
+> agreement/validation reports exist (i.e. after human labels are filled at the
+> annotation gates). The experiment status gate **does not execute** the blinded
+> full-dataset experiment — it only reports where that separate strict-protocol
+> flow is and which `make experiment-*` commands to run next (`experiment-audit`,
+> `experiment-prepare`, `experiment-blinded-verify`,
+> `experiment-heldout-report`, `experiment-budget`).
 
 ### Step-by-Step (for debugging)
 
@@ -525,6 +547,9 @@ python3 run_evaluation.py --models gemma3:4b,llama3.1:8b --dataset-version raw
 | Offline rescoring proof        | `results/rescored_verification.json`        | `score_saved_outputs.py`      |
 | Validation report (RQ1–RQ4)    | `results/validation_report.json`            | `paradigm_report.py`          |
 | Auto-human agreement report    | `results/audit/agreement_report.json`       | `paradigm_report.py`          |
+| Trust-budget plan              | `results/budget_plan.json`                  | `budget_optimizer.py`         |
+| Budget-vs-reliability figure   | `results/budget_reliability_curve.png`      | `budget_reliability_curve.py` |
+| Error heatmap (Fig 2)          | `results/error_heatmap.png`                 | `error_heatmap.py`            |
 
 ---
 
@@ -561,7 +586,7 @@ instrument it must be validated before use.
 > **Provisional — you may lean on the auto-scorer when:**
 >
 > - ✅ You care about **relative rankings** (which model wins per dimension)
-> - ✅ You accept **±5% margin of error** (all CIs overlap anyway)
+> - ✅ You accept **±5% margin of error** and decide significance from the paired-difference test (`results/paired_comparison.json`), not from CI-overlap eyeballing
 > - ✅ You spot-check **10% of labels** (≈21 responses, ~3 min)
 > - ✅ The evaluation involves **clear-cut safety and truthfulness** (90% agreement)
 >
@@ -590,17 +615,17 @@ instrument it must be validated before use.
 
 ### Key Findings
 
-| Finding                               | Detail                                                                                                                                                                  |
-| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Gemma 3 4B wins on Safety**         | 0.7714 vs 0.7429 — same malicious refused count (17), Gemma has 0 over-refusal                                                                                          |
-| **Llama 3.1 8B wins on Truthfulness** | 0.8947 vs 0.7632 — 3× fewer FPR failures (3 vs 9); Gemma 10/10 vs Llama 9/10 factual                                                                                    |
-| **Llama 3.1 8B wins on Consistency**  | 1.0 vs 0.9091 — 11/11 vs 10/11 multi-prompt groups consistent                                                                                                           |
-| **Ranking is stable by weights**      | Llama wins overall under every weight config; Gemma wins only Safety (exact max delta varies per run; see `ranking_stability.json`)                                     |
-| **No over-refusal for Gemma**         | 0 benign prompts refused vs 1 for Llama (BEN_003 false refusal)                                                                                                         |
-| **Auto-human agreement**              | **κ=0.833** (Almost perfect) — 90% agreement, 30 annotated samples; see per-dimension κ                                                                                 |
-| **Stability (jackknife)**             | All dimensions **stable** on the _independent-unit_ scale (safety σ≈1.2%, truthfulness σ≈1.1%, consistency σ≈0.0% leave-1-out on groups)                                |
-| **Future N (defensible)**             | To reach ±10% CI @95% need ≈68 (safety), ≈70 (truthfulness), ≈19 groups (consistency); ±5% needs ≈271 / ≈278 / ≈73 — computed on **independent units**, not raw records |
-| **Cost ratio**                        | Auto is **120× cheaper** than human evaluation                                                                                                                          |
+| Finding                               | Detail                                                                                                                                                                                                                               |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Gemma 3 4B wins on Safety**         | 0.7714 vs 0.7429 — same malicious refused count (17), Gemma has 0 over-refusal                                                                                                                                                       |
+| **Llama 3.1 8B wins on Truthfulness** | 0.8947 vs 0.7632 — 3× fewer FPR failures (3 vs 9); Gemma 10/10 vs Llama 9/10 factual                                                                                                                                                 |
+| **Llama 3.1 8B wins on Consistency**  | 1.0 vs 0.9091 — 11/11 vs 10/11 multi-prompt groups consistent                                                                                                                                                                        |
+| **Ranking is stable by weights**      | Llama wins overall under every weight config; Gemma wins only Safety (exact max delta varies per run; see `ranking_stability.json`)                                                                                                  |
+| **No over-refusal for Gemma**         | 0 benign prompts refused vs 1 for Llama (BEN_003 false refusal)                                                                                                                                                                      |
+| **Auto-human agreement**              | **κ=0.820** (Almost perfect) — 90% agreement, 30 annotated samples; see per-dimension κ                                                                                                                                              |
+| **Stability (jackknife)**             | All dimensions **stable** on the _independent-unit_ scale (safety σ≈1.2%, truthfulness σ≈1.1%, consistency σ≈0.0% leave-1-out on groups)                                                                                             |
+| **Future N (defensible)**             | To reach ±10% CI @95% need ≈83 (safety), ≈70 (truthfulness), ≈32 groups (consistency); ±5% Wald needs ≈332 / ≈278 / ≈127 — with **empirical bootstrap** (±5%) ≈234 / ≈235 / ≈92 — computed on **independent units**, not raw records |
+| **Cost ratio**                        | Auto ≈ **70× cheaper** than human evaluation _(MEASURED per-label human time = **8.0 s** from `results/human_timing_measurement.json` (Task 1.5); auto time measured at 4.55 s/prompt from `cost_tracker.json`)_                     |
 
 ---
 

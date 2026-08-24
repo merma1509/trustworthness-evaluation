@@ -2,7 +2,7 @@
 __pycache__/
 *.py[cod]
 *.egg-info/
-.eggs/
+.egs/
 dist/
 build/
 
@@ -40,11 +40,26 @@ Thumbs.db
 # results/blinded_work/
 # results/blinded_heldout_work/
 
+# Analyst-ONLY ground truth for the blinded experiment (must never reach annotators
+# or be committed alongside the annotation files). Kept out of git deliberately.
+experiment/blinded/ground_truth_blinded.json
+
+# Blank experiment annotation templates (filled by humans). Keep out of git until
+# a human actually fills them; commit filled files explicitly (git add -f), mirroring
+# the results/blinded_work/ convention.
+experiment/held_out_work/ann*.jsonl
+
 # Pipeline run log
 results_pipeline_run.log
 .pytest_cache
 feedback-plan.md
 
+# Internal planning documents (not part of the repository deliverable)
+plan_part1_correctness_fixes.md
+plan_part2_blinded_experiment.md
+plan_part3_paper_direction.md
+
 # Pre-publication draft (not for public release)
 docs/pre-publication-report.md
+docs/paper-part3-draft.md
 

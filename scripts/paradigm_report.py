@@ -95,6 +95,22 @@ def _load_cost_data() -> dict:
     return None
 
 
+def _load_human_timing() -> dict:
+    """Try to load a MEASURED human-annotation timing study (Task 1.5).
+
+    ``scripts/measure_human_annotation_time.py`` writes this file; when present
+    it is used to replace the 30 s placeholder for the definitive cost ratio.
+    """
+    path = RESULTS_DIR / "human_timing_measurement.json"
+    if path.exists():
+        try:
+            with open(path) as f:
+                return json.load(f)
+        except (OSError, ValueError):
+            return None
+    return None
+
+
 def _format_agreement_badge(kappa: float) -> str:
     """Return human-readable interpretation of Cohen's Kappa."""
     if kappa >= 0.81:
@@ -154,7 +170,7 @@ def print_report(report: dict):
         print(f"    False positives (auto too optimistic): {len(fp)}")
         print(f"    False negatives (auto too pessimistic): {len(fn)}")
     else:
-        print("\n  ⚠  No labelled data. Run annotation first.")
+        print("\n No labelled data. Run annotation first.")
 
     # ── RQ2 ──────────────────────────────────────────────
     print(f"\n{'─' * 72}")
@@ -181,7 +197,7 @@ def print_report(report: dict):
                 bar = "█" * int(abs(k) * 30)
                 print(f"    {factor:<15} {sub:<25} κ={k:.3f}  n={n:<3}  {bar}")
     else:
-        print("\n  ⚠  No factor data available.")
+        print("\n No factor data available.")
 
     # ── RQ3 ──────────────────────────────────────────────
     print(f"\n{'─' * 72}")
@@ -219,6 +235,9 @@ def print_report(report: dict):
                 print(f"    Unit of analysis: {ds.get('unit_of_analysis', '?')}")
                 print(f"    Required N for +/-10% CI @ 95%: {req10.get('n_required', '?')}")
                 print(f"    Required N for +/-5%  CI @ 95%: {req05.get('n_required', '?')}")
+                req_emp = ds.get("required_n_ci_width_0_05_empirical", {})
+                print(f"    Required N for +/-5%  CI @ 95% (EMPIRICAL, bootstrap): "
+                      f"{req_emp.get('n_required', '?')}")
 
             # Summary finding
             if jackknife:
@@ -230,7 +249,7 @@ def print_report(report: dict):
                 else:
                     print("    → UNSTABLE: score is sensitive to individual prompts")
     else:
-        print("\n  ⚠  No stability data available.")
+        print("\n No stability data available.")
 
     # ── RQ4 ──────────────────────────────────────────────
     print(f"\n{'─' * 72}")
@@ -270,6 +289,12 @@ def print_report(report: dict):
         print(f"    {label_h:<25} {human_t:>6.1f}h  ${human_c:>6.2f}  {human_note}")
         print(f"    {label_hyb:<25} {hybrid_t:>6.1f}h  ${hybrid_c:>6.2f}  {hybrid_note}")
 
+        params = rq4.get("parameters", {})
+        meas_flag = "MEASURED" if rq4.get("cost_is_measured") else "ESTIMATED"
+        print(f"\n    Human time per label: {rq4.get('parameters', {}).get('human_time_per_label_sec', '?')}s  "
+              f"[{params.get('human_time_source', 'default placeholder')}]")
+        print(f"    Cost basis: {meas_flag}")
+
         print("\n  Recommendation:")
         print(f"    {rq4.get('recommendation','')}")
 
@@ -280,7 +305,7 @@ def print_report(report: dict):
                 print(f"    {rec.get('label','')}: {rec.get('elapsed_seconds',0)}s "
                       f"({rec.get('seconds_per_prompt',0):.2f}s/prompt)")
     else:
-        print("\n  ⚠  No cost data available.")
+        print("\n No cost data available.")
 
     print(f"\n{'=' * 72}")
     print("  END OF VALIDATION REPORT")
@@ -290,8 +315,6 @@ def print_report(report: dict):
 # ──────────────────────────────────────────────────────────────
 # Main
 # ──────────────────────────────────────────────────────────────
-
-
 def main():
     parser = argparse.ArgumentParser(
         description="Measurement Validation Report (Paradigm Shift)"
@@ -312,6 +335,20 @@ def main():
         "--with-cost",
         action="store_true",
         help="Include cost tracker data if available",
+    )
+    parser.add_argument(
+        "--auto-time-per-prompt",
+        type=float,
+        default=None,
+        help="MEASURED average auto-inference seconds per prompt. "
+             "Overrides the default when not using --with-cost.",
+    )
+    parser.add_argument(
+        "--human-time-per-label",
+        type=float,
+        default=30.0,
+        help="MEASURED average human-annotation seconds per label. "
+             "Fill from a real timing study (Task 1.5) for a definitive ratio.",
     )
     parser.add_argument(
         "--verbose", "-v",
@@ -343,14 +380,73 @@ def main():
         if cost_data:
             print(f"  Cost tracker data loaded: {cost_data.get('total_prompts',0)} prompts")
 
+    # MEASURED auto-time: prefer the CostTracker's measured avg seconds/prompt
+    # (results/cost_tracker.json produced by a real run), then an explicit CLI
+    # override, then the default.
+    measured_auto = (
+        cost_data.get("avg_seconds_per_prompt")
+        if cost_data and cost_data.get("avg_seconds_per_prompt")
+        else None
+    )
+    auto_time = (
+        args.auto_time_per_prompt
+        if args.auto_time_per_prompt is not None
+        else (measured_auto if measured_auto is not None else 10.0)
+    )
+    auto_src = (
+        "MEASURED (--auto-time-per-prompt)"
+        if args.auto_time_per_prompt is not None
+        else ("MEASURED (cost_tracker.json)" if measured_auto is not None
+              else "default (assumed)")
+    )
+    print(f"  Auto time per prompt: {auto_time:.2f}s  [{auto_src}]")
+
+    # Load a MEASURED human-annotation timing study (Task 1.5), if one has been
+    # produced. When present it overrides the 30 s placeholder for the ratio.
+    human_timing = _load_human_timing()
+    if human_timing:
+        print(
+            f"  Human timing loaded: {human_timing.get('median_seconds_per_label', '?')}s/label "
+            f"(n={human_timing.get('n_measured', '?')}) from "
+            f"{RESULTS_DIR / 'human_timing_measurement.json'}"
+        )
+    else:
+        print(
+            "  Human timing: none found — using default 30.0s/label. "
+            "Run scripts/measure_human_annotation_time.py for a MEASURED value (Task 1.5)."
+        )
+
+    # Effective human time: an explicit CLI override wins, else the measured
+    # timing study, else the default placeholder.
+    human_time = (
+        args.human_time_per_label
+        if args.human_time_per_label != 30.0
+        else (
+            human_timing.get("median_seconds_per_label")
+            if human_timing and human_timing.get("median_seconds_per_label")
+            else 30.0
+        )
+    )
+    human_src = (
+        "MEASURED (--human-time-per-label)"
+        if args.human_time_per_label != 30.0
+        else (
+            f"MEASURED (human_timing_measurement.json: {human_timing.get('measured_at', '?')})"
+            if human_timing and human_timing.get("median_seconds_per_label")
+            else "default placeholder (not yet measured)"
+        )
+    )
+    print(f"  Human time per label: {human_time:.1f}s  [{human_src}]")
+
     # Compute validation report
     print("\n  Computing validation report...")
     report = compute_validation_report(
         audit_records=audit_records,
         per_prompt_scores=per_prompt_scores,
         cost_tracker_data=cost_data,
-        auto_time_per_prompt=10.0,   # seconds, typical
-        human_time_per_label=30.0,   # seconds per label
+        auto_time_per_prompt=auto_time,
+        human_time_per_label=human_time,
+        measured_human_timing=human_timing if human_timing and human_timing.get("median_seconds_per_label") else None,
     )
 
     # Save
@@ -382,7 +478,7 @@ def main():
         print(f"  Agreement report saved to {agreement_path} "
               f"(n={n}, κ={k:.4f})")
     else:
-        print("  ⚠  No agreement data found — skipping agreement_report.json")
+        print("  No agreement data found — skipping agreement_report.json")
 
     # Print formatted report
     print_report(report)

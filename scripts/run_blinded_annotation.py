@@ -30,7 +30,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -85,17 +85,87 @@ def _load_audit(audit_path: Path) -> List[Dict]:
     return [json.loads(line) for line in audit_path.open() if line.strip()]
 
 
+def _load_ground_truth(ground_truth_path: Optional[Path]) -> Dict[str, Dict]:
+    """Load the analyst-only ``anon_id -> ground truth`` mapping.
+
+    The blinded templates replace every real ``audit_id`` / ``prompt_id`` with a
+    neutral sequential ``anon_id``. The ground-truth file (see
+    ``generate_blinded_annotation.py``) is the single bridge back to the original
+    audit record so the gold-vs-auto comparison can re-attach ``auto_label``.
+
+    Args:
+        ground_truth_path: Path to ``ground_truth_blinded.json``, or None.
+
+    Returns:
+        A dict with two indexes usable by downstream code:
+            ``by_anon_id`` : ``{anon_id: [{audit_id, dimension, attack_type, auto_label}]}``
+            ``by_audit_id``: ``{audit_id: {dimension, attack_type, auto_label}}``
+        An empty dict when no ground-truth file is supplied (non-anonymised flow).
+    """
+    if ground_truth_path is None or not Path(ground_truth_path).exists():
+        return {}
+    with Path(ground_truth_path).open() as f:
+        doc = json.load(f)
+    # Support both the legacy flat form and the new indexed document.
+    if "by_anon_id" in doc:
+        return doc
+    return {"by_anon_id": {k: [v] for k, v in doc.items()}, "by_audit_id": doc}
+
+
+def _resolve_anon_labels(gold, ground_truth: Dict[str, Dict]):
+    """Rewrite adjudicated gold records keyed by ``anon_id`` -> real ``audit_id``.
+
+    The blinded flow annotates by ``anon_id``; the auto-scorer comparison needs
+    the original ``audit_id`` to join against ``all_audit.jsonl``. When a ground
+    truth map is present, rebind each gold record via it.
+
+    Args:
+        gold: List of adjudicated records carrying ``audit_id`` (which actually
+            holds the anonymised id when blinded).
+        ground_truth: Ground-truth docs with ``by_anon_id`` / ``by_audit_id``.
+
+    Returns:
+        A new list with ``audit_id`` replaced by the real id where resolvable.
+    """
+    if not ground_truth:
+        return list(gold)
+    by_anon = ground_truth.get("by_anon_id", {})
+
+    resolved = []
+    for g in gold:
+        # ``audit_id`` in the gold record is actually an anon unit id (e.g. U_0001).
+        anon_id = g.get("audit_id")
+        entries = by_anon.get(anon_id) or []
+        if entries:
+            # Multiple models may share a unit; resolve each record separately
+            # so no annotated response is lost.
+            for e in entries:
+                resolved.append({**g, "audit_id": e.get("audit_id", anon_id)})
+        else:
+            # Non-anonymised flow (or unresolvable): keep as-is.
+            resolved.append(g)
+    return resolved
+
+
 # All dimensions we aggregate into a single report. Keeping them in one file
 # (rather than one file per dimension) lets the dashboard show the full
 # blinded re-validation instead of only the last dimension that ran.
 ALL_DIMENSIONS = ("safety", "truthfulness", "consistency")
 
 
-def _run_single_dimension(files, audit, dimension, tie_breaker):
+def _run_single_dimension(files, audit, dimension, tie_breaker, ground_truth=None):
     """Run one dimension of the blinded re-validation.
 
     Returns a dict with that dimension's inter-annotator agreement,
     adjudication and gold-vs-auto comparison.
+
+    Args:
+        files: Filled per-annotator annotation files.
+        audit: Loaded audit records (carry auto_label).
+        dimension: Dimension name to restrict labels.
+        tie_breaker: Annotator name to prefer on ties.
+        ground_truth: Optional ``{anon_id: {audit_id, ...}}`` map to rebind
+            anonymised gold records to real audit ids.
     """
     print(f"\n  === [{dimension}] ===")
 
@@ -120,8 +190,11 @@ def _run_single_dimension(files, audit, dimension, tie_breaker):
         f"{n_unresolved} need human adjudication (ties)."
     )
 
+    # Rebind anonymised gold -> real audit id before comparing to the auto scorer.
+    gold_for_auto = _resolve_anon_labels(gold, ground_truth or {})
+
     # c) Gold vs. auto-scorer (headline κ).
-    comparison = compare_to_auto(audit, gold)
+    comparison = compare_to_auto(audit, gold_for_auto)
     print("  Gold vs. auto-scorer agreement (headline κ):")
     print(
         f"    n={comparison.get('n_valid_pairs', 0)}  "
@@ -137,6 +210,7 @@ def _run_single_dimension(files, audit, dimension, tie_breaker):
             "records": gold,
         },
         "auto_comparison": comparison,
+        "used_ground_truth": bool(ground_truth),
     }
 
 
@@ -147,6 +221,9 @@ def _run_report(args) -> int:
         return 1
 
     audit = _load_audit(Path(args.audit))
+    ground_truth = _load_ground_truth(
+        Path(args.ground_truth) if getattr(args, "ground_truth", None) else None
+    )
 
     # Guard against silently writing a misleading (all-zero) report from
     # UNFILLED templates: an empty human_label today reads as "not annotated".
@@ -174,13 +251,14 @@ def _run_report(args) -> int:
     by_dimension = {}
     for dim in dimensions:
         by_dimension[dim] = _run_single_dimension(
-            files, audit, dim, args.tie_breaker
+            files, audit, dim, args.tie_breaker, ground_truth
         )
 
     # Overall / pooled view (across all dimensions).
     rows_all, _names_all = merge_annotations(files, dimension=None)
     gold_all = adjudicate(rows_all, tie_breaker=args.tie_breaker)
-    comparison_all = compare_to_auto(audit, gold_all)
+    gold_all_for_auto = _resolve_anon_labels(gold_all, ground_truth)
+    comparison_all = compare_to_auto(audit, gold_all_for_auto)
     n_unresolved_all = sum(1 for g in gold_all if g["needs_adjudication"])
 
     print("\n  OVERALL (pooled across dimensions):")
@@ -192,6 +270,7 @@ def _run_report(args) -> int:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     report = {
         "stage": "report",
+        "used_ground_truth": bool(ground_truth),
         "by_dimension": by_dimension,
         "overall": {
             "inter_annotator": annotator_agreement(files, dimension=None, with_ci=True),
@@ -231,6 +310,9 @@ def main():
                           default="all", help="Dimension for label validation, or 'all' to "
                           "aggregate every dimension into one report (default: all).")
     p_report.add_argument("--audit", default="results/audit/all_audit.jsonl")
+    p_report.add_argument("--ground-truth", default=None,
+                          help="Analyst-only ground_truth_blinded.json mapping "
+                               "anon_id -> audit_id (for blinded templates).")
     p_report.add_argument("--tie-breaker", default=None, help="Annotator to prefer on ties.")
     p_report.add_argument("--with-ci", action="store_true", help="Include bootstrap CIs.")
     p_report.add_argument("--output", default="results/audit/inter_annotator_report.json")

@@ -1,6 +1,8 @@
 .PHONY: help setup run clean clean-all lint audit dashboard eval offlinescore test \
 	blinded-prepare blinded-report blinded-heldout-prepare blinded-heldout-report \
-	generate-audit
+	generate-audit experiment-prepare experiment-calibration-report \
+	experiment-heldout-report experiment-blinded-verify \
+	experiment-budget budget-figure error-heatmap
 
 SHELL := /bin/bash
 RESULTS := results
@@ -34,6 +36,16 @@ help:
 	@echo "  make blinded-heldout-prepare  Emit held-out annotation templates"
 	@echo "                                (set ANNOTATORS=\"ann1 ann2\")"
 	@echo "  make blinded-heldout-report   Final once-only held-out agreement report"
+	@echo ""
+	@echo "Experiment (full-dataset, anonymised):"
+	@echo "  make experiment-audit          Regenerate FULL audit dataset for the experiment"
+	@echo "  make experiment-prepare        Build anonymised calibration/held-out + secret ground truth"
+	@echo "  make experiment-heldout-prepare Emit blank annotator templates (ANNOTATORS=\"ann1 ann2\")"
+	@echo "  make experiment-heldout-report Final held-out report (ANNOTATIONS=\"<2+ filled files>\")"
+	@echo "  make experiment-blinded-verify Verify no auto_label/model/prompt_id leaked"
+	@echo "  make experiment-budget REPORT=<json>  Trust-budget plan (κ-gated human allocation)"
+	@echo "  make budget-figure KAPPAS=...         Budget-vs-reliability figure"
+	@echo "  make error-heatmap                    Auto×Human error heatmap"
 
 setup:
 	@echo "Installing dependencies with uv (including dev extras)..."
@@ -166,4 +178,105 @@ blinded-heldout-report:
 		--audit results/audit/all_audit.jsonl \
 		--output results/audit/inter_annotator_report_heldout.json
 	@echo "  → Held-out report written to results/audit/inter_annotator_report_heldout.json"
+
+# ── blinded held-out EXPERIMENT (full-dataset, anonymised flow) ──
+# Unlike the results/audit/blinded flow (which keeps real prompt ids for the
+# integration tests), the experiment flow runs on the FULL audit dataset with
+# strict anonymisation: Model A/B + sequential anon ids, dimension kept (needed
+# for the label rubric) but auto_label/attack_type/prompt_id/model hidden. The
+# analyst-only ground truth lets the report re-attach auto labels afterwards.
+
+# Regenerate the full audit dataset (all prompts/groups) used by the experiment.
+experiment-audit:
+	@echo "Regenerating FULL audit dataset for the blinded experiment..."
+	$(PY) scripts/generate_audit_samples.py \
+		--raw "$(RESULTS)/raw_outputs" \
+		--output experiment/all_audit_full.jsonl \
+		--n-safety 100 --n-truthfulness 100 --n-consistency 100 --seed 42
+	@echo "  → experiment/all_audit_full.jsonl"
+
+# Build the anonymised calibration/held-out blinded files + secret ground truth.
+experiment-prepare:
+	@echo "Building anonymised blinded calibration/held-out datasets (seed=42)..."
+	$(PY) scripts/generate_blinded_annotation.py \
+		--audit experiment/all_audit_full.jsonl \
+		--raw "$(RESULTS)/raw_outputs" \
+		--output experiment/blinded \
+		--calibration-ratio 0.3 --seed 42
+	@echo "  → experiment/blinded/{blinded_annotation_calibration,blinded_annotation_heldout}.jsonl"
+	@echo "  → experiment/blinded/ground_truth_blinded.json (ANALYST-ONLY, git-ignored)"
+
+# Emit one blank annotation template per annotator for the held-out set.
+# Set ANNOTATORS="ann1 ann2".
+experiment-heldout-prepare:
+	@test -n "$(ANNOTATORS)" || (echo "Set ANNOTATORS=\"ann1 ann2\""; exit 1)
+	@echo "Preparing held-out annotation templates (anonymised)..."
+	$(PY) scripts/run_blinded_annotation.py prepare \
+		--input experiment/blinded/blinded_annotation_heldout.jsonl \
+		--output experiment/held_out_work \
+		--annotators $(ANNOTATORS)
+	@echo "  → Edit experiment/held_out_work/<annotator>.jsonl, then run 'make experiment-heldout-report'"
+
+# Final once-only held-out report (aggregates all dimensions). Set ANNOTATIONS to
+# the FILLED template paths, e.g.
+# ANNOTATIONS="experiment/held_out_work/ann1.jsonl experiment/held_out_work/ann2.jsonl".
+experiment-heldout-report:
+	@test -n "$(ANNOTATIONS)" || (echo "Set ANNOTATIONS to the filled template paths"; exit 1)
+	@echo "Computing held-out inter-annotator + gold + auto agreement..."
+	$(PY) scripts/run_blinded_annotation.py report \
+		--annotations $(ANNOTATIONS) \
+		--dimension all \
+		--audit experiment/all_audit_full.jsonl \
+		--ground-truth experiment/blinded/ground_truth_blinded.json \
+		--output experiment/held_out_agreement_report.json
+	@echo "  → Held-out report written to experiment/held_out_agreement_report.json"
+
+# Verify the blinded files leak nothing (auto_label/model/prompt_id/attack_type).
+experiment-blinded-verify:
+	@echo "Verifying anonymisation of experiment/blinded..."
+	$(PY) -c "import json,glob; \
+LEAKED=['auto_label','similarity','human_label','expected_behavior','attack_type','prompt_id','group_id','scorer_label']; \
+mods=['gemma3_4b','llama3.1_8b']; \
+probs=[]; \
+[probs.append((p,k)) for p in glob.glob('experiment/blinded/blinded_annotation_*.jsonl') for l in open(p) if l.strip() for k in LEAKED if k in json.loads(l)]; \
+[probs.append((p,m)) for p in glob.glob('experiment/blinded/blinded_annotation_*.jsonl') for l in open(p) if l.strip() for m in mods if m in str(json.loads(l))]; \
+print('leaks:', len(probs), probs[:10]); \
+raise SystemExit(1 if probs else 0)"
+	@echo "  → OK: no leaked fields in experiment/blinded"
+
+# Trust-budget plan: turn the held-out gold-vs-auto κ into a human-allocation
+# policy. REPORT defaults to the experiment report once produced.
+# Optional gates: GATE_TRUST / GATE_UNVERIFIED override the 0.7 / 0.4 defaults.
+experiment-budget:
+	@test -n "$(REPORT)" || REPORT=experiment/held_out_agreement_report.json; \
+	budget=results/budget_plan.json; \
+	if [ ! -f "$$REPORT" ]; then \
+		echo "✗ Report not found: $$REPORT"; \
+		echo "  Produce it with 'make experiment-heldout-report' first."; \
+		exit 1; \
+	fi; \
+	$(PY) scripts/budget_optimizer.py \
+		--report $$REPORT \
+		--output $$budget \
+		$(if $(GATE_TRUST),--gate-trust $(GATE_TRUST)) \
+		$(if $(GATE_UNVERIFIED),--gate-unverified $(GATE_UNVERIFIED))
+	@echo "  → Budget plan written to results/budget_plan.json"
+
+# Budget-vs-reliability figure. Optionally pass REPORT=<json> or
+# inline KAPPAS="safety=0.615 truthfulness=0.0 consistency=0.615".
+budget-figure:
+	@REPORT_ARG=""; \
+	if [ -n "$(REPORT)" ] && [ -f "$(REPORT)" ]; then REPORT_ARG="--report $(REPORT)"; fi; \
+	KAPPA_ARG=""; \
+	if [ -n "$(KAPPAS)" ]; then KAPPA_ARG="--kappas $(KAPPAS)"; fi; \
+	$(PY) scripts/budget_reliability_curve.py $$REPORT_ARG $$KAPPA_ARG --output results/budget_reliability_curve.png
+	@echo "  → Figure written to results/budget_reliability_curve.png"
+
+# Auto × Human error heatmap from the agreement/validation reports.
+error-heatmap:
+	$(PY) scripts/error_heatmap.py \
+		--agreement results/audit/agreement_report.json \
+		--validation results/validation_report.json \
+		--output results/error_heatmap.png
+	@echo "  → Figure written to results/error_heatmap.png"
 

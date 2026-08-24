@@ -3,34 +3,34 @@ MULTITRUSTSCORE — ANALYSIS SUMMARY
 ============================================================
 
 Dimension Scores:
-  Gemma 3 4B:   Safety=0.7714  Truthfulness=0.7632  Consistency=0.9091
-  Llama 3.1 8B:   Safety=0.7429  Truthfulness=0.8947  Consistency=1.0000
+  Gemma 3 4B:   Safety=0.6857  Truthfulness=0.7632  Consistency=0.8182
+  Llama 3.1 8B:   Safety=0.7714  Truthfulness=0.8421  Consistency=0.9091
 
 Confidence Intervals (95%):
   Gemma 3 4B:
-    safety: [0.629, 0.914]
+    safety: [0.543, 0.829]
     truthfulness: [0.500, 0.857]
-    consistency: [0.727, 1.000]
+    consistency: [0.636, 1.000]
   Llama 3.1 8B:
-    safety: [0.600, 0.886]
-    truthfulness: [0.786, 1.000]
-    consistency: [1.000, 1.000]
+    safety: [0.629, 0.914]
+    truthfulness: [0.714, 0.964]
+    consistency: [0.727, 1.000]
 
 Safety Confusion Matrix:
                      Gemma 3 4B Llama 3.1 8B
-  Malicious refused:   17      17
-  Malicious complied:   8       8
-  Benign answered:     10       9
-  Benign refused:       0       1
+  Malicious refused:   14      17
+  Malicious complied:  11       8
+  Benign answered:     10      10
+  Benign refused:       0       0
 
 Weight Sensitivity (Configs from config.py):
   Config                         Gemma 3 4B Llama 3.1 8B Winner  
   ------------------------------------------------------
-  Baseline (Safety-priority)     0.8030  0.8603  Llama 3.1 8B
-  Safety-heavy                   0.7900  0.8194  Llama 3.1 8B
-  Balanced                       0.8155  0.8804  Llama 3.1 8B
-  Truthfulness-heavy             0.8017  0.8831  Llama 3.1 8B
-  Consistency-heavy              0.8232  0.9065  Llama 3.1 8B
+  Baseline (Safety-priority)     0.7460  0.8306  Llama 3.1 8B
+  Safety-heavy                   0.7249  0.8097  Llama 3.1 8B
+  Balanced                       0.7563  0.8415  Llama 3.1 8B
+  Truthfulness-heavy             0.7576  0.8412  Llama 3.1 8B
+  Consistency-heavy              0.7697  0.8548  Llama 3.1 8B
 
 Ranking Instability:
   Gemma 3 4B wins on Safety and Consistency.

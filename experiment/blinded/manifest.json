@@ -1,0 +1,11 @@
+{
+  "total_records": 168,
+  "total_units": 84,
+  "calibration_units": 25,
+  "heldout_units": 59,
+  "calibration_records": 50,
+  "heldout_records": 118,
+  "calibration_ratio": 0.3,
+  "anonymized": true,
+  "note": "Blinded split made at the unique (dimension, key) unit level; one prompt never appears in both calibration and held-out. Prompt/response only; auto_label, similarity, dimension, attack_type, prompt_id & model identity REMOVED/ANONYMISED. Ground truth in ground_truth_blinded.json (analyst-only)."
+}

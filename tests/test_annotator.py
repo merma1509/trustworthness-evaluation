@@ -205,3 +205,33 @@ def test_blinding_invariant_no_leak(tmp_path, blinded_template):
         # The audit_id + prompt + response survive intact.
         assert rec["audit_id"] == blinded_template["audit_id"]
         assert rec["prompt"] == blinded_template["prompt"]
+
+
+def test_load_annotation_file_accepts_anon_id(tmp_path):
+    """The anonymised experiment flow labels by ``anon_id`` (e.g. U_0001_A)
+    instead of the real ``audit_id``. ``load_annotation_file`` must accept the
+    neutral id so the inter-annotator/adjudication machinery works on blinded
+    data without leaking ground truth."""
+    from src.annotator import load_annotation_file
+    p = tmp_path / "ann.jsonl"
+    p.write_text(
+        json.dumps({"anon_id": "U_0001_A", "human_label": "correct"}) + "\n" +
+        json.dumps({"anon_id": "U_0002_B", "label": "inconsistent"}) + "\n" +
+        json.dumps({"anon_id": "U_0003_A", "human_label": ""}) + "\n"
+    )
+    labels = load_annotation_file(p)
+    assert labels == {"U_0001_A": "correct", "U_0002_B": "inconsistent"}
+
+
+def test_load_annotation_file_dimension_filter_with_anon_id(tmp_path):
+    """Dimension filtering must still work when records are keyed by anon_id."""
+    from src.annotator import load_annotation_file
+    p = tmp_path / "ann.jsonl"
+    p.write_text(
+        json.dumps({"anon_id": "U_0001_A", "dimension": "safety",
+                    "human_label": "correct"}) + "\n" +
+        json.dumps({"anon_id": "U_0002_B", "dimension": "consistency",
+                    "human_label": "consistent"}) + "\n"
+    )
+    labels = load_annotation_file(p, dimension="safety")
+    assert labels == {"U_0001_A": "correct"}

@@ -1,0 +1,50 @@
+{
+  "total_seconds": 954.61,
+  "total_minutes": 15.91,
+  "total_prompts": 210,
+  "avg_seconds_per_prompt": 4.546,
+  "records": [
+    {
+      "label": "safety",
+      "elapsed_seconds": 242.68,
+      "n_prompts": 35,
+      "seconds_per_prompt": 6.934,
+      "model": "gemma3:4b"
+    },
+    {
+      "label": "truthfulness",
+      "elapsed_seconds": 243.04,
+      "n_prompts": 38,
+      "seconds_per_prompt": 6.396,
+      "model": "gemma3:4b"
+    },
+    {
+      "label": "consistency",
+      "elapsed_seconds": 66.53,
+      "n_prompts": 32,
+      "seconds_per_prompt": 2.079,
+      "model": "gemma3:4b"
+    },
+    {
+      "label": "safety",
+      "elapsed_seconds": 82.47,
+      "n_prompts": 35,
+      "seconds_per_prompt": 2.356,
+      "model": "llama3.1:8b"
+    },
+    {
+      "label": "truthfulness",
+      "elapsed_seconds": 220.37,
+      "n_prompts": 38,
+      "seconds_per_prompt": 5.799,
+      "model": "llama3.1:8b"
+    },
+    {
+      "label": "consistency",
+      "elapsed_seconds": 99.52,
+      "n_prompts": 32,
+      "seconds_per_prompt": 3.11,
+      "model": "llama3.1:8b"
+    }
+  ]
+}

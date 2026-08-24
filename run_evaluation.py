@@ -18,6 +18,7 @@ import hashlib
 import json
 import subprocess
 import sys
+import time
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
@@ -30,8 +31,10 @@ from src.llm_client import LLMClient
 from src.safety import evaluate_safety
 from src.stats import (
     DEFAULT_WEIGHT_CONFIGS,
+    CostTracker,
     compute_clustered_consistency_ci,
     compute_paired_difference_ci,
+    compute_ranking_stability,
 )
 from src.trustscore import compute_trustscore
 from src.truthfulness import evaluate_truthfulness
@@ -40,8 +43,6 @@ from src.utils import save_jsonl
 # ──────────────────────────────────────────────────────────────
 # Reproducibility helpers
 # ──────────────────────────────────────────────────────────────
-
-
 def _git_info() -> dict:
     """Retrieve git commit hash, branch, and tag at runtime.
 
@@ -276,7 +277,13 @@ def run_paired_comparison(output_dir: str, model_names: list[str]) -> dict:
 
 
 def compare_models(all_results: dict) -> dict:
-    """Compare models and compute ranking stability across weight configs."""
+    """Compare models and compute ranking stability across weight configs
+
+    Includes a bootstrap estimate of the probability that each model outranks
+    the other under each weight configuration (``compute_ranking_stability``),
+    so the qualitative ranking claim is backed by a quantitative flip-probability
+    rather than a single deterministic run.
+    """
     ranking_stability = {
         "description": "Model ranking under different weight configurations",
         "configurations": [],
@@ -302,6 +309,23 @@ def compare_models(all_results: dict) -> dict:
             "ranking": ranking,
             "scores": model_scores,
         })
+
+    # Bootstrap flip probability across the weight configs.
+    m0, m1 = models[0], models[1]
+    try:
+        d0 = {
+            dim: all_results[m0]["dimension_scores"][dim]["score"]
+            for dim in ("safety", "truthfulness", "consistency")
+        }
+        d1 = {
+            dim: all_results[m1]["dimension_scores"][dim]["score"]
+            for dim in ("safety", "truthfulness", "consistency")
+        }
+        ranking_stability["flip_probability"] = compute_ranking_stability(
+            d0, d1, weight_configs=DEFAULT_WEIGHT_CONFIGS
+        )
+    except Exception as exc:  # pragma: no cover - defensive
+        ranking_stability["flip_probability_error"] = str(exc)
 
     return ranking_stability
 
@@ -359,8 +383,6 @@ def print_ranking_warning(all_results: dict, models: list):
 # ──────────────────────────────────────────────────────────────
 # Main
 # ──────────────────────────────────────────────────────────────
-
-
 def main():
     parser = argparse.ArgumentParser(
         description="Trustworthness Evaluation Pipeline"
@@ -472,9 +494,26 @@ def main():
         },
     )
 
+    cost_tracker = CostTracker()
+
+    # Count prompts per dimension from the dataset files (used to derive
+    # per-prompt inference time for the RQ4 cost comparison).
+    def _count_lines(path: str) -> int:
+        try:
+            with open(path) as f:
+                return sum(1 for line in f if line.strip())
+        except OSError:
+            return 0
+
+    n_prompts = {
+        "safety": _count_lines(dataset_paths["safety"]),
+        "truthfulness": _count_lines(dataset_paths["truthfulness"]),
+        "consistency": _count_lines(dataset_paths["consistency"]),
+    }
+
     all_results = {}
 
-    # ── Per-model evaluation ──────────────────────────────
+    # ── Per-model evaluation (timed for RQ4 cost) ─────────
     for model in models:
         print(f"\n{'=' * 60}")
         print(f"Evaluating: {model}")
@@ -494,6 +533,7 @@ def main():
             print(f"  Model {model} unavailable. Skipping.")
             continue
 
+        cost_tracker.start("safety")
         safety_result = evaluate_safety(
             client,
             dataset_path=dataset_paths["safety"],
@@ -502,7 +542,10 @@ def main():
                 f"{model.replace(':', '_')}_safety.jsonl"
             ),
         )
+        cost_tracker.stop("safety", n_prompts=n_prompts["safety"],
+                          extra={"model": model})
 
+        cost_tracker.start("truthfulness")
         truthfulness_result = evaluate_truthfulness(
             client,
             dataset_path=dataset_paths["truthfulness"],
@@ -511,7 +554,10 @@ def main():
                 f"{model.replace(':', '_')}_truthfulness.jsonl"
             ),
         )
+        cost_tracker.stop("truthfulness", n_prompts=n_prompts["truthfulness"],
+                          extra={"model": model})
 
+        cost_tracker.start("consistency")
         consistency_result = evaluate_consistency(
             client,
             dataset_path=dataset_paths["consistency"],
@@ -521,6 +567,8 @@ def main():
             ),
             similarity_threshold=similarity_threshold,
         )
+        cost_tracker.stop("consistency", n_prompts=n_prompts["consistency"],
+                          extra={"model": model})
 
         model_results = compute_trustscore(
             safety_result,
@@ -588,6 +636,18 @@ def main():
         )
         print(f"\n  Ranking stability saved to "
               f"{output_dir}/ranking_stability.json")
+
+    # ── Persist measured cost data (RQ4) ─────────────────
+    cost_summary = cost_tracker.summary()
+    cost_path = Path(output_dir) / "cost_tracker.json"
+    with open(cost_path, "w") as f:
+        json.dump(cost_summary, f, indent=2, ensure_ascii=False)
+    if cost_summary.get("records"):
+        print(f"\n  Measured inference time: "
+              f"{cost_summary['total_seconds']:.1f}s over "
+              f"{cost_summary['total_prompts']} prompts "
+              f"(avg {cost_summary['avg_seconds_per_prompt']:.2f}s/prompt)")
+    print(f"  Cost tracker saved to {cost_path}")
 
     # ── Combined summary ──────────────────────────────────
     checksums = _dataset_checksum(list(dataset_paths.values()))

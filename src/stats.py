@@ -124,8 +124,6 @@ def compute_jackknife_stability(
 # ──────────────────────────────────────────────────────────────
 # Dataset size sensitivity
 # ──────────────────────────────────────────────────────────────
-
-
 def compute_dataset_size_sensitivity(
     n_range: List[int],
     base_scores: List[float],
@@ -258,6 +256,14 @@ def compute_confidence_intervals(
 ) -> Dict:
     """Compute bootstrap confidence intervals for a list of scores.
 
+    Handles degenerate (extreme) outcomes specially: when every score is the
+    same (all 0 or all 1, e.g. a model that is perfect on every consistency
+    group), a naive bootstrap collapses to a degenerate ``[x, x]`` interval
+    with zero width — uninformative and misleading. In that case a Beta
+    posterior (Jeffreys prior, ``Beta(0.5, 0.5)``) is used so the CI still
+    conveys the uncertainty inherent in a finite sample (the Rule of Three
+    lower bound for a perfect score). See ``docs/scoring-spec-v2.md``.
+
     Args:
         scores: List of individual trial scores (0 or 1)
         n_bootstrap: Number of bootstrap iterations
@@ -270,21 +276,51 @@ def compute_confidence_intervals(
         return {"mean": 0.0, "ci_lower": 0.0, "ci_upper": 0.0, "n": 0}
 
     n = len(scores)
-    means = []
-
-    for _ in range(n_bootstrap):
-        sample = np.random.choice(scores, size=n, replace=True)
-        means.append(np.mean(sample))
+    n_success = int(sum(1 for s in scores if s >= 0.5))
+    mean = float(np.mean(scores))
 
     alpha = (1.0 - ci) / 2.0
+
+    # ── Extreme outcomes: all successes or all failures ─────────────
+    # Bootstrap of identical trials yields a degenerate [x, x] CI. Instead use
+    # a Beta posterior so the CI reflects finite-sample uncertainty.
+    if n_success == n or n_success == 0:
+        p_hat = n_success / n
+        # Jeffreys prior Beta(0.5, 0.5); posterior Beta(p+n_success+.5, ...)
+        a_post = n_success + 0.5
+        b_post = (n - n_success) + 0.5
+        from scipy.stats import beta
+
+        ci_lower = float(beta.ppf(alpha, a_post, b_post))
+        ci_upper = float(beta.ppf(1.0 - alpha, a_post, b_post))
+        return {
+            "mean": round(mean, 4),
+            "ci_lower": round(ci_lower, 4),
+            "ci_upper": round(ci_upper, 4),
+            "n": n,
+            "method": "beta_posterior",
+            "note": (
+                f"Extreme outcome ({int(p_hat * n)}/{n}); bootstrap degenerate, "
+                "used Beta posterior (Jeffreys prior) instead."
+            ),
+        }
+
+    # ── Standard bootstrap ──────────────────────────────────────────
+    rng = np.random.RandomState(42)
+    means = []
+    for _ in range(n_bootstrap):
+        sample = rng.choice(scores, size=n, replace=True)
+        means.append(np.mean(sample))
+
     ci_lower = np.percentile(means, alpha * 100)
     ci_upper = np.percentile(means, (1.0 - alpha) * 100)
 
     return {
-        "mean": float(np.mean(scores)),
-        "ci_lower": float(ci_lower),
-        "ci_upper": float(ci_upper),
+        "mean": round(mean, 4),
+        "ci_lower": round(float(ci_lower), 4),
+        "ci_upper": round(float(ci_upper), 4),
         "n": n,
+        "method": "bootstrap",
     }
 
 
@@ -483,3 +519,219 @@ DEFAULT_WEIGHT_CONFIGS = [
     {"name": "FPR-heavy", "w_s": 0.25, "w_t": 0.50, "w_c": 0.25},
     {"name": "Consistency-heavy", "w_s": 0.20, "w_t": 0.40, "w_c": 0.40},
 ]
+
+# ──────────────────────────────────────────────────────────────
+# Ranking stability (bootstrap probability of ranking flip)
+# ──────────────────────────────────────────────────────────────
+def compute_ranking_stability(
+    model1_dim_scores: Dict[str, float],
+    model2_dim_scores: Dict[str, float],
+    weight_configs: List[Dict] = None,
+    n_bootstrap: int = 10000,
+    ci: float = 0.95,
+    random_seed: int = 42,
+) -> Dict:
+    """Bootstrap the probability that model1 beats model2 under each weight config.
+
+    Replaces the qualitative "Llama wins under all weight configs" claim with a
+    quantitative probability of each model winning (or a tie) under each
+    configuration, given the per-dimension point scores and their uncertainty.
+
+    The dimension scores are treated as fixed point estimates; the bootstrap
+    perturbs them around their sampling uncertainty (approximated by a Beta-
+    shaped spread derived from a Jeffreys prior over the observed score). This
+    yields a conservative probability of ranking flip across weightings.
+
+    Args:
+        model1_dim_scores: Dict with keys 'safety','truthfulness','consistency'
+            giving each model's point score (0-1) for each dimension.
+        model2_dim_scores: Same for model 2.
+        weight_configs: List of dicts with 'name','w_s','w_t','w_c'. Defaults to
+            DEFAULT_WEIGHT_CONFIGS.
+        n_bootstrap: Number of bootstrap iterations per config.
+        ci: Confidence level for the reported flip-probability CI.
+        random_seed: RNG seed for reproducibility.
+
+    Returns:
+        Dict with keys:
+            'model_wins': {'model1': pct, 'model2': pct, 'tie': pct}
+            'per_config': list of per-config results with 'flip_probability',
+                          'model1_wins_pct', 'model2_wins_pct', 'tie_pct'
+            'n_bootstrap': number of bootstrap iterations per config
+            'interpretation': text guide to reading flip_probability
+    """
+    import numpy as np
+
+    if weight_configs is None:
+        weight_configs = DEFAULT_WEIGHT_CONFIGS
+
+    rng = np.random.RandomState(random_seed)
+    dims = ["safety", "truthfulness", "consistency"]
+
+    def _resample_score(score: float) -> float:
+        """Sample a plausible alternative for a point score in (0,1).
+
+        Uses a Beta around the observed score as a surrogate for sampling
+        uncertainty (a degenerate point estimate with no variance would give
+        trivially stable / unstable results).
+        """
+        # Jeffreys-prior-like spread: scale alpha by score so we don't blow
+        # past [0,1] but still capture meaningful variance.
+        if score <= 0.0:
+            return float(rng.beta(0.5, 10.0))
+        if score >= 1.0:
+            return float(rng.beta(10.0, 0.5))
+        scale = 8.0  # lower = more spread
+        a = max(scale * score, 0.1)
+        b = max(scale * (1.0 - score), 0.1)
+        return float(np.clip(rng.beta(a, b), 0.0, 1.0))
+
+    overall = {"model1": 0, "model2": 0, "tie": 0}
+    per_config = []
+
+    for config in weight_configs:
+        w_s, w_t, w_c = config["w_s"], config["w_t"], config["w_c"]
+        wins1 = wins2 = ties = 0
+        for _ in range(n_bootstrap):
+            s1 = w_s * _resample_score(model1_dim_scores["safety"])
+            t1 = w_t * _resample_score(model1_dim_scores["truthfulness"])
+            c1 = w_c * _resample_score(model1_dim_scores["consistency"])
+            s2 = w_s * _resample_score(model2_dim_scores["safety"])
+            t2 = w_t * _resample_score(model2_dim_scores["truthfulness"])
+            c2 = w_c * _resample_score(model2_dim_scores["consistency"])
+
+            score1 = s1 + t1 + c1
+            score2 = s2 + t2 + c2
+            if score1 > score2:
+                wins1 += 1
+            elif score2 > score1:
+                wins2 += 1
+            else:
+                ties += 1
+
+        overall["model1"] += wins1
+        overall["model2"] += wins2
+        overall["tie"] += ties
+
+        n_cfg = n_bootstrap
+        flip_prob = wins2 / n_cfg  # prob model2 (model2) outscores model1
+        per_config.append({
+            "name": config["name"],
+            "w_safety": config["w_s"],
+            "w_truthfulness": config["w_t"],
+            "w_consistency": config["w_c"],
+            "model1_wins_pct": round(wins1 / n_cfg * 100, 1),
+            "model2_wins_pct": round(wins2 / n_cfg * 100, 1),
+            "tie_pct": round(ties / n_cfg * 100, 1),
+            "flip_probability": round(flip_prob, 4),
+        })
+
+    total = overall["model1"] + overall["model2"] + overall["tie"]
+    return {
+        "model_wins": {
+            "model1_pct": round(overall["model1"] / total * 100, 1),
+            "model2_pct": round(overall["model2"] / total * 100, 1),
+            "tie_pct": round(overall["tie"] / total * 100, 1),
+        },
+        "per_config": per_config,
+        "n_bootstrap": n_bootstrap,
+        "interpretation": (
+            "flip_probability = P(model2 outscores model1) under the config; "
+            ">0.95 stable model2 win, 0.5-0.9 unstable, <=0.5 model2 loses."
+        ),
+    }
+
+
+# ──────────────────────────────────────────────────────────────
+# Empirical required sample size
+# ──────────────────────────────────────────────────────────────
+def compute_required_n_empirically(
+    base_scores: List[float],
+    target_precision: float = 0.05,
+    target_ci: float = 0.95,
+    n_bootstrap: int = 500,
+    random_seed: int = 42,
+) -> Dict:
+    """Empirically find the dataset size N needed for a target CI half-width.
+
+    Complements the theoretical Wald estimate (``estimate_required_sample_size``)
+    by *measuring* how the bootstrap CI half-width shrinks as dataset size
+    grows. Returns the smallest ``n`` whose bootstrap CI width is at most
+    ``2 * target_precision``.
+
+    Args:
+        base_scores: List of 0/1 scores from the full dataset.
+        target_precision: Desired CI half-width (e.g. 0.05 = +/-5%).
+        target_ci: Confidence level (default 0.95).
+        n_bootstrap: Bootstrap iterations per simulated size.
+        random_seed: RNG seed.
+
+    Returns:
+        Dict with keys 'n_required', 'target_precision', 'ci_width_at_n',
+        'sizes' (the full size-sweep), and 'note'.
+    """
+    import numpy as np
+
+    rng = np.random.RandomState(random_seed)
+    full_n = len(base_scores)
+    if full_n == 0:
+        return {"n_required": None, "note": "empty dataset"}
+
+    alpha = (1.0 - target_ci) / 2.0
+    max_allowed_width = 2 * target_precision
+
+    # Theoretical Wald N — computed up-front so the empirical sweep can be
+    # extended to (at least) cover it. Without this, a small dataset (n<=38)
+    # would never reach a tight +/-5% CI within a scan bounded at full_n*3
+    # (e.g. 105 max for n=35 << the Wald 332 target), returning None.
+    theoretical_wald_n = estimate_required_sample_size(
+        precision=target_precision, confidence=target_ci
+    )["n_required"]
+
+    # Sweep increasing dataset sizes (bootstrap WITH replacement to simulate
+    # larger N beyond the observed count via the empirical scores).
+    step = max(1, full_n // 12)
+    # Scan from 10 up to at least 1.25x the theoretical target, but not below
+    # 3x the observed dataset (which is generous for stable-looking CIs).
+    upper = max(full_n * 3, int(theoretical_wald_n * 1.25) + 1)
+    n_range = list(range(10, upper + 1, step))
+    if upper not in n_range:
+        n_range.append(upper)
+    else:
+        n_range.sort()
+
+    sizes = []
+    n_required = None
+    for n_target in n_range:
+        means = []
+        for _ in range(n_bootstrap):
+            sample = rng.choice(base_scores, size=n_target, replace=True)
+            means.append(float(np.mean(sample)))
+        lo = float(np.percentile(means, alpha * 100))
+        hi = float(np.percentile(means, (1.0 - alpha) * 100))
+        width = hi - lo
+        sizes.append({
+            "n": n_target,
+            "ci_lower": round(lo, 4),
+            "ci_upper": round(hi, 4),
+            "ci_width": round(width, 4),
+        })
+        if n_required is None and width <= max_allowed_width:
+            n_required = n_target
+
+    return {
+        "n_required": n_required,
+        "target_precision": target_precision,
+        "ci_width_at_n": (
+            sizes[-1]["ci_width"] if sizes else None
+        ),
+        "sizes": sizes,
+        "theoretical_wald_n": estimate_required_sample_size(
+            precision=target_precision, confidence=target_ci
+        )["n_required"],
+        "note": (
+            f"Empirically determined smallest N reaching +/-{target_precision:.0%} "
+            f"CI ({target_ci:.0%}): {n_required}. "
+            f"Full dataset has {full_n} units."
+        ),
+    }
