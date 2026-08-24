@@ -141,6 +141,32 @@ def kappa_bootstrap_ci(
     ci_lower = float(np.percentile(boot_vals, alpha * 100))
     ci_upper = float(np.percentile(boot_vals, (1.0 - alpha) * 100))
 
+    # ── Perfect agreement: bootstrap is degenerate [1.0, 1.0] ───────────
+    # When the observed (and every resampled) kappa is 1.0, a percentile
+    # bootstrap collapses to a zero-width [1.0, 1.0] interval that misleadingly
+    # claims certainty. Finite-sample uncertainty still exists: with n records
+    # and (claimed) perfect agreement, the Rule of Three (3/n) bounds how much
+    # a larger sample could plausibly disagree. Applying it symmetrically around
+    # kappa=1 gives a lower bound of 1 - 3/n, which approaches 1 as n grows but
+    # never claims false certainty on a small sample. Mirrors the Beta-posterior
+    # treatment of extreme proportions in ``src.stats.compute_confidence_intervals``.
+    if point_kappa >= 1.0 or ci_lower >= 1.0:
+        rule_of_three_lower = max(0.0, 1.0 - 3.0 / n)
+        return {
+            "kappa": round(float(point_kappa), 4),
+            "ci_lower": round(rule_of_three_lower, 4),
+            "ci_upper": 1.0,
+            "n": n,
+            "n_bootstrap": n_bootstrap,
+            "weighted": weighted,
+            "ci_level": ci,
+            "method": "rule_of_three",
+            "note": (
+                f"Perfect agreement ({n}/{n}); bootstrap degenerate, "
+                f"used Rule of Three lower bound (1 - 3/{n})."
+            ),
+        }
+
     return {
         "kappa": round(float(point_kappa), 4),
         "ci_lower": round(ci_lower, 4),
@@ -149,6 +175,7 @@ def kappa_bootstrap_ci(
         "n_bootstrap": n_bootstrap,
         "weighted": weighted,
         "ci_level": ci,
+        "method": "bootstrap",
     }
 
 

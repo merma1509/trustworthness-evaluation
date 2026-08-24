@@ -66,7 +66,10 @@ def load_annotation_file(path: Path, dimension: Optional[str] = None) -> Dict[st
         if not line:
             continue
         rec = json.loads(line)
-        audit_id = rec.get("audit_id") or rec.get("id")
+        # In the blinded (anonymised) flow records carry a neutral ``anon_id``
+        # instead of the real ``audit_id``. Accept both so the measurement half
+        # (merge/agreement/adjudicate) works without leaking ground truth.
+        audit_id = rec.get("audit_id") or rec.get("id") or rec.get("anon_id")
         if not audit_id:
             continue
         if dimension is not None and rec.get("dimension") and rec.get("dimension") != dimension:

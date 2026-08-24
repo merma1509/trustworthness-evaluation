@@ -120,8 +120,12 @@ def test_kappa_bootstrap_ci_empty():
 def test_kappa_bootstrap_ci_perfect():
     ci = kappa_bootstrap_ci(["a", "a", "b", "b"], ["a", "a", "b", "b"])
     assert ci["kappa"] == 1.0
-    assert ci["ci_lower"] == 1.0
+    # Perfect agreement: bootstrap is degenerate [1.0, 1.0], so we fall back to
+    # the Rule of Three lower bound to convey finite-sample uncertainty.
+    assert ci["method"] == "rule_of_three"
     assert ci["ci_upper"] == 1.0
+    assert ci["ci_lower"] < 1.0
+    assert ci["ci_lower"] == 1.0 - 3.0 / ci["n"]
 
 
 def test_kappa_bootstrap_ci_deterministic_seed():
