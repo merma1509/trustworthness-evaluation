@@ -42,6 +42,7 @@ help:
 	@echo "  make experiment-heldout-prepare Emit blank annotator templates (ANNOTATORS=\"ann1 ann2\")"
 	@echo "  make experiment-heldout-report Final held-out report (ANNOTATIONS=\"<2+ filled files>\")"
 	@echo "  make experiment-blinded-verify Verify no auto_label/model/prompt_id leaked"
+	@echo "  make experiment-budget REPORT=<json>  Trust-budget plan (κ-gated human allocation)"
 
 setup:
 	@echo "Installing dependencies with uv (including dev extras)..."
@@ -239,4 +240,22 @@ probs=[]; \
 print('leaks:', len(probs), probs[:10]); \
 raise SystemExit(1 if probs else 0)"
 	@echo "  → OK: no leaked fields in experiment/blinded"
+
+# Trust-budget plan: turn the held-out gold-vs-auto κ into a human-allocation
+# policy. REPORT defaults to the experiment report once produced.
+# Optional gates: GATE_TRUST / GATE_UNVERIFIED override the 0.7 / 0.4 defaults.
+experiment-budget:
+	@test -n "$(REPORT)" || REPORT=experiment/held_out_agreement_report.json; \
+	budget=results/budget_plan.json; \
+	if [ ! -f "$$REPORT" ]; then \
+		echo "✗ Report not found: $$REPORT"; \
+		echo "  Produce it with 'make experiment-heldout-report' first."; \
+		exit 1; \
+	fi; \
+	$(PY) scripts/budget_optimizer.py \
+		--report $$REPORT \
+		--output $$budget \
+		$(if $(GATE_TRUST),--gate-trust $(GATE_TRUST)) \
+		$(if $(GATE_UNVERIFIED),--gate-unverified $(GATE_UNVERIFIED))
+	@echo "  → Budget plan written to results/budget_plan.json"
 
