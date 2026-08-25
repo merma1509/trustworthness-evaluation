@@ -8,7 +8,7 @@ This script turns that into a **measured** value.
 Design
 ------
 A human annotator labels a sample of records from one of the annotation files
-(safety/truthfulness → ``correct|incorrect``, consistency → ``consistent|inconsistent``)
+(safety/truthfulness -> ``correct|incorrect``, consistency -> ``consistent|inconsistent``)
 and the wall-clock time of each label decision is recorded.  The median of the
 per-label times is then written to ``results/human_timing_measurement.json``,
 which ``paradigm_report.py`` auto-loads on subsequent runs so the cost ratio is
@@ -40,6 +40,8 @@ Output
         {
           "measured_at": "...",
           "method": "interactive_annotator_timing",
+          "dimension": "safety",
+          "measurement_validity": "MEASURED",
           "n_measured": 12,
           "median_seconds_per_label": 14.2,
           "mean_seconds_per_label": 15.1,
@@ -47,6 +49,11 @@ Output
           "per_label_seconds": [ ... ],
           "notes": "..."
         }
+
+    ``measurement_validity`` is set to ``"MEASURED"`` because this file is only
+    ever produced by a real interactive timing study (a human at the keyboard
+    labelling records one-by-one). ``paradigm_report.py`` checks this field to
+    decide whether the value counts as genuinely measured or as a placeholder.
 """
 
 import argparse
@@ -65,24 +72,18 @@ HUMAN_TIMING_PATH = Path("results/human_timing_measurement.json")
 RAW_OUTPUTS_DIR = Path("results/raw_outputs")
 
 
-def _extract(label_value: str) -> str:
-    """Normalise a single label response into canonical form."""
-    v = (label_value or "").strip().lower()
-    if v in ("c", "correct", "consistent"):
-        return v
-    if v == "i":
-        return "incorrect" if v == "i" else "inconsistent"
-    return v
+def _full_multiline(text: str, indent: int = 0) -> str:
+    """Return the FULL text, newlines re-indented so a long response stays readable.
 
-
-def _abbrev(text: str, n: int = 180) -> str:
-    text = (text or "").replace("\n", " ")
-    return text[:n] + ("…" if len(text) > n else "")
+    This intentionally does NOT truncate: annotators need to read the whole
+    response to make a correct consistency/timing decision.
+    """
+    text = text or ""
+    pad = " " * indent
+    return text.replace("\n", "\n" + pad)
 
 
 _RAW_INDEX = {}
-
-
 def _load_raw_index() -> dict:
     """Lazily build {(dim, prompt_id): {prompt, response}} from raw outputs.
 
@@ -125,14 +126,14 @@ def _show_content(dimension: str, rec: dict) -> str:
     content = idx.get((dimension, rec.get("prompt_id") or rec.get("id")))
     if content:
         return (
-            f"PROMPT:   {_abbrev(content['prompt'])}\n"
-            f"EXPECT:   {_abbrev(content['expected'])}\n"
-            f"RESPONSE: {_abbrev(content['response'])}"
+            f"PROMPT:   {_full_multiline(content['prompt'])}\n"
+            f"EXPECT:   {content['expected']}\n"
+            f"RESPONSE: {_full_multiline(content['response'])}"
         )
     # Fallback: whatever fields the audit record carries.
     return (
-        f"PROMPT:   {_abbrev(rec.get('prompt_text') or rec.get('prompt'))}\n"
-        f"RESPONSE: {_abbrev(rec.get('response'))}"
+        f"PROMPT:   {_full_multiline(rec.get('prompt_text') or rec.get('prompt'))}\n"
+        f"RESPONSE: {_full_multiline(rec.get('response'))}"
     )
 
 
@@ -162,7 +163,7 @@ def run_timing_study(records, dimension: str, sample: int, seed: int = 42) -> di
         if dimension != "consistency":
             print(f"  {_show_content(dimension, rec)}")
         else:
-            # Consistency: show the group's paired responses.
+            # Consistency: show the group's paired responses (FULL text).
             for k in ("responses", "pairs"):
                 val = rec.get(k)
                 if val:
@@ -170,12 +171,13 @@ def run_timing_study(records, dimension: str, sample: int, seed: int = 42) -> di
                         for j, entry in enumerate(val):
                             if isinstance(entry, dict):
                                 print(
-                                    f"  [{j}] {_abbrev(entry.get('prompt'))} -> {_abbrev(entry.get('response'))}"
+                                    f"  [{j}] {_full_multiline(entry.get('prompt'), 6)}\n"
+                                    f"       -> {_full_multiline(entry.get('response'), 12)}"
                                 )
                             else:
-                                print(f"  [{j}] {_abbrev(entry)}")
+                                print(f"  [{j}] {_full_multiline(entry, 6)}")
                     else:
-                        print(f"  {k}: {_abbrev(val)}")
+                        print(f"  {k}: {_full_multiline(val, 6)}")
                     break
 
         start = time.monotonic()
@@ -190,7 +192,7 @@ def run_timing_study(records, dimension: str, sample: int, seed: int = 42) -> di
             print("    (skipped)\n")
             continue
         times.append(elapsed)
-        print(f"    → {ans}  [{elapsed:.1f}s]\n")
+        print(f"    -> {ans}  [{elapsed:.1f}s]\n")
 
     if not times:
         print("  No labels were timed — nothing to report.")
@@ -200,6 +202,7 @@ def run_timing_study(records, dimension: str, sample: int, seed: int = 42) -> di
         "measured_at": time.strftime("%Y-%m-%d %H:%M:%S"),
         "method": "interactive_annotator_timing",
         "dimension": dimension,
+        "measurement_validity": "MEASURED",
         "n_measured": len(times),
         "median_seconds_per_label": round(statistics.median(times), 2),
         "mean_seconds_per_label": round(statistics.mean(times), 2),
@@ -240,7 +243,7 @@ def main():
     print(f"\n  Saved measured human timing to {out}")
     print(f"  Median: {result['median_seconds_per_label']:.1f}s/label  (n={result['n_measured']})")
     print(
-        "  → Run `scripts/paradigm_report.py --with-cost` to use this "
+        "  -> Run `scripts/paradigm_report.py --with-cost` to use this "
         "measured value in the cost ratio."
     )
 

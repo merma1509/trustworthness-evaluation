@@ -19,7 +19,8 @@ help:
 	@echo "Usage:"
 	@echo "  make setup                    Install dependencies via uv"
 	@echo "  make run                      Run full evaluation pipeline + dashboard" 
-	@echo "                                (has interactive annotation gates)"
+	@echo "                                (fresh audit + blinded splits; interactive"
+	@echo "                                gates; auto-builds held-out report when filled)"
 	@echo "  make eval                     Run evaluation only (no dashboard)"
 	@echo "  make dashboard                Launch Streamlit dashboard only"
 	@echo "  make offlinescore             Run offline rescoring"
@@ -35,12 +36,13 @@ help:
 	@echo "  make experiment-prepare               Build anonymised calibration/held-out + secret ground truth"
 	@echo "  make experiment-heldout-prepare       Emit blank annotator templates (ANNOTATORS=\"ann1 ann2\")"
 	@echo "  make experiment-heldout-report        Final held-out report (ANNOTATIONS=\"<2+ filled files>\")"
+	@echo "                                          (also auto-built by 'make run' when templates are filled)"
 	@echo "  make experiment-blinded-verify        Verify no auto_label/model/prompt_id leaked"
 	@echo "  make experiment-budget REPORT=<json>  Trust-budget plan (κ-gated human allocation)"
-	@echo "  make human-timing                     Regenerate results/human_timing_measurement.json from actual records"
-	@echo "  make budget-figure KAPPAS=...         Budget-vs-reliability figure"
-	@echo "  make error-heatmap                    Auto×Human error heatmap"
-	@echo "  make pipeline-figure                  Measurement-validation loop diagram"
+	@echo "  make human-timing DIMENSION=safety SAMPLE=8   MEASURED human timing study (interactive)"
+	@echo "  make budget-figure KAPPAS=...                 Budget-vs-reliability figure"
+	@echo "  make error-heatmap                            Auto×Human error heatmap"
+	@echo "  make pipeline-figure                          Measurement-validation loop diagram"
 
 setup:
 	@echo "Installing dependencies with uv (including dev extras)..."
@@ -197,17 +199,21 @@ print('leaks:', len(probs), probs[:10]); \
 raise SystemExit(1 if probs else 0)"
 	@echo "  -> OK: no leaked fields in experiment/blinded"
 
-# Single source of truth for the budget/cost ratio: derive a realistic,
-# aspect-varying per-label human annotation time from the actual records
-# Writes results/human_timing_measurement.json, which both
+# Single source of truth for the budget/cost ratio: MEASURED per-label human
+# annotation time via the live interactive timing study. A human annotator
+# labels the sampled records one-by-one and the wall-clock time per decision is
+# recorded (written to results/human_timing_measurement.json, which both
 # paradigm_report.py (RQ4 cost) and budget_optimizer.py consume.
+#
+# Picks the dimension with DIMENSION=safety|truthfulness|consistency and the
+# sample size with SAMPLE=n (default 8). This REQUIRES a human at the keyboard.
 human-timing:
-	$(PY) scripts/generate_human_timing_from_records.py \
-		--audit results/audit/all_audit.jsonl \
-		--raw results/raw_outputs \
-		--output results/human_timing_measurement.json \
-		--seed 42
-	@echo "  -> Human timing study written to results/human_timing_measurement.json"
+	$(PY) scripts/measure_human_annotation_time.py \
+		--input results/audit/all_audit.jsonl \
+		--dimension $(if $(DIMENSION),$(DIMENSION),safety) \
+		--sample $(if $(SAMPLE),$(SAMPLE),8) \
+		--output results/human_timing_measurement.json
+	@echo "  -> MEASURED human timing study written to results/human_timing_measurement.json"
 
 # Trust-budget plan: turn the held-out gold-vs-auto κ into a human-allocation
 # policy. REPORT defaults to the experiment report once produced.

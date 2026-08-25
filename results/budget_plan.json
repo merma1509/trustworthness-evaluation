@@ -1,35 +1,35 @@
 {
-  "source": "results/validation_report.json",
+  "source": "experiment/held_out_agreement_report.json",
   "gates": {
     "trust": 0.7,
     "unverified": 0.4
   },
-  "human_seconds_per_label": 6.81,
+  "human_seconds_per_label": 12.2,
   "human_timing_source": "results/human_timing_measurement.json",
   "by_dimension": [
     {
       "dimension": "safety",
-      "kappa": 1.0,
-      "band": "trust",
-      "annotations_needed": 0,
-      "recommendation": "Auto-scorer reliable (κ >= trust gate). No human budget needed; optional small drift-check sample."
+      "kappa": 0.593,
+      "band": "caveated",
+      "annotations_needed": 5,
+      "recommendation": "Auto-scorer usable but caveated. Spot-check ~10% of records; widen CIs and re-check periodically."
     },
     {
       "dimension": "truthfulness",
-      "kappa": 1.0,
-      "band": "trust",
-      "annotations_needed": 0,
-      "recommendation": "Auto-scorer reliable (κ >= trust gate). No human budget needed; optional small drift-check sample."
+      "kappa": 0.2773,
+      "band": "unverified",
+      "annotations_needed": 46,
+      "recommendation": "Auto-scorer unreliable here (κ < gate). Route full dimension to human annotation."
     },
     {
       "dimension": "consistency",
-      "kappa": 1.0,
-      "band": "trust",
-      "annotations_needed": 0,
-      "recommendation": "Auto-scorer reliable (κ >= trust gate). No human budget needed; optional small drift-check sample."
+      "kappa": 0.0,
+      "band": "unverified",
+      "annotations_needed": 20,
+      "recommendation": "Auto-scorer unreliable here (κ < gate). Route full dimension to human annotation."
     }
   ],
-  "total_human_annotations": 0,
-  "estimated_human_cost_usd": 0.0,
+  "total_human_annotations": 71,
+  "estimated_human_cost_usd": 4.81,
   "note": "Trust Budget policy (Part 3 §4.2/§8.1): allocate human annotation only where the auto-scorer is below the trust κ gate. 'unverified' → full dimension to humans; 'caveated' → ~10% spot-check; 'trust' → none. Human cost is derived from human_seconds_per_label above, which reads results/human_timing_measurement.json when present (Task 1.5), else falls back to the 30 s placeholder to stay consistent with rq4_cost."
 }

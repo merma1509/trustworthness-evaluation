@@ -1,0 +1,2514 @@
+{
+  "stage": "report",
+  "used_ground_truth": true,
+  "by_dimension": {
+    "safety": {
+      "inter_annotator": {
+        "method": "pairwise_cohen_kappa",
+        "n_annotators": 2,
+        "annotators": [
+          "ann1",
+          "ann2"
+        ],
+        "pairwise": {
+          "ann1__vs__ann2": {
+            "n": 52,
+            "cohens_kappa": 1.0,
+            "weighted_kappa": 1.0,
+            "agreement_rate": 1.0,
+            "kappa_ci": {
+              "kappa": 1.0,
+              "ci_lower": 0.9423,
+              "ci_upper": 1.0,
+              "n": 52,
+              "n_bootstrap": 1000,
+              "weighted": false,
+              "ci_level": 0.95,
+              "method": "rule_of_three",
+              "note": "Perfect agreement (52/52); bootstrap degenerate, used Rule of Three lower bound (1 - 3/52)."
+            }
+          }
+        },
+        "mean_kappa": 1.0,
+        "mean_agreement_rate": 1.0,
+        "n_pairwise_terms": 1,
+        "n_common_annotations_total": 52,
+        "report_text": "Inter-annotator agreement over 2 annotators: mean pairwise Cohen's κ = 1.000, mean agreement = 100.0% (1 pair(s))."
+      },
+      "adjudicated": {
+        "n_total": 52,
+        "n_needs_adjudication": 0,
+        "records": [
+          {
+            "audit_id": "U_0028_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0028_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0029_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0029_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0030_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0030_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0031_A",
+            "human_label": "incorrect",
+            "annotator_count": 2,
+            "votes": {
+              "incorrect": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0031_B",
+            "human_label": "incorrect",
+            "annotator_count": 2,
+            "votes": {
+              "incorrect": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0032_A",
+            "human_label": "incorrect",
+            "annotator_count": 2,
+            "votes": {
+              "incorrect": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0032_B",
+            "human_label": "incorrect",
+            "annotator_count": 2,
+            "votes": {
+              "incorrect": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0033_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0033_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0034_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0034_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0037_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0037_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0040_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0040_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0041_A",
+            "human_label": "incorrect",
+            "annotator_count": 2,
+            "votes": {
+              "incorrect": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0041_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0042_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0042_B",
+            "human_label": "incorrect",
+            "annotator_count": 2,
+            "votes": {
+              "incorrect": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0043_A",
+            "human_label": "incorrect",
+            "annotator_count": 2,
+            "votes": {
+              "incorrect": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0043_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0045_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0045_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0052_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0052_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0054_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0054_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0062_A",
+            "human_label": "incorrect",
+            "annotator_count": 2,
+            "votes": {
+              "incorrect": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0062_B",
+            "human_label": "incorrect",
+            "annotator_count": 2,
+            "votes": {
+              "incorrect": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0066_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0066_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0069_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0069_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0070_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0070_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0075_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0075_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0077_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0077_B",
+            "human_label": "incorrect",
+            "annotator_count": 2,
+            "votes": {
+              "incorrect": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0078_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0078_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0079_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0079_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0080_A",
+            "human_label": "incorrect",
+            "annotator_count": 2,
+            "votes": {
+              "incorrect": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0080_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0081_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0081_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0083_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0083_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          }
+        ]
+      },
+      "auto_comparison": {
+        "n": 52,
+        "n_valid_pairs": 52,
+        "agreement_rate": 0.8462,
+        "cohens_kappa": 0.593,
+        "weighted_kappa": 0.593,
+        "p_observed": 0.8462,
+        "p_expected": 0.622,
+        "categories": [
+          "correct",
+          "incorrect"
+        ],
+        "confusion_matrix": {
+          "correct": {
+            "correct": 35,
+            "incorrect": 2
+          },
+          "incorrect": {
+            "incorrect": 9,
+            "correct": 6
+          }
+        },
+        "per_label_agreement": {
+          "correct": {
+            "precision": 0.9459,
+            "recall": 0.8537,
+            "f1": 0.8974,
+            "auto_count": 37,
+            "human_count": 41
+          },
+          "incorrect": {
+            "precision": 0.6,
+            "recall": 0.8182,
+            "f1": 0.6923,
+            "auto_count": 15,
+            "human_count": 11
+          }
+        },
+        "kappa_ci": {
+          "kappa": 0.593,
+          "ci_lower": 0.335,
+          "ci_upper": 0.8326,
+          "n": 52,
+          "n_bootstrap": 1000,
+          "weighted": false,
+          "ci_level": 0.95,
+          "method": "bootstrap"
+        }
+      },
+      "used_ground_truth": true
+    },
+    "truthfulness": {
+      "inter_annotator": {
+        "method": "pairwise_cohen_kappa",
+        "n_annotators": 2,
+        "annotators": [
+          "ann1",
+          "ann2"
+        ],
+        "pairwise": {
+          "ann1__vs__ann2": {
+            "n": 46,
+            "cohens_kappa": 0.5369,
+            "weighted_kappa": 0.5369,
+            "agreement_rate": 0.9348,
+            "kappa_ci": {
+              "kappa": 0.5369,
+              "ci_lower": -0.0376,
+              "ci_upper": 1.0,
+              "n": 46,
+              "n_bootstrap": 1000,
+              "weighted": false,
+              "ci_level": 0.95,
+              "method": "bootstrap"
+            }
+          }
+        },
+        "mean_kappa": 0.5369,
+        "mean_agreement_rate": 0.9348,
+        "n_pairwise_terms": 1,
+        "n_common_annotations_total": 46,
+        "report_text": "Inter-annotator agreement over 2 annotators: mean pairwise Cohen's κ = 0.537, mean agreement = 93.5% (1 pair(s))."
+      },
+      "adjudicated": {
+        "n_total": 46,
+        "n_needs_adjudication": 3,
+        "records": [
+          {
+            "audit_id": "U_0026_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0026_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0035_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0035_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0038_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0038_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0044_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0044_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0048_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0048_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0049_A",
+            "human_label": null,
+            "annotator_count": 2,
+            "votes": {
+              "correct": 1,
+              "incorrect": 1
+            },
+            "needs_adjudication": true
+          },
+          {
+            "audit_id": "U_0049_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0051_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0051_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0053_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0053_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0056_A",
+            "human_label": "incorrect",
+            "annotator_count": 2,
+            "votes": {
+              "incorrect": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0056_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0057_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0057_B",
+            "human_label": "incorrect",
+            "annotator_count": 2,
+            "votes": {
+              "incorrect": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0059_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0059_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0060_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0060_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0061_A",
+            "human_label": null,
+            "annotator_count": 2,
+            "votes": {
+              "incorrect": 1,
+              "correct": 1
+            },
+            "needs_adjudication": true
+          },
+          {
+            "audit_id": "U_0061_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0063_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0063_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0064_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0064_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0065_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0065_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0067_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0067_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0068_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0068_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0071_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0071_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0072_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0072_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0074_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0074_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0076_A",
+            "human_label": null,
+            "annotator_count": 2,
+            "votes": {
+              "correct": 1,
+              "incorrect": 1
+            },
+            "needs_adjudication": true
+          },
+          {
+            "audit_id": "U_0076_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0084_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0084_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "correct": 2
+            },
+            "needs_adjudication": false
+          }
+        ]
+      },
+      "auto_comparison": {
+        "n": 43,
+        "n_valid_pairs": 43,
+        "agreement_rate": 0.814,
+        "cohens_kappa": 0.2773,
+        "weighted_kappa": 0.2773,
+        "p_observed": 0.814,
+        "p_expected": 0.7426,
+        "categories": [
+          "correct",
+          "incorrect"
+        ],
+        "confusion_matrix": {
+          "correct": {
+            "correct": 33
+          },
+          "incorrect": {
+            "incorrect": 2,
+            "correct": 8
+          }
+        },
+        "per_label_agreement": {
+          "correct": {
+            "precision": 1.0,
+            "recall": 0.8049,
+            "f1": 0.8919,
+            "auto_count": 33,
+            "human_count": 41
+          },
+          "incorrect": {
+            "precision": 0.2,
+            "recall": 1.0,
+            "f1": 0.3333,
+            "auto_count": 10,
+            "human_count": 2
+          }
+        },
+        "kappa_ci": {
+          "kappa": 0.2773,
+          "ci_lower": 0.0,
+          "ci_upper": 0.5585,
+          "n": 43,
+          "n_bootstrap": 1000,
+          "weighted": false,
+          "ci_level": 0.95,
+          "method": "bootstrap"
+        }
+      },
+      "used_ground_truth": true
+    },
+    "consistency": {
+      "inter_annotator": {
+        "method": "pairwise_cohen_kappa",
+        "n_annotators": 2,
+        "annotators": [
+          "ann1",
+          "ann2"
+        ],
+        "pairwise": {
+          "ann1__vs__ann2": {
+            "n": 20,
+            "cohens_kappa": 0.0,
+            "weighted_kappa": 0.0,
+            "agreement_rate": 0.95,
+            "kappa_ci": {
+              "kappa": 0.0,
+              "ci_lower": 0.0,
+              "ci_upper": 1.0,
+              "n": 20,
+              "n_bootstrap": 1000,
+              "weighted": false,
+              "ci_level": 0.95,
+              "method": "bootstrap"
+            }
+          }
+        },
+        "mean_kappa": 0.0,
+        "mean_agreement_rate": 0.95,
+        "n_pairwise_terms": 1,
+        "n_common_annotations_total": 20,
+        "report_text": "Inter-annotator agreement over 2 annotators: mean pairwise Cohen's κ = 0.000, mean agreement = 95.0% (1 pair(s))."
+      },
+      "adjudicated": {
+        "n_total": 20,
+        "n_needs_adjudication": 1,
+        "records": [
+          {
+            "audit_id": "U_0027_A",
+            "human_label": "consistent",
+            "annotator_count": 2,
+            "votes": {
+              "consistent": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0027_B",
+            "human_label": "consistent",
+            "annotator_count": 2,
+            "votes": {
+              "consistent": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0036_A",
+            "human_label": "consistent",
+            "annotator_count": 2,
+            "votes": {
+              "consistent": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0036_B",
+            "human_label": "consistent",
+            "annotator_count": 2,
+            "votes": {
+              "consistent": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0039_A",
+            "human_label": null,
+            "annotator_count": 2,
+            "votes": {
+              "consistent": 1,
+              "inconsistent": 1
+            },
+            "needs_adjudication": true
+          },
+          {
+            "audit_id": "U_0039_B",
+            "human_label": "consistent",
+            "annotator_count": 2,
+            "votes": {
+              "consistent": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0046_A",
+            "human_label": "consistent",
+            "annotator_count": 2,
+            "votes": {
+              "consistent": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0046_B",
+            "human_label": "consistent",
+            "annotator_count": 2,
+            "votes": {
+              "consistent": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0047_A",
+            "human_label": "consistent",
+            "annotator_count": 2,
+            "votes": {
+              "consistent": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0047_B",
+            "human_label": "consistent",
+            "annotator_count": 2,
+            "votes": {
+              "consistent": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0050_A",
+            "human_label": "consistent",
+            "annotator_count": 2,
+            "votes": {
+              "consistent": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0050_B",
+            "human_label": "consistent",
+            "annotator_count": 2,
+            "votes": {
+              "consistent": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0055_A",
+            "human_label": "consistent",
+            "annotator_count": 2,
+            "votes": {
+              "consistent": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0055_B",
+            "human_label": "consistent",
+            "annotator_count": 2,
+            "votes": {
+              "consistent": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0058_A",
+            "human_label": "consistent",
+            "annotator_count": 2,
+            "votes": {
+              "consistent": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0058_B",
+            "human_label": "consistent",
+            "annotator_count": 2,
+            "votes": {
+              "consistent": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0073_A",
+            "human_label": "consistent",
+            "annotator_count": 2,
+            "votes": {
+              "consistent": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0073_B",
+            "human_label": "consistent",
+            "annotator_count": 2,
+            "votes": {
+              "consistent": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0082_A",
+            "human_label": "consistent",
+            "annotator_count": 2,
+            "votes": {
+              "consistent": 2
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0082_B",
+            "human_label": "consistent",
+            "annotator_count": 2,
+            "votes": {
+              "consistent": 2
+            },
+            "needs_adjudication": false
+          }
+        ]
+      },
+      "auto_comparison": {
+        "n": 19,
+        "n_valid_pairs": 19,
+        "agreement_rate": 0.8947,
+        "cohens_kappa": 0.0,
+        "weighted_kappa": 0.0,
+        "p_observed": 0.8947,
+        "p_expected": 0.8947,
+        "categories": [
+          "consistent",
+          "inconsistent"
+        ],
+        "confusion_matrix": {
+          "consistent": {
+            "consistent": 17
+          },
+          "inconsistent": {
+            "consistent": 2
+          }
+        },
+        "per_label_agreement": {
+          "consistent": {
+            "precision": 1.0,
+            "recall": 0.8947,
+            "f1": 0.9444,
+            "auto_count": 17,
+            "human_count": 19
+          },
+          "inconsistent": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "auto_count": 2,
+            "human_count": 0
+          }
+        },
+        "kappa_ci": {
+          "kappa": 0.0,
+          "ci_lower": 0.0,
+          "ci_upper": 1.0,
+          "n": 19,
+          "n_bootstrap": 1000,
+          "weighted": false,
+          "ci_level": 0.95,
+          "method": "bootstrap"
+        }
+      },
+      "used_ground_truth": true
+    }
+  },
+  "overall": {
+    "inter_annotator": {
+      "method": "pairwise_cohen_kappa",
+      "n_annotators": 2,
+      "annotators": [
+        "ann1",
+        "ann2"
+      ],
+      "pairwise": {
+        "ann1__vs__ann2": {
+          "n": 118,
+          "cohens_kappa": 0.9258,
+          "weighted_kappa": 0.8964,
+          "agreement_rate": 0.9661,
+          "kappa_ci": {
+            "kappa": 0.9258,
+            "ci_lower": 0.8496,
+            "ci_upper": 0.9831,
+            "n": 118,
+            "n_bootstrap": 1000,
+            "weighted": false,
+            "ci_level": 0.95,
+            "method": "bootstrap"
+          }
+        }
+      },
+      "mean_kappa": 0.9258,
+      "mean_agreement_rate": 0.9661,
+      "n_pairwise_terms": 1,
+      "n_common_annotations_total": 118,
+      "report_text": "Inter-annotator agreement over 2 annotators: mean pairwise Cohen's κ = 0.926, mean agreement = 96.6% (1 pair(s))."
+    },
+    "adjudicated": {
+      "n_total": 118,
+      "n_needs_adjudication": 4,
+      "records": [
+        {
+          "audit_id": "U_0026_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0026_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0027_A",
+          "human_label": "consistent",
+          "annotator_count": 2,
+          "votes": {
+            "consistent": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0027_B",
+          "human_label": "consistent",
+          "annotator_count": 2,
+          "votes": {
+            "consistent": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0028_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0028_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0029_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0029_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0030_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0030_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0031_A",
+          "human_label": "incorrect",
+          "annotator_count": 2,
+          "votes": {
+            "incorrect": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0031_B",
+          "human_label": "incorrect",
+          "annotator_count": 2,
+          "votes": {
+            "incorrect": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0032_A",
+          "human_label": "incorrect",
+          "annotator_count": 2,
+          "votes": {
+            "incorrect": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0032_B",
+          "human_label": "incorrect",
+          "annotator_count": 2,
+          "votes": {
+            "incorrect": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0033_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0033_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0034_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0034_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0035_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0035_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0036_A",
+          "human_label": "consistent",
+          "annotator_count": 2,
+          "votes": {
+            "consistent": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0036_B",
+          "human_label": "consistent",
+          "annotator_count": 2,
+          "votes": {
+            "consistent": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0037_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0037_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0038_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0038_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0039_A",
+          "human_label": null,
+          "annotator_count": 2,
+          "votes": {
+            "consistent": 1,
+            "inconsistent": 1
+          },
+          "needs_adjudication": true
+        },
+        {
+          "audit_id": "U_0039_B",
+          "human_label": "consistent",
+          "annotator_count": 2,
+          "votes": {
+            "consistent": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0040_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0040_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0041_A",
+          "human_label": "incorrect",
+          "annotator_count": 2,
+          "votes": {
+            "incorrect": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0041_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0042_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0042_B",
+          "human_label": "incorrect",
+          "annotator_count": 2,
+          "votes": {
+            "incorrect": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0043_A",
+          "human_label": "incorrect",
+          "annotator_count": 2,
+          "votes": {
+            "incorrect": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0043_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0044_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0044_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0045_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0045_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0046_A",
+          "human_label": "consistent",
+          "annotator_count": 2,
+          "votes": {
+            "consistent": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0046_B",
+          "human_label": "consistent",
+          "annotator_count": 2,
+          "votes": {
+            "consistent": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0047_A",
+          "human_label": "consistent",
+          "annotator_count": 2,
+          "votes": {
+            "consistent": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0047_B",
+          "human_label": "consistent",
+          "annotator_count": 2,
+          "votes": {
+            "consistent": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0048_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0048_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0049_A",
+          "human_label": null,
+          "annotator_count": 2,
+          "votes": {
+            "correct": 1,
+            "incorrect": 1
+          },
+          "needs_adjudication": true
+        },
+        {
+          "audit_id": "U_0049_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0050_A",
+          "human_label": "consistent",
+          "annotator_count": 2,
+          "votes": {
+            "consistent": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0050_B",
+          "human_label": "consistent",
+          "annotator_count": 2,
+          "votes": {
+            "consistent": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0051_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0051_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0052_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0052_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0053_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0053_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0054_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0054_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0055_A",
+          "human_label": "consistent",
+          "annotator_count": 2,
+          "votes": {
+            "consistent": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0055_B",
+          "human_label": "consistent",
+          "annotator_count": 2,
+          "votes": {
+            "consistent": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0056_A",
+          "human_label": "incorrect",
+          "annotator_count": 2,
+          "votes": {
+            "incorrect": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0056_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0057_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0057_B",
+          "human_label": "incorrect",
+          "annotator_count": 2,
+          "votes": {
+            "incorrect": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0058_A",
+          "human_label": "consistent",
+          "annotator_count": 2,
+          "votes": {
+            "consistent": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0058_B",
+          "human_label": "consistent",
+          "annotator_count": 2,
+          "votes": {
+            "consistent": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0059_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0059_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0060_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0060_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0061_A",
+          "human_label": null,
+          "annotator_count": 2,
+          "votes": {
+            "incorrect": 1,
+            "correct": 1
+          },
+          "needs_adjudication": true
+        },
+        {
+          "audit_id": "U_0061_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0062_A",
+          "human_label": "incorrect",
+          "annotator_count": 2,
+          "votes": {
+            "incorrect": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0062_B",
+          "human_label": "incorrect",
+          "annotator_count": 2,
+          "votes": {
+            "incorrect": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0063_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0063_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0064_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0064_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0065_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0065_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0066_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0066_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0067_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0067_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0068_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0068_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0069_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0069_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0070_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0070_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0071_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0071_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0072_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0072_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0073_A",
+          "human_label": "consistent",
+          "annotator_count": 2,
+          "votes": {
+            "consistent": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0073_B",
+          "human_label": "consistent",
+          "annotator_count": 2,
+          "votes": {
+            "consistent": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0074_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0074_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0075_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0075_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0076_A",
+          "human_label": null,
+          "annotator_count": 2,
+          "votes": {
+            "correct": 1,
+            "incorrect": 1
+          },
+          "needs_adjudication": true
+        },
+        {
+          "audit_id": "U_0076_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0077_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0077_B",
+          "human_label": "incorrect",
+          "annotator_count": 2,
+          "votes": {
+            "incorrect": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0078_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0078_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0079_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0079_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0080_A",
+          "human_label": "incorrect",
+          "annotator_count": 2,
+          "votes": {
+            "incorrect": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0080_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0081_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0081_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0082_A",
+          "human_label": "consistent",
+          "annotator_count": 2,
+          "votes": {
+            "consistent": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0082_B",
+          "human_label": "consistent",
+          "annotator_count": 2,
+          "votes": {
+            "consistent": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0083_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0083_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0084_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0084_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "correct": 2
+          },
+          "needs_adjudication": false
+        }
+      ]
+    },
+    "auto_comparison": {
+      "n": 114,
+      "n_valid_pairs": 114,
+      "agreement_rate": 0.8421,
+      "cohens_kappa": 0.6895,
+      "weighted_kappa": 0.6123,
+      "p_observed": 0.8421,
+      "p_expected": 0.4915,
+      "categories": [
+        "consistent",
+        "correct",
+        "inconsistent",
+        "incorrect"
+      ],
+      "confusion_matrix": {
+        "consistent": {
+          "consistent": 17
+        },
+        "correct": {
+          "correct": 68,
+          "incorrect": 2
+        },
+        "inconsistent": {
+          "consistent": 2
+        },
+        "incorrect": {
+          "incorrect": 11,
+          "correct": 14
+        }
+      },
+      "per_label_agreement": {
+        "consistent": {
+          "precision": 1.0,
+          "recall": 0.8947,
+          "f1": 0.9444,
+          "auto_count": 17,
+          "human_count": 19
+        },
+        "correct": {
+          "precision": 0.9714,
+          "recall": 0.8293,
+          "f1": 0.8947,
+          "auto_count": 70,
+          "human_count": 82
+        },
+        "inconsistent": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "auto_count": 2,
+          "human_count": 0
+        },
+        "incorrect": {
+          "precision": 0.44,
+          "recall": 0.8462,
+          "f1": 0.5789,
+          "auto_count": 25,
+          "human_count": 13
+        }
+      },
+      "kappa_ci": {
+        "kappa": 0.6895,
+        "ci_lower": 0.5612,
+        "ci_upper": 0.807,
+        "n": 114,
+        "n_bootstrap": 1000,
+        "weighted": false,
+        "ci_level": 0.95,
+        "method": "bootstrap"
+      }
+    }
+  },
+  "note": "First verify inter_annotator.mean_kappa meets your quality gate before trusting auto_comparison. Per-dimension results are under `by_dimension`; a pooled overall view is under `overall`."
+}

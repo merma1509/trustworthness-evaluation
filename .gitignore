@@ -46,8 +46,6 @@ experiment/blinded/ground_truth_blinded.json
 # a human actually fills them; commit filled files explicitly (git add -f).
 experiment/held_out_work/ann*.jsonl
 
-# Pipeline run log
-results_pipeline_run.log
 .pytest_cache
 feedback-plan.md
 

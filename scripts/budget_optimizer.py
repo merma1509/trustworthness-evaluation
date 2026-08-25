@@ -65,10 +65,10 @@ def _load_human_seconds_per_label() -> float:
 
     The budget/cost analysis must share a *single source of truth* for the
     measured human time per label. If ``results/human_timing_measurement.json``
-    (written by ``scripts/measure_human_annotation_time.py``, Task 1.5) exists,
-    its ``median_seconds_per_label`` is used; otherwise we fall back to the
-    same 30 s placeholder used by the validation report, so the budget and the
-    cost ratio are mutually consistent and never silently diverge.
+    (written by ``scripts/measure_human_annotation_time.py``, interactive
+    timing study) exists, its ``median_seconds_per_label`` is used; otherwise we
+    fall back to the same 30 s placeholder used by the validation report, so the
+    budget and the cost ratio are mutually consistent and never silently diverge.
     """
     if HUMAN_TIMING_PATH.exists():
         try:

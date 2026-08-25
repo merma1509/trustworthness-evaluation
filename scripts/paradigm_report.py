@@ -99,9 +99,8 @@ def _load_human_timing() -> dict:
     """Try to load a human-annotation timing study (Task 1.5).
 
     Written by ``scripts/measure_human_annotation_time.py`` (live interactive
-    timing) or ``scripts/generate_human_timing_from_records.py`` (reproducible
-    estimate derived from actual records). When present it replaces the 30 s
-    placeholder for the cost ratio. Whether that value counts as genuinely
+    timing; the only way this file is produced). When present it replaces the
+    30 s placeholder for the cost ratio. Whether that value counts as genuinely
     "MEASURED" is decided by its ``measurement_validity`` field (== "MEASURED").
     """
     path = RESULTS_DIR / "human_timing_measurement.json"
