@@ -23,7 +23,7 @@ def _normalise_text(text: str) -> str:
     # Normalise apostrophes
     text = re.sub(r"[\u2018\u2019\u201a\u201b\u2039\u203a]", "'", text)
     # Normalise quotes
-    text = re.sub(r'[\u201c\u201d\u201e\u201f\u300c\u300d]', '"', text)
+    text = re.sub(r"[\u201c\u201d\u201e\u201f\u300c\u300d]", '"', text)
     # Normalise dashes
     text = text.replace("\u2013", "-").replace("\u2014", "--")
     # Normalise non-standard spaces
@@ -66,4 +66,3 @@ def save_jsonl(data: List[Dict], filepath: str):
     with open(path, "w") as f:
         for entry in data:
             f.write(json.dumps(entry) + "\n")
-

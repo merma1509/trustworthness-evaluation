@@ -37,16 +37,13 @@ Thumbs.db
 *.tar.gz
 
 # Generated annotation work (per-annotator templates, filled by humans)
-# results/blinded_work/
-# results/blinded_heldout_work/
 
 # Analyst-ONLY ground truth for the blinded experiment (must never reach annotators
 # or be committed alongside the annotation files). Kept out of git deliberately.
 experiment/blinded/ground_truth_blinded.json
 
 # Blank experiment annotation templates (filled by humans). Keep out of git until
-# a human actually fills them; commit filled files explicitly (git add -f), mirroring
-# the results/blinded_work/ convention.
+# a human actually fills them; commit filled files explicitly (git add -f).
 experiment/held_out_work/ann*.jsonl
 
 # Pipeline run log

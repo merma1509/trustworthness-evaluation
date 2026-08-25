@@ -8,15 +8,15 @@
 
 ## A.1 Summary
 
-| Metric                    | Value                      |
-| ------------------------- | -------------------------- |
-| Total annotated samples   | 30 (10 per dimension)      |
-| Overall agreement rate    | 90% (27/30)                |
-| Cohen's Kappa (overall)   | 0.820 — **Almost perfect** |
-| Auto precision            | 100% (24/24)               |
-| Auto recall               | 89% (24/27)                |
-| Auto specificity          | 100% (3/3)                 |
-| Cost ratio (auto / human) | **70x** (MEASURED timing)  |
+| Metric                    | Value                            |
+| ------------------------- | -------------------------------- |
+| Total annotated samples   | 30 (10 per dimension)            |
+| Overall agreement rate    | 96.7% (29/30)                    |
+| Cohen's Kappa (overall)   | 0.942 — **Almost perfect**       |
+| Auto precision            | 100% (24/24)                     |
+| Auto recall               | 89% (24/27)                      |
+| Auto specificity          | 100% (3/3)                       |
+| Cost ratio (auto / human) | **60x** (ESTIMATE, ~6.8 s/label) |
 
 **Conclusion (provisional):** The auto-scorer is **conservative** (high specificity, moderate recall). The κ here is a **planned/calibration** estimate — it is not yet a claim of end-to-end "validated" trustworthiness. Deciding whether the auto-scorer can be trusted for relative ranking, and whether a hybrid (auto + partial human audit) is warranted, must wait until the **blinded, held-out** re-annotation (WP-D, Task 7) is completed and reported. Until then, no deployment or operational recommendation is made from these figures.
 

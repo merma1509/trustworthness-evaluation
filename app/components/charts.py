@@ -17,8 +17,12 @@ def create_dimension_bar_chart(gemma_scores, llama_scores, gemma_cis=None, llama
         llama_scores.get("dimension_scores", {}).get(d, {}).get("score", 0) for d in DIMENSIONS
     ]
 
-    fig.add_trace(go.Bar(name=MODEL_NAMES["gemma3_4b"], x=dim_names, y=gemma_vals, marker_color="#3498db"))
-    fig.add_trace(go.Bar(name=MODEL_NAMES["llama3.1_8b"], x=dim_names, y=llama_vals, marker_color="#e74c3c"))
+    fig.add_trace(
+        go.Bar(name=MODEL_NAMES["gemma3_4b"], x=dim_names, y=gemma_vals, marker_color="#3498db")
+    )
+    fig.add_trace(
+        go.Bar(name=MODEL_NAMES["llama3.1_8b"], x=dim_names, y=llama_vals, marker_color="#e74c3c")
+    )
 
     fig.update_layout(
         title="Dimension Scores with 95% Confidence Intervals",
@@ -74,7 +78,8 @@ def create_confusion_matrix_heatmap(cm_gemma, cm_llama):
     ]
 
     fig = make_subplots(
-        rows=1, cols=2,
+        rows=1,
+        cols=2,
         subplot_titles=(MODEL_NAMES["gemma3_4b"], MODEL_NAMES["llama3.1_8b"]),
         shared_yaxes=True,
     )

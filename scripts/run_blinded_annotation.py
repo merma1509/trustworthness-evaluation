@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """run_blinded_annotation.py
-Orchestrates the blinded multi-rater re-annotation protocol (Task 7, WP-D).
+Orchestrates the blinded multi-rater re-annotation protocol.
 
 Stage 1 — ``prepare``:  emit one *annotation template* per annotator. Each
     template is a copy of a blinded JSONL (prompt+response only, no
@@ -16,16 +16,18 @@ Stage 2 — ``report``:   given the filled annotation files (one per annotator),
 
 Usage:
     python3 scripts/run_blinded_annotation.py prepare \
-        --input results/audit/blinded/blinded_annotation_calibration.jsonl \
-        --output results/blinded_work \
+        --input experiment/blinded/blinded_annotation_heldout.jsonl \
+        --output experiment/held_out_work \
         --annotators ann1 ann2
 
     python3 scripts/run_blinded_annotation.py report \
-        --annotations results/blinded_work/ann1.jsonl results/blinded_work/ann2.jsonl \
-        --dimension safety \
-        --audit results/audit/all_audit.jsonl \
-        --output results/audit/inter_annotator_report.json
+        --annotations experiment/held_out_work/ann1.jsonl experiment/held_out_work/ann2.jsonl \
+        --dimension all \
+        --audit experiment/all_audit_full.jsonl \
+        --ground-truth experiment/blinded/ground_truth_blinded.json \
+        --output experiment/held_out_agreement_report.json
 """
+
 import argparse
 import json
 import sys
@@ -176,19 +178,16 @@ def _run_single_dimension(files, audit, dimension, tie_breaker, ground_truth=Non
         if stats.get("n"):
             print(
                 f"    {pair:<30} n={stats['n']:<3} "
-                f"κ={stats['cohens_kappa']:.3f}  ag={stats['agreement_rate']*100:.1f}%"
+                f"κ={stats['cohens_kappa']:.3f}  ag={stats['agreement_rate'] * 100:.1f}%"
             )
         else:
-            print(f"    {pair:<30} {stats.get('note','')}")
+            print(f"    {pair:<30} {stats.get('note', '')}")
 
     # b) Adjudication.
     rows, _names = merge_annotations(files, dimension=dimension)
     gold = adjudicate(rows, tie_breaker=tie_breaker)
     n_unresolved = sum(1 for g in gold if g["needs_adjudication"])
-    print(
-        f"  Adjudicated {len(gold)} records; "
-        f"{n_unresolved} need human adjudication (ties)."
-    )
+    print(f"  Adjudicated {len(gold)} records; {n_unresolved} need human adjudication (ties).")
 
     # Rebind anonymised gold -> real audit id before comparing to the auto scorer.
     gold_for_auto = _resolve_anon_labels(gold, ground_truth or {})
@@ -199,7 +198,7 @@ def _run_single_dimension(files, audit, dimension, tie_breaker, ground_truth=Non
     print(
         f"    n={comparison.get('n_valid_pairs', 0)}  "
         f"κ={comparison.get('cohens_kappa', 0):.3f}  "
-        f"agreement={comparison.get('agreement_rate', 0)*100:.1f}%"
+        f"agreement={comparison.get('agreement_rate', 0) * 100:.1f}%"
     )
 
     return {
@@ -230,15 +229,16 @@ def _run_report(args) -> int:
     # If no annotator has actually cast any label, fail loudly instead of
     # emitting a report that would be misread as a validated null result.
     n_annotated = sum(
-        1 for f in files for line in f.open() if line.strip()
-        and json.loads(line).get("human_label")
+        1
+        for f in files
+        for line in f.open()
+        if line.strip() and json.loads(line).get("human_label")
     )
     if n_annotated == 0:
         print("  ✗ No filled 'human_label' values found in the annotation files.")
         print("    The templates appear to be UNFILLED. An empty report would be")
         print("    misleading — refusing to write it. Fill human_label first,")
-        print("    e.g. 'make blinded-prepare' then edit results/blinded_work/*.jsonl,")
-        print("    or 'make blinded-heldout-prepare' for the held-out set.")
+        print("    e.g. 'make experiment-heldout-prepare' then edit experiment/held_out_work/*.jsonl,")
         return 2
 
     # Aggregate every dimension into a single report so the dashboard shows the
@@ -250,9 +250,7 @@ def _run_report(args) -> int:
 
     by_dimension = {}
     for dim in dimensions:
-        by_dimension[dim] = _run_single_dimension(
-            files, audit, dim, args.tie_breaker, ground_truth
-        )
+        by_dimension[dim] = _run_single_dimension(files, audit, dim, args.tie_breaker, ground_truth)
 
     # Overall / pooled view (across all dimensions).
     rows_all, _names_all = merge_annotations(files, dimension=None)
@@ -262,9 +260,11 @@ def _run_report(args) -> int:
     n_unresolved_all = sum(1 for g in gold_all if g["needs_adjudication"])
 
     print("\n  OVERALL (pooled across dimensions):")
-    print(f"    n={comparison_all.get('n_valid_pairs', 0)}  "
-          f"κ={comparison_all.get('cohens_kappa', 0):.3f}  "
-          f"agreement={comparison_all.get('agreement_rate', 0)*100:.1f}%")
+    print(
+        f"    n={comparison_all.get('n_valid_pairs', 0)}  "
+        f"κ={comparison_all.get('cohens_kappa', 0):.3f}  "
+        f"agreement={comparison_all.get('agreement_rate', 0) * 100:.1f}%"
+    )
 
     out_path = Path(args.output)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -292,6 +292,7 @@ def _run_report(args) -> int:
     print(f"\n  Report written to {out_path}")
     return 0
 
+
 # ──────────────────────────────────────────────────────────────
 # CLI
 # ──────────────────────────────────────────────────────────────
@@ -301,21 +302,32 @@ def main():
 
     p_prepare = sub.add_parser("prepare", help="Emit per-annotator templates.")
     p_prepare.add_argument("--input", required=True, help="Blinded JSONL (calibration or heldout).")
-    p_prepare.add_argument("--output", default="results/blinded_work")
-    p_prepare.add_argument("--annotators", nargs="+", required=True, help="Annotator names (file stems).")
+    p_prepare.add_argument("--output", default="experiment/held_out_work")
+    p_prepare.add_argument(
+        "--annotators", nargs="+", required=True, help="Annotator names (file stems)."
+    )
 
     p_report = sub.add_parser("report", help="Compute inter-annotator + gold + auto agreement.")
-    p_report.add_argument("--annotations", nargs="+", required=True, help="Filled annotation JSONL files.")
-    p_report.add_argument("--dimension", choices=["safety", "truthfulness", "consistency", "all"],
-                          default="all", help="Dimension for label validation, or 'all' to "
-                          "aggregate every dimension into one report (default: all).")
-    p_report.add_argument("--audit", default="results/audit/all_audit.jsonl")
-    p_report.add_argument("--ground-truth", default=None,
-                          help="Analyst-only ground_truth_blinded.json mapping "
-                               "anon_id -> audit_id (for blinded templates).")
+    p_report.add_argument(
+        "--annotations", nargs="+", required=True, help="Filled annotation JSONL files."
+    )
+    p_report.add_argument(
+        "--dimension",
+        choices=["safety", "truthfulness", "consistency", "all"],
+        default="all",
+        help="Dimension for label validation, or 'all' to "
+        "aggregate every dimension into one report (default: all).",
+    )
+    p_report.add_argument("--audit", default="experiment/all_audit_full.jsonl")
+    p_report.add_argument(
+        "--ground-truth",
+        default=None,
+        help="Analyst-only ground_truth_blinded.json mapping "
+        "anon_id -> audit_id (for blinded templates).",
+    )
     p_report.add_argument("--tie-breaker", default=None, help="Annotator to prefer on ties.")
     p_report.add_argument("--with-ci", action="store_true", help="Include bootstrap CIs.")
-    p_report.add_argument("--output", default="results/audit/inter_annotator_report.json")
+    p_report.add_argument("--output", default="experiment/held_out_agreement_report.json")
 
     args = parser.parse_args()
 

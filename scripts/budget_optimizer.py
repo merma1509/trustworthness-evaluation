@@ -44,16 +44,47 @@ from pathlib import Path
 
 # Three-band "trust region". Gates are deliberately configurable
 # so a sensitivity note can be written in the paper.
-DEFAULT_GATE_TRUST = 0.7        # κ >= this -> auto-scorer used directly
-DEFAULT_GATE_UNVERIFIED = 0.4   # κ <  this -> dimension routed to human annotation
+DEFAULT_GATE_TRUST = 0.7  # κ >= this -> auto-scorer used directly
+DEFAULT_GATE_UNVERIFIED = 0.4  # κ <  this -> dimension routed to human annotation
 DEFAULT_GATES = {
     "trust": DEFAULT_GATE_TRUST,
     "unverified": DEFAULT_GATE_UNVERIFIED,
 }
 
-# Holistic budget maths (rq4_cost): human 8.01 s/label, $20/h.
-HUMAN_SECONDS_PER_LABEL = 8.01
+# Holistic budget maths (rq4_cost): human $20/h.
 HUMAN_HOURLY_COST = 20.0
+
+# Fallback placeholder if no timing study file is present (same default the
+# validation report uses). A genuine study overrides this when available.
+DEFAULT_HUMAN_SECONDS_PER_LABEL = 30.0
+HUMAN_TIMING_PATH = Path("results/human_timing_measurement.json")
+
+
+def _load_human_seconds_per_label() -> float:
+    """Load the human annotation timing from ``human_timing_measurement.json``.
+
+    The budget/cost analysis must share a *single source of truth* for the
+    measured human time per label. If ``results/human_timing_measurement.json``
+    (written by ``scripts/measure_human_annotation_time.py``, Task 1.5) exists,
+    its ``median_seconds_per_label`` is used; otherwise we fall back to the
+    same 30 s placeholder used by the validation report, so the budget and the
+    cost ratio are mutually consistent and never silently diverge.
+    """
+    if HUMAN_TIMING_PATH.exists():
+        try:
+            with HUMAN_TIMING_PATH.open() as f:
+                data = json.load(f)
+            sec = data.get("median_seconds_per_label")
+            if sec:
+                return float(sec)
+        except (OSError, ValueError, json.JSONDecodeError):
+            pass
+    return DEFAULT_HUMAN_SECONDS_PER_LABEL
+
+
+# Resolve once at import time so every ``build_plan`` call uses the same value
+# (matching what the validation report would have used).
+HUMAN_SECONDS_PER_LABEL = _load_human_seconds_per_label()
 
 
 def _load_report(path: Path) -> dict:
@@ -154,21 +185,22 @@ def build_plan(report: dict, gates: dict, source: str) -> dict:
         k = kappas.get(dim)
         n = _records_per_dimension(report, dim)
         if k is None:
-            plan_records.append({
-                "dimension": dim,
-                "kappa": None,
-                "band": "unknown",
-                "recommendation": "No κ estimate available — default to sampling.",
-                "annotations_needed": n if n else None,
-            })
+            plan_records.append(
+                {
+                    "dimension": dim,
+                    "kappa": None,
+                    "band": "unknown",
+                    "recommendation": "No κ estimate available — default to sampling.",
+                    "annotations_needed": n if n else None,
+                }
+            )
             continue
         band = _band(k, gates)
         if band == "unverified":
             # Route ALL records in this dimension to human annotation.
             needed = n if n else None
             recommendation = (
-                "Auto-scorer unreliable here (κ < gate). Route full dimension to "
-                "human annotation."
+                "Auto-scorer unreliable here (κ < gate). Route full dimension to human annotation."
             )
         elif band == "caveated":
             # Sample a fixed 10% (spot-check) rather than full review.
@@ -185,41 +217,60 @@ def build_plan(report: dict, gates: dict, source: str) -> dict:
             )
         if needed:
             total_labels += needed
-        plan_records.append({
-            "dimension": dim,
-            "kappa": round(k, 4),
-            "band": band,
-            "annotations_needed": needed,
-            "recommendation": recommendation,
-        })
+        plan_records.append(
+            {
+                "dimension": dim,
+                "kappa": round(k, 4),
+                "band": band,
+                "annotations_needed": needed,
+                "recommendation": recommendation,
+            }
+        )
 
     cost = round(total_labels * (HUMAN_SECONDS_PER_LABEL / 3600) * HUMAN_HOURLY_COST, 2)
     return {
         "source": source,
         "gates": gates,
         "human_seconds_per_label": HUMAN_SECONDS_PER_LABEL,
+        "human_timing_source": (
+            "results/human_timing_measurement.json"
+            if HUMAN_TIMING_PATH.exists() and HUMAN_TIMING_PATH.stat().st_size > 0
+            else "default placeholder (30.0 s/label) — no timing study file present"
+        ),
         "by_dimension": plan_records,
         "total_human_annotations": total_labels,
         "estimated_human_cost_usd": cost,
         "note": (
             "Trust Budget policy (Part 3 §4.2/§8.1): allocate human annotation only "
             "where the auto-scorer is below the trust κ gate. 'unverified' → full "
-            "dimension to humans; 'caveated' → ~10% spot-check; 'trust' → none."
+            "dimension to humans; 'caveated' → ~10% spot-check; 'trust' → none. "
+            "Human cost is derived from human_seconds_per_label above, which reads "
+            "results/human_timing_measurement.json when present (Task 1.5), else "
+            "falls back to the 30 s placeholder to stay consistent with rq4_cost."
         ),
     }
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--report", required=True,
-                        help="Path to experiment or validation report JSON.")
-    parser.add_argument("--output", default="results/budget_plan.json",
-                        help="Where to write the plan.")
-    parser.add_argument("--gate-trust", type=float, default=DEFAULT_GATE_TRUST,
-                        help=f"κ at/above this trusts the auto-scorer (default {DEFAULT_GATE_TRUST}).")
-    parser.add_argument("--gate-unverified", type=float, default=DEFAULT_GATE_UNVERIFIED,
-                        help=f"κ below this routes the dimension to humans "
-                             f"(default {DEFAULT_GATE_UNVERIFIED}).")
+    parser.add_argument(
+        "--report", required=True, help="Path to experiment or validation report JSON."
+    )
+    parser.add_argument(
+        "--output", default="results/budget_plan.json", help="Where to write the plan."
+    )
+    parser.add_argument(
+        "--gate-trust",
+        type=float,
+        default=DEFAULT_GATE_TRUST,
+        help=f"κ at/above this trusts the auto-scorer (default {DEFAULT_GATE_TRUST}).",
+    )
+    parser.add_argument(
+        "--gate-unverified",
+        type=float,
+        default=DEFAULT_GATE_UNVERIFIED,
+        help=f"κ below this routes the dimension to humans (default {DEFAULT_GATE_UNVERIFIED}).",
+    )
     args = parser.parse_args()
 
     report_path = Path(args.report)
@@ -240,8 +291,10 @@ def main():
     print(f"Gates: trust κ ≥ {args.gate_trust}, unverified κ < {args.gate_unverified}\n")
     for rec in plan["by_dimension"]:
         k = f"{rec['kappa']:.3f}" if rec["kappa"] is not None else "n/a"
-        print(f"  {rec['dimension']:<14} κ={k:<7} band={rec['band']:<10} "
-              f"annotations={rec['annotations_needed']}")
+        print(
+            f"  {rec['dimension']:<14} κ={k:<7} band={rec['band']:<10} "
+            f"annotations={rec['annotations_needed']}"
+        )
     print(f"\n  TOTAL human annotations: {plan['total_human_annotations']}")
     print(f"  Estimated cost: ${plan['estimated_human_cost_usd']:.2f} @ $20/h")
     return 0
@@ -249,4 +302,5 @@ def main():
 
 if __name__ == "__main__":
     import sys
+
     sys.exit(main())

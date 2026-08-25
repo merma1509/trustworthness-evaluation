@@ -62,13 +62,15 @@ def _build_dimension_matrix(agreement_report: dict, validation_report: dict) -> 
         if pl is None:
             pl = (a.get("per_label_agreement") or {}).get("consistent")
         precision = pl.get("precision", None) if pl else None
-        rows.append({
-            "dimension": DIMENSION_LABELS.get(dim, dim),
-            "n": n,
-            "agreement": agreement,
-            "kappa": kappa,
-            "precision": precision,
-        })
+        rows.append(
+            {
+                "dimension": DIMENSION_LABELS.get(dim, dim),
+                "n": n,
+                "agreement": agreement,
+                "kappa": kappa,
+                "precision": precision,
+            }
+        )
     return rows
 
 
@@ -82,7 +84,7 @@ def _build_confusion_matrix(agreement_report: dict) -> tuple:
     for row_label, col_map in cm.items():
         if row_label not in labels:
             labels.append(row_label)
-        for col_label in (col_map or {}):
+        for col_label in col_map or {}:
             if col_label not in labels:
                 labels.append(col_label)
     labels.sort()
@@ -109,17 +111,19 @@ def plot_error_heatmap(agreement_path: Path, validation_path: Path, out_path: Pa
     # ── Panel 1: per-dimension agreement matrix ─────────────
     ax = axes[0]
     if matrix_rows:
-        metric_keys = ["n", "agreement", "kappa", "precision"]
         metric_cols = ["N", "Agreement", "κ", "Precision"]
         data = []
         for r in matrix_rows:
-            data.append([
-                r["n"],
-                r["agreement"],
-                r["kappa"],
-                r["precision"] if r["precision"] is not None else 0.0,
-            ])
+            data.append(
+                [
+                    r["n"],
+                    r["agreement"],
+                    r["kappa"],
+                    r["precision"] if r["precision"] is not None else 0.0,
+                ]
+            )
         import numpy as np
+
         arr = np.array(data, dtype=float)
         # Normalise each column independently for colour scale.
         norm = arr.copy()
@@ -136,10 +140,12 @@ def plot_error_heatmap(agreement_path: Path, validation_path: Path, out_path: Pa
         for i in range(arr.shape[0]):
             for j in range(arr.shape[1]):
                 val = arr[i, j]
-                text = (f"{val:.0f}" if j == 0 else f"{val:.0%}" if j >= 1 else f"{val:.2f}") \
-                    if j != 2 else f"{val:.2f}"
-                ax.text(j, i, text, ha="center", va="center", fontsize=10,
-                        color="black")
+                text = (
+                    (f"{val:.0f}" if j == 0 else f"{val:.0%}" if j >= 1 else f"{val:.2f}")
+                    if j != 2
+                    else f"{val:.2f}"
+                )
+                ax.text(j, i, text, ha="center", va="center", fontsize=10, color="black")
         ax.set_title("Per-dimension agreement (normalised colour)")
         fig.colorbar(im, ax=ax, shrink=0.8)
     else:
@@ -150,6 +156,7 @@ def plot_error_heatmap(agreement_path: Path, validation_path: Path, out_path: Pa
     ax = axes[1]
     if cm is not None and labels:
         import numpy as np
+
         arr = np.array(cm, dtype=float)
         im = ax.imshow(arr, cmap="YlOrRd", aspect="auto")
         ax.set_xticks(range(len(labels)))
@@ -160,8 +167,15 @@ def plot_error_heatmap(agreement_path: Path, validation_path: Path, out_path: Pa
         ax.set_ylabel("Auto label")
         for i in range(arr.shape[0]):
             for j in range(arr.shape[1]):
-                ax.text(j, i, f"{int(arr[i, j])}", ha="center", va="center",
-                        fontsize=11, color="white" if arr[i, j] > 8e-5 else "black")
+                ax.text(
+                    j,
+                    i,
+                    f"{int(arr[i, j])}",
+                    ha="center",
+                    va="center",
+                    fontsize=11,
+                    color="white" if arr[i, j] > 8e-5 else "black",
+                )
         ax.set_title("Pooled Auto × Human confusion (counts)")
         fig.colorbar(im, ax=ax, shrink=0.8)
     else:

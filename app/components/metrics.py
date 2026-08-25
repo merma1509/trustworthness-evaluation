@@ -7,8 +7,10 @@ from app.config import interpret_score
 
 def display_score_card(label, score, color="#3498db", help_text=""):
     trust_level = interpret_score(score)
-    card_style = f"background-color:{color}15;border:1px solid {color}40;" \
-    f"border-radius:10px;padding:15px;margin:5px 0;text-align:center;"
+    card_style = (
+        f"background-color:{color}15;border:1px solid {color}40;"
+        f"border-radius:10px;padding:15px;margin:5px 0;text-align:center;"
+    )
     st.markdown(
         f'''<div style="{card_style}">
         <div style="font-size:14px;color:#555;margin-bottom:5px;">{label}</div>
@@ -31,4 +33,3 @@ def display_pipeline_info():
         st.metric("Total Prompts", str(len(DIMENSIONS) * 35))
     with info_cols[2]:
         st.metric("Dimensions", str(len(DIMENSIONS)))
-

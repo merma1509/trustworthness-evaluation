@@ -101,13 +101,13 @@ wait_for_annotation() {
             break
         fi
         if [ "$total" = "0" ]; then
-            echo "  ⚠  No records found in ${file}."
+            echo "   No records found in ${file}."
             break
         fi
         echo ""
         read -r -p "  When done annotating, press [Enter] to continue (type 'skip' to bypass): " ans
         if [ "$ans" = "skip" ]; then
-            echo "  ⚠  Gate skipped — reports may be incomplete."
+            echo "   Gate skipped — reports may be incomplete."
             break
         fi
     done
@@ -136,7 +136,7 @@ echo "  Python: ${PYTHON}"
 check_device
 echo "============================================================"
 
-echo "[1/14] Checking prerequisites..."
+echo "[1/12] Checking prerequisites..."
 if ! command -v ollama &> /dev/null; then
     echo "ERROR: Ollama is not installed"
     exit 1
@@ -152,25 +152,25 @@ for model in $(echo $MODELS | tr ',' ' '); do
     fi
 done
 
-echo "[2/14] Verifying datasets..."
+echo "[2/12] Verifying datasets..."
 for file in "data/final/safety.jsonl" "data/final/truthfulness.jsonl" "data/final/consistency.jsonl"; do
     if [ -f "$file" ]; then echo "  $file"; else echo "  ERROR: $file not found"; exit 1; fi
 done
 
-echo "[3/14] Cleaning previous results..."
+echo "[3/12] Cleaning previous results..."
 rm -rf "${RESULTS_DIR}/gemma3_4b" "${RESULTS_DIR}/llama3.1_8b"
 rm -f "${RESULTS_DIR}/"*.json "${RESULTS_DIR}/"*.txt "${RESULTS_DIR}/"*.png
 rm -f "${RESULTS_DIR}/raw_outputs/"*.jsonl
 rm -f "${RESULTS_DIR}/audit/agreement_report.json"
 
-echo "[4/14] Running evaluation (may take 30-60 minutes)..."
+echo "[4/12] Running evaluation (may take 30-60 minutes)..."
 START_TIME=$(date +%s)
 $PYTHON run_evaluation.py --models "$MODELS" --output "$RESULTS_DIR"
 END_TIME=$(date +%s)
 DURATION=$((END_TIME - START_TIME))
 echo "  Evaluation complete in ${DURATION}s"
 
-echo "[5/14] Regenerating audit dataset from fresh raw outputs..."
+echo "[5a/12] Regenerating audit dataset from fresh raw outputs..."
 # Rebuild results/audit/all_audit.jsonl FROM the current run so the dashboard
 # and blinded annotation never show stale / hand-labelled data from an older
 # evaluation. Human labels start NULL (ready to annotate).
@@ -178,14 +178,33 @@ $PYTHON scripts/generate_audit_samples.py \
     --raw "${RESULTS_DIR}/raw_outputs" \
     --output "${RESULTS_DIR}/audit/all_audit.jsonl" \
     --n-safety 10 --n-truthfulness 10 --n-consistency 10 --seed 42
-# Rebuild the blinded calibration / held-out splits from the same fresh data.
-$PYTHON scripts/generate_blinded_annotation.py \
-    --audit "${RESULTS_DIR}/audit/all_audit.jsonl" \
+# Regenerate the FULL-dataset blinded experiment audit (experiment/all_audit_full.jsonl)
+# and rebuild the anonymised calibration/held-out splits (experiment/blinded/) from the
+# same fresh raw outputs. This is the single blinded-annotation flow the pipeline uses.
+$PYTHON scripts/generate_audit_samples.py \
     --raw "${RESULTS_DIR}/raw_outputs" \
-    --output "${RESULTS_DIR}/audit/blinded" 2>/dev/null \
+    --output experiment/all_audit_full.jsonl \
+    --n-safety 100 --n-truthfulness 100 --n-consistency 100 --seed 42
+$PYTHON scripts/generate_blinded_annotation.py \
+    --audit experiment/all_audit_full.jsonl \
+    --raw "${RESULTS_DIR}/raw_outputs" \
+    --output experiment/blinded 2>/dev/null \
     || echo "  (skip blinded split generation — optional, manual audit still works)"
 
-echo "[6/14] Saving pipeline summary..."
+echo "[5b/12] Regenerating human-timing study from fresh records..."
+# Results cost/budget analysis reads results/human_timing_measurement.json as the
+# SINGLE SOURCE OF TRUTH for per-label human time. Step 3 wiped results/*.json,
+# so regenerate it here from the just-rebuilt audit + raw outputs — otherwise RQ4
+# (cost) silently falls back to the 30s placeholder.
+$PYTHON scripts/generate_human_timing_from_records.py \
+    --audit "${RESULTS_DIR}/audit/all_audit.jsonl" \
+    --raw "${RESULTS_DIR}/raw_outputs" \
+    --output "${RESULTS_DIR}/human_timing_measurement.json" \
+    --seed 42 2>/dev/null \
+    || echo "  (human-timing generation skipped — RQ4 cost will use the 30s placeholder)"
+echo "  → human_timing_measurement.json regenerated from actual records (Task 1.5)."
+
+echo "[6/12] Saving pipeline summary..."
 cat > "${RESULTS_DIR}/pipeline_summary.txt" << EOF
 Pipeline Summary
 Date:     $(date '+%a, %d %b %Y %H:%M:%S')
@@ -195,13 +214,13 @@ Duration: ${DURATION}s
 Reproduce: ./demo.sh
 EOF
 
-echo "[7/14] Generating analysis plots..."
+echo "[7/12] Generating analysis plots..."
 $PYTHON scripts/analysis.py
 
-echo "[8/14] Running offline rescoring verification..."
+echo "[8/12] Running offline rescoring verification..."
 $PYTHON scripts/score_saved_outputs.py     --input "${RESULTS_DIR}/raw_outputs/*.jsonl"     --output "${RESULTS_DIR}/rescored_verification.json"     --dimension all
 
-echo "[9/14] Generating manual audit file..."
+echo "[9/12] Generating manual audit file..."
 $PYTHON scripts/manual_audit_consistency.py
 # HUMAN GATE: pause until a human labels the consistency pairs in the dashboard
 # file. The paradigm report (step 11) reads all_audit.jsonl, whose fresh human
@@ -213,7 +232,7 @@ wait_for_annotation \
      (consistent / inconsistent) for the manual consistency audit.
      Tip: you can also do this later from the dashboard's Manual Audit tab."
 
-echo "[10/14] Filling audit human labels (for Research Question tab)..."
+echo "[10/12] Filling audit human labels (for Research Question tab)..."
 echo "  Fill results/audit/all_audit.jsonl 'human_label' fields (correct /
   incorrect / consistent / inconsistent) to power agreement/κ metrics."
 wait_for_annotation \
@@ -223,13 +242,13 @@ wait_for_annotation \
      (correct / incorrect for safety & truthfulness;
       consistent / inconsistent for consistency)."
 
-echo "[11a/14] Generating paradigm report..."
+echo "[11a/12] Generating paradigm report..."
 # Generate agreement_report.json + validation_report.json from the now-filled
 # audit labels so the dashboard Research Question / Human Annotation tabs show
 # current κ figures for this run.
 $PYTHON scripts/paradigm_report.py --with-cost
 
-echo "[11b/14] Generating figures & budget (if reports exist)..."
+echo "[11b/12] Generating figures & budget (if reports exist)..."
 # The budget / figure scripts read validation_report.json + agreement_report.json
 # produced in step 11, so they run *after* the human labels are filled. All are
 # optional: if a source report is absent the scripts degrade gracefully.
@@ -249,14 +268,17 @@ if [ -f "${RESULTS_DIR}/audit/agreement_report.json" ]; then
       --validation "${RESULTS_DIR}/validation_report.json" \
       --output "${RESULTS_DIR}/error_heatmap.png" \
       || echo "  (skip error heatmap)"
+  $PYTHON scripts/pipeline_diagram.py \
+      --output "${RESULTS_DIR}/pipeline_loop.png" \
+      || echo "  (skip pipeline-loop diagram)"
 fi
-echo "  → Artifacts: budget_plan.json, budget_reliability_curve.png, error_heatmap.png"
+echo "  → Artifacts: budget_plan.json, budget_reliability_curve.png, error_heatmap.png, pipeline_loop.png"
 
-echo "[11c/14] Experiment flow status (optional)..."
-# The blinded full-dataset experiment is a SEPARATE strict-protocol flow (≥2
-# independent, blinded annotators). It is deliberately NOT executed here — this
-# block only reports where that flow is and what the user should do next, so a
-# fresh `make run` never blocks on humans who aren't present yet.
+echo "[11c/12] Experiment flow status..."
+# The blinded full-dataset experiment (≥2 independent, blinded annotators) is the
+# single blinded-annotation flow. Step 5a built experiment/all_audit_full.jsonl +
+# experiment/blinded; this block only reports the next human step so a fresh
+# `make run` never blocks on annotators who aren't present yet.
 if [ -f "experiment/all_audit_full.jsonl" ] && [ -d "experiment/blinded" ]; then
   echo "  → Experiment audit + anonymised splits are ready (experiment/all_audit_full.jsonl)."
   FILLED=0
@@ -289,47 +311,7 @@ else
   echo "      make experiment-blinded-verify"
 fi
 
-echo "[12/14] Preparing blinded annotation templates..."
-# Emit one annotation template per annotator (blinded: no auto_label/similarity).
-# A human annotator then fills in human_label / confidence / notes for each record.
-if [ -f "${RESULTS_DIR}/audit/blinded/blinded_annotation_calibration.jsonl" ]; then
-  $PYTHON scripts/run_blinded_annotation.py prepare \
-      --input "${RESULTS_DIR}/audit/blinded/blinded_annotation_calibration.jsonl" \
-      --output "${RESULTS_DIR}/blinded_work" \
-      --annotators ann1 ann2
-  echo "  → Edit results/blinded_work/ann1.jsonl and ann2.jsonl, then run 'make blinded-report'."
-  # HUMAN GATE: wait for ≥2 independent annotators to fill their templates.
-  for ann in ann1 ann2; do
-    wait_for_annotation \
-        "${RESULTS_DIR}/blinded_work/${ann}.jsonl" \
-        "human_label" \
-        "Fill every 'human_label' in results/blinded_work/${ann}.jsonl
-         (correct / incorrect / consistent / inconsistent). Keep annotators
-         BLINDED — do not compare with each other or the auto labels."
-  done
-else
-  echo "  Skipping blinded annotation (${RESULTS_DIR}/audit/blinded/blinded_annotation_calibration.jsonl not found)"
-fi
-
-echo "[13/14] Building blinded re-annotation report (if templates are filled)..."
-# Only build the inter-annotator report if an annotation file exists AND has been
-# filled by a human (non-empty human_label); otherwise the pipeline must NOT fail.
-if [ -f "${RESULTS_DIR}/blinded_work/ann1.jsonl" ] && [ -f "${RESULTS_DIR}/blinded_work/ann2.jsonl" ]; then
-  if grep -q '"human_label": "[^"]' "${RESULTS_DIR}/blinded_work/ann1.jsonl"; then
-    echo "  Inter-annotator agreement (DIMENSION=all):"
-    $PYTHON scripts/run_blinded_annotation.py report \
-        --annotations "${RESULTS_DIR}/blinded_work/ann1.jsonl" "${RESULTS_DIR}/blinded_work/ann2.jsonl" \
-        --dimension all \
-        --audit "${RESULTS_DIR}/audit/all_audit.jsonl" \
-        --output "${RESULTS_DIR}/audit/inter_annotator_report.json" || echo "  (report failed — continuing)"
-  else
-    echo "  Skipping report (annotation templates not filled yet by humans)"
-  fi
-else
-  echo "  Skipping report (annotation templates not present)"
-fi
-
-echo "[14/14] Starting Streamlit dashboard..."
+echo "[12/12] Starting Streamlit dashboard..."
 echo "  Open: http://localhost:8501"
 echo "  Press Ctrl+C to stop."
 echo ""

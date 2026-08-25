@@ -4,8 +4,8 @@ import pandas as pd
 import streamlit as st
 
 from app.components.metrics import display_pipeline_info, display_score_card
-from app.config import DIMENSION_LABELS, DIMENSIONS, MODEL_NAMES
-from app.data_loader import get_dimension_score
+from app.config import DIMENSION_LABELS, DIMENSIONS, MODEL_NAMES, RESULTS_DIR
+from app.data_loader import get_dimension_score, load_paired_comparison
 
 
 def render(
@@ -21,6 +21,21 @@ def render(
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         display_pipeline_info()
+
+    # Fig 1 — measurement-validation loop (text can be locally supplied).
+    with st.expander("Instrument pipeline loop (Fig 1)", expanded=False):
+        loop_path = RESULTS_DIR / "pipeline_loop.png"
+        if loop_path.exists():
+            st.image(str(loop_path), caption="Measurement-validation loop")
+        else:
+            st.caption("Generate with: `make pipeline-figure`")
+        st.markdown(
+            "**How to read it.** The auto-scorer runs on every prompt; a "
+            "calibration/held-out split feeds a per-dimension reliability "
+            "estimate; a **κ gate** decides whether to trust the scorer directly "
+            "or route samples to blinded human re-annotation. The loop is the "
+            "durable contribution — no run-specific numbers live in the diagram."
+        )
 
     st.markdown("### Model Comparison")
 
@@ -72,6 +87,35 @@ def render(
 
     instab_msg = "\n".join(["- " + w for w in dim_winners])
     instab_msg += "\n- The overall ranking **depends on the chosen weights**"
-    instab_msg += "\n- All confidence intervals **overlap** — differences are not statistically significant"
+
+    # Statistically-significant differences come from the PAIRED design
+    # (safety/truthfulness) and the CLUSTERED design (consistency) — NOT from
+    # eyeballing overlapping marginal CIs, which is statistically invalid for
+    # correlated model outputs.
+    paired = load_paired_comparison()
+    sig_lines = []
+    if paired and paired.get("dimensions"):
+        for dim in DIMENSIONS:
+            d = paired["dimensions"].get(dim, {})
+            if not d:
+                continue
+            diff = d.get("mean_difference", 0)
+            lo, hi = d.get("ci_lower", 0), d.get("ci_upper", 0)
+            # CI excludes zero -> significant at 5% (two-sided).
+            significant = not (lo <= 0 <= hi)
+            p = d.get("p_value")
+            p_str = f", p={p:.3f}" if p is not None else ""
+            n = d.get("n_pairs") or d.get("n_groups", "?")
+            verdict = "significant" if significant else "not significant"
+            sig_lines.append(
+                f"- **{dim.capitalize()}**: Δ={diff:+.4f} "
+                f"[{lo:.4f}, {hi:.4f}]{p_str} → {verdict} (paired n={n})"
+            )
+    else:
+        sig_lines.append("- Paired-comparison data unavailable (run `make run` to generate it).")
+    instab_msg += "\n\n**Paired / clustered significance (not CI-overlap):**\n" + "\n".join(
+        sig_lines
+    )
+
     warning_icon = chr(0x26A0) + chr(0xFE0F)
     st.warning(f"{warning_icon} **Ranking Instability Warning**\n\n{instab_msg}")

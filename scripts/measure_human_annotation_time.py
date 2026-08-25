@@ -81,6 +81,8 @@ def _abbrev(text: str, n: int = 180) -> str:
 
 
 _RAW_INDEX = {}
+
+
 def _load_raw_index() -> dict:
     """Lazily build {(dim, prompt_id): {prompt, response}} from raw outputs.
 
@@ -167,7 +169,9 @@ def run_timing_study(records, dimension: str, sample: int, seed: int = 42) -> di
                     if isinstance(val, list):
                         for j, entry in enumerate(val):
                             if isinstance(entry, dict):
-                                print(f"  [{j}] {_abbrev(entry.get('prompt'))} -> {_abbrev(entry.get('response'))}")
+                                print(
+                                    f"  [{j}] {_abbrev(entry.get('prompt'))} -> {_abbrev(entry.get('response'))}"
+                                )
                             else:
                                 print(f"  [{j}] {_abbrev(entry)}")
                     else:
@@ -213,12 +217,13 @@ def run_timing_study(records, dimension: str, sample: int, seed: int = 42) -> di
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--input", default="results/audit/all_audit.jsonl",
-                        help="Annotation JSONL source file")
-    parser.add_argument("--dimension", default="safety",
-                        choices=["safety", "truthfulness", "consistency"])
-    parser.add_argument("--sample", type=int, default=8,
-                        help="Number of records to time (0 = all)")
+    parser.add_argument(
+        "--input", default="results/audit/all_audit.jsonl", help="Annotation JSONL source file"
+    )
+    parser.add_argument(
+        "--dimension", default="safety", choices=["safety", "truthfulness", "consistency"]
+    )
+    parser.add_argument("--sample", type=int, default=8, help="Number of records to time (0 = all)")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--output", default=str(HUMAN_TIMING_PATH))
     args = parser.parse_args()
@@ -233,10 +238,11 @@ def main():
     with open(out, "w") as f:
         json.dump(result, f, indent=2, ensure_ascii=False)
     print(f"\n  Saved measured human timing to {out}")
-    print(f"  Median: {result['median_seconds_per_label']:.1f}s/label  "
-          f"(n={result['n_measured']})")
-    print("  → Run `scripts/paradigm_report.py --with-cost` to use this "
-          "measured value in the cost ratio.")
+    print(f"  Median: {result['median_seconds_per_label']:.1f}s/label  (n={result['n_measured']})")
+    print(
+        "  → Run `scripts/paradigm_report.py --with-cost` to use this "
+        "measured value in the cost ratio."
+    )
 
 
 if __name__ == "__main__":

@@ -94,6 +94,23 @@ def load_ranking_stability() -> Optional[Dict]:
         return json.loads(f.read().strip().rstrip(","))
 
 
+def load_paired_comparison() -> Optional[Dict]:
+    """Load paired / clustered model-comparison results.
+
+    Correct significance testing uses the *paired* design (safety/truthfulness)
+    and the *clustered* design (consistency) — not overlapping marginal CIs.
+    Returns the parsed ``paired_comparison.json``, or ``None`` if unavailable.
+    """
+    path = RESULTS_DIR / "paired_comparison.json"
+    if not path.exists():
+        return None
+    with open(path) as f:
+        raw = f.read().strip().lstrip("[").rstrip("]").strip()
+        if not raw:
+            return None
+        return json.loads(raw)
+
+
 def load_agreement_report() -> Optional[Dict]:
     """Load auto-human agreement report (Cohen's kappa, confusion)."""
     path = RESULTS_DIR / "audit" / "agreement_report.json"
@@ -152,4 +169,3 @@ def compute_trustscore(
     s: float, t: float, c: float, w_s: float = 0.40, w_t: float = 0.35, w_c: float = 0.25
 ) -> float:
     return round(w_s * s + w_t * t + w_c * c, 4)
-

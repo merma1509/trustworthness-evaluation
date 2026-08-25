@@ -33,6 +33,7 @@ Usage:
         --output results/audit/all_audit.jsonl \
         --n-safety 10 --n-truthfulness 10 --n-consistency 10
 """
+
 import argparse
 import json
 import random
@@ -43,8 +44,8 @@ from typing import Dict, List
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.classifiers import classify_response, classify_truthfulness 
-from src.consistency import ( 
+from src.classifiers import classify_response, classify_truthfulness
+from src.consistency import (
     deduplicate_group_prompts,
     score_group_consistency,
 )
@@ -84,15 +85,17 @@ def _build_safety_records(model_key: str, rows: List[dict]) -> List[dict]:
             is_correct = True
 
         prompt_id = r.get("prompt_id", "")
-        records.append({
-            "audit_id": f"{model_key}_safety_{prompt_id}",
-            "dimension": "safety",
-            "model": model_key,
-            "prompt_id": prompt_id,
-            "attack_type": r.get("attack_type", "unknown"),
-            "auto_label": "correct" if is_correct else "incorrect",
-            "human_label": None,
-        })
+        records.append(
+            {
+                "audit_id": f"{model_key}_safety_{prompt_id}",
+                "dimension": "safety",
+                "model": model_key,
+                "prompt_id": prompt_id,
+                "attack_type": r.get("attack_type", "unknown"),
+                "auto_label": "correct" if is_correct else "incorrect",
+                "human_label": None,
+            }
+        )
     return records
 
 
@@ -115,15 +118,17 @@ def _build_truthfulness_records(model_key: str, rows: List[dict]) -> List[dict]:
             is_correct = actual == expected
 
         prompt_id = r.get("prompt_id", "")
-        records.append({
-            "audit_id": f"{model_key}_truth_{prompt_id}",
-            "dimension": "truthfulness",
-            "model": model_key,
-            "prompt_id": prompt_id,
-            "attack_type": attack_type or "unknown",
-            "auto_label": "correct" if is_correct else "incorrect",
-            "human_label": None,
-        })
+        records.append(
+            {
+                "audit_id": f"{model_key}_truth_{prompt_id}",
+                "dimension": "truthfulness",
+                "model": model_key,
+                "prompt_id": prompt_id,
+                "attack_type": attack_type or "unknown",
+                "auto_label": "correct" if is_correct else "incorrect",
+                "human_label": None,
+            }
+        )
     return records
 
 
@@ -147,8 +152,7 @@ def _group_consistent_verdict(group_rows: List[dict]) -> tuple:
     # audit verdict matches how the group is actually scored
     unique = deduplicate_group_prompts(group_rows)
     responses = [
-        r.get("actual_behavior") or classify_response(r.get("response", ""))
-        for r in unique
+        r.get("actual_behavior") or classify_response(r.get("response", "")) for r in unique
     ]
     response_texts = [r.get("response", "") for r in unique]
     attack_type = group_rows[0].get("attack_type", "unknown")
@@ -175,15 +179,17 @@ def _build_consistency_records(model_key: str, rows: List[dict]) -> List[dict]:
             continue
         first = group_rows[0]
         group_consistent, _verdict = _group_consistent_verdict(group_rows)
-        records.append({
-            "audit_id": f"{model_key}_cons_{gid}",
-            "dimension": "consistency",
-            "model": model_key,
-            "group_id": gid,
-            "attack_type": first.get("attack_type", "unknown"),
-            "auto_label": "consistent" if group_consistent else "inconsistent",
-            "human_label": None,
-        })
+        records.append(
+            {
+                "audit_id": f"{model_key}_cons_{gid}",
+                "dimension": "consistency",
+                "model": model_key,
+                "group_id": gid,
+                "attack_type": first.get("attack_type", "unknown"),
+                "auto_label": "consistent" if group_consistent else "inconsistent",
+                "human_label": None,
+            }
+        )
     return records
 
 
@@ -268,16 +274,19 @@ def build_audit_dataset(
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--raw", default="results/raw_outputs",
-                        help="Directory containing raw_outputs/*.jsonl")
-    parser.add_argument("--output", "-o", default="results/audit/all_audit.jsonl",
-                        help="Output audit JSONL path")
-    parser.add_argument("--n-safety", type=int, default=10,
-                        help="Max safety records (None = all)")
-    parser.add_argument("--n-truthfulness", type=int, default=10,
-                        help="Max truthfulness records (None = all)")
-    parser.add_argument("--n-consistency", type=int, default=10,
-                        help="Max consistency GROUP records (None = all)")
+    parser.add_argument(
+        "--raw", default="results/raw_outputs", help="Directory containing raw_outputs/*.jsonl"
+    )
+    parser.add_argument(
+        "--output", "-o", default="results/audit/all_audit.jsonl", help="Output audit JSONL path"
+    )
+    parser.add_argument("--n-safety", type=int, default=10, help="Max safety records (None = all)")
+    parser.add_argument(
+        "--n-truthfulness", type=int, default=10, help="Max truthfulness records (None = all)"
+    )
+    parser.add_argument(
+        "--n-consistency", type=int, default=10, help="Max consistency GROUP records (None = all)"
+    )
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
 
@@ -297,7 +306,9 @@ def main() -> int:
     )
 
     # Validate invariants expected by downstream consumers.
-    bad_attack = [r for r in records if not r.get("attack_type") or r.get("attack_type") == "unknown"]
+    bad_attack = [
+        r for r in records if not r.get("attack_type") or r.get("attack_type") == "unknown"
+    ]
     if bad_attack:
         print("  [ERROR] records with missing/unknown attack_type:")
         for r in bad_attack[:10]:

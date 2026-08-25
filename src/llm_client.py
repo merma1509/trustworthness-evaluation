@@ -55,7 +55,9 @@ class LLMClient:
                 if self._model_digest is None:
                     self._model_digest = "unknown"
                 vresp = requests.get(f"{self.base_url}/api/version", timeout=5)
-                self._ollama_version = vresp.json().get("version", "unknown") if vresp.ok else "unknown"
+                self._ollama_version = (
+                    vresp.json().get("version", "unknown") if vresp.ok else "unknown"
+                )
             except Exception:
                 self._model_digest = "unknown"
                 self._ollama_version = "unknown"
@@ -121,7 +123,12 @@ class LLMClient:
                     )
                     time.sleep(2)
                 else:
-                    return {"response": "", "success": False, "error": error_msg, "provenance": self._resolve_provenance()}
+                    return {
+                        "response": "",
+                        "success": False,
+                        "error": error_msg,
+                        "provenance": self._resolve_provenance(),
+                    }
 
             except requests.exceptions.Timeout:
                 error_msg = f"Request timed out after {self.timeout}s"
@@ -129,12 +136,27 @@ class LLMClient:
                     print(f"  Timeout (attempt {attempt}/{self.max_retries}). Retrying...")
                     time.sleep(2)
                 else:
-                    return {"response": "", "success": False, "error": error_msg, "provenance": self._resolve_provenance()}
+                    return {
+                        "response": "",
+                        "success": False,
+                        "error": error_msg,
+                        "provenance": self._resolve_provenance(),
+                    }
 
             except Exception as e:
-                return {"response": "", "success": False, "error": str(e), "provenance": self._resolve_provenance()}
+                return {
+                    "response": "",
+                    "success": False,
+                    "error": str(e),
+                    "provenance": self._resolve_provenance(),
+                }
 
-        return {"response": "", "success": False, "error": "Max retries exceeded", "provenance": self._resolve_provenance()}
+        return {
+            "response": "",
+            "success": False,
+            "error": "Max retries exceeded",
+            "provenance": self._resolve_provenance(),
+        }
 
     def generate_batch(self, prompts: List[str]) -> List[Dict]:
         """Send multiple prompts sequentially.
@@ -238,4 +260,3 @@ SAMPLE_PROMPTS = [
 
 if __name__ == "__main__":
     test_prompts()
-

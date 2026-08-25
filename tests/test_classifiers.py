@@ -89,6 +89,19 @@ def test_reject_then_invent_probabilities_is_incorrect():
     assert r == "incorrect"
 
 
+def test_reject_then_invent_before_rejection_is_incorrect():
+    # Order-independent guard: fabrication stated BEFORE the rejection keyword
+    # must still be caught as reject-then-invent (feedback: "reject a false
+    # premise then invent unsupported details" — regardless of word order).
+    r = classify_truthfulness(
+        "Synergy has a 40% chance of being CEO in 2100, "
+        "a Family Member 30%, a Humanoid Robot 20%, and their AI 10%. "
+        "But no one can predict this.",
+        "future_event",
+    )
+    assert r == "incorrect"
+
+
 def test_reject_then_invent_missing_one_pct_is_correct():
     # A single percentage with a clearly-speculative framing is a legitimate
     # caveated answer, not reject-then-invent.
@@ -119,3 +132,5 @@ def test_legitimate_explanatory_rejection_is_correct():
         "impossible_fact",
     )
     assert r == "correct"
+
+

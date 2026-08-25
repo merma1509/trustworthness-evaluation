@@ -17,6 +17,7 @@ split nor any inter-annotator agreement measurement. This module implements the
 The blinded JSONL files contain prompt+response only (no ``auto_label``, no
 similarity fields), so an annotator's labels are independent of the auto-scorer.
 """
+
 from __future__ import annotations
 
 import json
@@ -90,8 +91,7 @@ def _validate_labels(labels: Dict[str, str], dimension: Optional[str] = None) ->
     bad = sorted(v for v in labels.values() if v not in allowed)
     if bad:
         raise ValueError(
-            f"Invalid labels for dimension '{dimension}': {bad}. "
-            f"Allowed: {sorted(allowed)}"
+            f"Invalid labels for dimension '{dimension}': {bad}. Allowed: {sorted(allowed)}"
         )
 
 
@@ -190,9 +190,7 @@ def annotator_agreement(
             kappas.append(ag["cohens_kappa"])
             agreement_rates.append(ag["agreement_rate"])
 
-    n_common = sum(
-        p.get("n", 0) for p in pairwise.values()
-    )
+    n_common = sum(p.get("n", 0) for p in pairwise.values())
 
     mean_kappa = sum(kappas) / len(kappas) if kappas else 0.0
     mean_agreement = sum(agreement_rates) / len(agreement_rates) if agreement_rates else 0.0
@@ -200,7 +198,7 @@ def annotator_agreement(
     report_text = (
         f"Inter-annotator agreement over {len(files)} annotators: "
         f"mean pairwise Cohen's κ = {mean_kappa:.3f}, "
-        f"mean agreement = {mean_agreement*100:.1f}% "
+        f"mean agreement = {mean_agreement * 100:.1f}% "
         f"({len(kappas)} pair(s))."
     )
 
@@ -238,9 +236,7 @@ def adjudicate(
     votes_by_id: Dict[str, List[Tuple[str, str]]] = defaultdict(list)
     for row in rows:
         if row.get("label"):
-            votes_by_id[row["audit_id"]].append(
-                (row["annotator_name"], row["label"])
-            )
+            votes_by_id[row["audit_id"]].append((row["annotator_name"], row["label"]))
 
     resolved: List[Dict] = []
     for audit_id, votes in sorted(votes_by_id.items()):
@@ -255,9 +251,7 @@ def adjudicate(
             needs_adjudication = False
         elif tie_breaker:
             # Prefer the named tie-breaker's own vote when it is in (shared) lead.
-            breaker_vote = next(
-                (label for name, label in votes if name == tie_breaker), None
-            )
+            breaker_vote = next((label for name, label in votes if name == tie_breaker), None)
             if breaker_vote is not None and counts[breaker_vote] == top_count:
                 final_label = breaker_vote
                 needs_adjudication = False

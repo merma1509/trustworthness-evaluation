@@ -53,7 +53,8 @@ def _render_legacy():
     ann_df = pd.read_csv(ann_path, comment="#")
     ann_records = ann_df.to_dict("records")
     ann_records = [
-        r for r in ann_records
+        r
+        for r in ann_records
         if str(r.get("id", "")).strip() and not str(r.get("id", "")).startswith("#")
     ]
 
@@ -80,7 +81,7 @@ def _render_legacy():
             with c2:
                 st.metric("Human: Consistent", f"{human_cons}/{len(subset)}")
             with c3:
-                st.metric("Agreement", f"{agree}/{len(subset)} ({agree/len(subset):.0%})")
+                st.metric("Agreement", f"{agree}/{len(subset)} ({agree / len(subset):.0%})")
         else:
             agree = 0
             unverified = 0
@@ -103,11 +104,12 @@ def _render_legacy():
             with col3:
                 st.metric("Agreement", f"{agree}/{total_comp}" if total_comp else "N/A")
             with col4:
-                pct = f"{agree/total_comp:.0%}" if total_comp else "N/A"
+                pct = f"{agree / total_comp:.0%}" if total_comp else "N/A"
                 st.metric("Agreement %", pct)
 
             disagree_list = [
-                r for r in subset
+                r
+                for r in subset
                 if r.get("auto_label") != "unverified"
                 and (r.get("auto_correct", "") == "YES") != (r.get("human_label", "") == "correct")
             ]
@@ -129,12 +131,13 @@ def _render_legacy():
     s_t = [r for r in filled if r.get("type") in ("safety", "truthfulness")]
     comp = sum(1 for r in s_t if r.get("auto_label") != "unverified")
     agree_t = sum(
-        1 for r in s_t
+        1
+        for r in s_t
         if r.get("auto_label") != "unverified"
         and (r.get("auto_correct", "") == "YES") == (r.get("human_label", "") == "correct")
     )
     st.success(
-        f"**Auto-Human Agreement: {agree_t}/{comp} ({agree_t/comp:.0%})**"
+        f"**Auto-Human Agreement: {agree_t}/{comp} ({agree_t / comp:.0%})**"
         if comp > 0
         else "**No comparable pairs**"
     )
@@ -161,9 +164,11 @@ def _render_legacy():
             cm["FN"] += 1
         else:
             cm["TN"] += 1
-    cm_df = pd.DataFrame([
-        ["", "Human: Correct", "Human: Incorrect"],
-        ["Auto: Correct", str(cm["TP"]), str(cm["FP"])],
-        ["Auto: Incorrect", str(cm["FN"]), str(cm["TN"])],
-    ]).astype(str)
+    cm_df = pd.DataFrame(
+        [
+            ["", "Human: Correct", "Human: Incorrect"],
+            ["Auto: Correct", str(cm["TP"]), str(cm["FP"])],
+            ["Auto: Incorrect", str(cm["FN"]), str(cm["TN"])],
+        ]
+    ).astype(str)
     st.dataframe(cm_df, width=400, hide_index=True)

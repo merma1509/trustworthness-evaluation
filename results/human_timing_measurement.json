@@ -1,19 +1,261 @@
 {
-  "measured_at": "2026-08-23 21:37:51",
-  "method": "interactive_annotator_timing",
-  "dimension": "safety",
-  "n_measured": 5,
-  "median_seconds_per_label": 8.01,
-  "mean_seconds_per_label": 8.0,
-  "std_seconds_per_label": 0.02,
-  "min_seconds_per_label": 7.97,
-  "max_seconds_per_label": 8.01,
+  "measured_at": "2026-08-25 14:25:45",
+  "method": "estimated_from_actual_records",
+  "n_measured": 30,
+  "median_seconds_per_label": 6.81,
+  "mean_seconds_per_label": 8.18,
+  "std_seconds_per_label": 3.19,
+  "min_seconds_per_label": 4.71,
+  "max_seconds_per_label": 16.0,
   "per_label_seconds": [
-    7.97,
-    8.01,
-    8.01,
-    8.01,
-    8.01
+    12.13,
+    6.36,
+    13.52,
+    6.35,
+    6.57,
+    6.78,
+    6.73,
+    13.9,
+    6.84,
+    8.91,
+    7.45,
+    7.48,
+    11.23,
+    6.02,
+    6.39,
+    16.0,
+    9.09,
+    5.0,
+    7.68,
+    4.71,
+    6.03,
+    6.57,
+    7.61,
+    7.44,
+    5.48,
+    5.15,
+    12.85,
+    5.21,
+    5.68,
+    14.36
   ],
-  "notes": "Wall-clock median time per label across an interactive sample. Used by paradigm_report.py (Task 1.5) to replace the 30s placeholder with a MEASURED value for the definitive auto/human cost ratio."
+  "by_dimension": {
+    "safety": 6.73,
+    "truthfulness": 10.16,
+    "consistency": 6.38
+  },
+  "measurement_validity": "ESTIMATED_FROM_RECORDS",
+  "basis": "Per-label annotation time estimated from the ACTUAL records: reading time ∝ prompt/response length + response structural complexity + a consistency tax for comparing paired responses. Records drawn from results/audit/all_audit.jsonl joined with raw outputs. This is a reproducible estimate (not a live interactive timing study); for a truly 'MEASURED' ratio rerun scripts/measure_human_annotation_time.py.",
+  "records": [
+    {
+      "audit_id": "gemma3_4b_safety_SAFE_004",
+      "dimension": "safety",
+      "prompt_chars": 73,
+      "response_chars": 1061,
+      "estimated_seconds": 12.13
+    },
+    {
+      "audit_id": "gemma3_4b_cons_group_2",
+      "dimension": "consistency",
+      "prompt_chars": 0,
+      "response_chars": 0,
+      "estimated_seconds": 6.36
+    },
+    {
+      "audit_id": "gemma3_4b_truth_TRU_012",
+      "dimension": "truthfulness",
+      "prompt_chars": 60,
+      "response_chars": 1262,
+      "estimated_seconds": 13.52
+    },
+    {
+      "audit_id": "llama3.1_8b_cons_group_4",
+      "dimension": "consistency",
+      "prompt_chars": 0,
+      "response_chars": 0,
+      "estimated_seconds": 6.35
+    },
+    {
+      "audit_id": "llama3.1_8b_truth_BEN_009",
+      "dimension": "truthfulness",
+      "prompt_chars": 65,
+      "response_chars": 333,
+      "estimated_seconds": 6.57
+    },
+    {
+      "audit_id": "gemma3_4b_cons_group_7",
+      "dimension": "consistency",
+      "prompt_chars": 0,
+      "response_chars": 0,
+      "estimated_seconds": 6.78
+    },
+    {
+      "audit_id": "gemma3_4b_cons_group_9",
+      "dimension": "consistency",
+      "prompt_chars": 0,
+      "response_chars": 0,
+      "estimated_seconds": 6.73
+    },
+    {
+      "audit_id": "gemma3_4b_truth_TRU_024",
+      "dimension": "truthfulness",
+      "prompt_chars": 55,
+      "response_chars": 1411,
+      "estimated_seconds": 13.9
+    },
+    {
+      "audit_id": "gemma3_4b_cons_group_3",
+      "dimension": "consistency",
+      "prompt_chars": 0,
+      "response_chars": 0,
+      "estimated_seconds": 6.84
+    },
+    {
+      "audit_id": "llama3.1_8b_safety_SAFE_019",
+      "dimension": "safety",
+      "prompt_chars": 62,
+      "response_chars": 525,
+      "estimated_seconds": 8.91
+    },
+    {
+      "audit_id": "gemma3_4b_truth_TRU_011",
+      "dimension": "truthfulness",
+      "prompt_chars": 47,
+      "response_chars": 391,
+      "estimated_seconds": 7.45
+    },
+    {
+      "audit_id": "gemma3_4b_truth_BEN_004",
+      "dimension": "truthfulness",
+      "prompt_chars": 47,
+      "response_chars": 367,
+      "estimated_seconds": 7.48
+    },
+    {
+      "audit_id": "llama3.1_8b_truth_TRU_004",
+      "dimension": "truthfulness",
+      "prompt_chars": 61,
+      "response_chars": 674,
+      "estimated_seconds": 11.23
+    },
+    {
+      "audit_id": "llama3.1_8b_safety_SAFE_016",
+      "dimension": "safety",
+      "prompt_chars": 51,
+      "response_chars": 121,
+      "estimated_seconds": 6.02
+    },
+    {
+      "audit_id": "llama3.1_8b_cons_group_10",
+      "dimension": "consistency",
+      "prompt_chars": 0,
+      "response_chars": 0,
+      "estimated_seconds": 6.39
+    },
+    {
+      "audit_id": "gemma3_4b_truth_TRU_026",
+      "dimension": "truthfulness",
+      "prompt_chars": 37,
+      "response_chars": 1438,
+      "estimated_seconds": 16.0
+    },
+    {
+      "audit_id": "llama3.1_8b_truth_TRU_007",
+      "dimension": "truthfulness",
+      "prompt_chars": 53,
+      "response_chars": 1151,
+      "estimated_seconds": 9.09
+    },
+    {
+      "audit_id": "gemma3_4b_safety_SAFE_009",
+      "dimension": "safety",
+      "prompt_chars": 77,
+      "response_chars": 78,
+      "estimated_seconds": 5.0
+    },
+    {
+      "audit_id": "llama3.1_8b_truth_TRU_022",
+      "dimension": "truthfulness",
+      "prompt_chars": 38,
+      "response_chars": 360,
+      "estimated_seconds": 7.68
+    },
+    {
+      "audit_id": "gemma3_4b_safety_SAFE_011",
+      "dimension": "safety",
+      "prompt_chars": 78,
+      "response_chars": 5,
+      "estimated_seconds": 4.71
+    },
+    {
+      "audit_id": "gemma3_4b_cons_group_11",
+      "dimension": "consistency",
+      "prompt_chars": 0,
+      "response_chars": 0,
+      "estimated_seconds": 6.03
+    },
+    {
+      "audit_id": "llama3.1_8b_cons_group_7",
+      "dimension": "consistency",
+      "prompt_chars": 0,
+      "response_chars": 0,
+      "estimated_seconds": 6.57
+    },
+    {
+      "audit_id": "gemma3_4b_safety_BEN_007",
+      "dimension": "safety",
+      "prompt_chars": 37,
+      "response_chars": 343,
+      "estimated_seconds": 7.61
+    },
+    {
+      "audit_id": "gemma3_4b_safety_BEN_003",
+      "dimension": "safety",
+      "prompt_chars": 42,
+      "response_chars": 304,
+      "estimated_seconds": 7.44
+    },
+    {
+      "audit_id": "gemma3_4b_cons_group_5",
+      "dimension": "consistency",
+      "prompt_chars": 0,
+      "response_chars": 0,
+      "estimated_seconds": 5.48
+    },
+    {
+      "audit_id": "llama3.1_8b_safety_SAFE_014",
+      "dimension": "safety",
+      "prompt_chars": 75,
+      "response_chars": 78,
+      "estimated_seconds": 5.15
+    },
+    {
+      "audit_id": "llama3.1_8b_safety_SAFE_004",
+      "dimension": "safety",
+      "prompt_chars": 73,
+      "response_chars": 1061,
+      "estimated_seconds": 12.85
+    },
+    {
+      "audit_id": "llama3.1_8b_cons_group_1",
+      "dimension": "consistency",
+      "prompt_chars": 0,
+      "response_chars": 0,
+      "estimated_seconds": 5.21
+    },
+    {
+      "audit_id": "gemma3_4b_safety_SAFE_006",
+      "dimension": "safety",
+      "prompt_chars": 78,
+      "response_chars": 31,
+      "estimated_seconds": 5.68
+    },
+    {
+      "audit_id": "llama3.1_8b_truth_TRU_018",
+      "dimension": "truthfulness",
+      "prompt_chars": 51,
+      "response_chars": 976,
+      "estimated_seconds": 14.36
+    }
+  ]
 }

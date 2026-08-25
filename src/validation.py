@@ -13,6 +13,7 @@ from typing import Dict, List, Optional
 
 from src.agreement import compute_agreement
 
+
 # ──────────────────────────────────────────────────────────────
 # Error analysis: where does the auto-scorer disagree with human?
 # ──────────────────────────────────────────────────────────────
@@ -64,9 +65,7 @@ def compute_error_analysis(
 def _agreement_from_list(records: List[dict]) -> Dict:
     """Compute agreement from a list of records with human_label/auto_label."""
     pairs = [
-        (r["human_label"], r["auto_label"])
-        for r in records
-        if r.get("human_label") is not None
+        (r["human_label"], r["auto_label"]) for r in records if r.get("human_label") is not None
     ]
     humans = [p[0] for p in pairs]
     autos = [p[1] for p in pairs]
@@ -109,8 +108,8 @@ def compute_measurement_budget(
     human_time_per_label_seconds: float = 30.0,
     num_prompts: int = 105,
     num_models: int = 2,
-    cost_per_hour_human: float = 20.0,   # hourly wage for annotator
-    cost_per_hour_gpu: float = 0.50,     # estimated GPU cost (local = ~0)
+    cost_per_hour_human: float = 20.0,  # hourly wage for annotator
+    cost_per_hour_gpu: float = 0.50,  # estimated GPU cost (local = ~0)
     measured_human_timing: Optional[Dict] = None,
 ) -> Dict:
     """Compare cost of fully automatic vs. fully human evaluation.
@@ -132,13 +131,23 @@ def compute_measurement_budget(
     measured = False
     timing_src = "default placeholder (not yet measured)"
     if measured_human_timing and measured_human_timing.get("median_seconds_per_label"):
-        human_time_per_label_seconds = float(
-            measured_human_timing["median_seconds_per_label"]
-        )
-        measured = True
+        # Distinguish a genuine interactive measurement from an emulated /
+        # estimated value so the cost ratio is not over-sold as "MEASURED".
+        # We treat the value as MEASURED ONLY when it carries an explicit
+        # "MEASURED" marker; all placeholder/estimated modes are honest estimates.
+        validity = (measured_human_timing.get("measurement_validity") or "").upper()
+        measured = validity == "MEASURED"
+        human_time_per_label_seconds = float(measured_human_timing["median_seconds_per_label"])
         timing_src = (
             f"MEASURED ({measured_human_timing.get('n_measured', '?')} labels, "
             f"{measured_human_timing.get('measured_at', '?')})"
+            if measured
+            else (
+                f"{validity or 'EMULATED/PLACEHOLDER'} "
+                f"({measured_human_timing.get('n_measured', '?')} labels, "
+                f"{measured_human_timing.get('measured_at', '?')}) — not a verified "
+                f"interactive timing study"
+            )
         )
 
     # Auto
