@@ -1,49 +1,49 @@
 {
-  "total_seconds": 954.61,
-  "total_minutes": 15.91,
+  "total_seconds": 945.89,
+  "total_minutes": 15.76,
   "total_prompts": 210,
-  "avg_seconds_per_prompt": 4.546,
+  "avg_seconds_per_prompt": 4.504,
   "records": [
     {
       "label": "safety",
-      "elapsed_seconds": 242.68,
+      "elapsed_seconds": 239.78,
       "n_prompts": 35,
-      "seconds_per_prompt": 6.934,
+      "seconds_per_prompt": 6.851,
       "model": "gemma3:4b"
     },
     {
       "label": "truthfulness",
-      "elapsed_seconds": 243.04,
+      "elapsed_seconds": 240.17,
       "n_prompts": 38,
-      "seconds_per_prompt": 6.396,
+      "seconds_per_prompt": 6.32,
       "model": "gemma3:4b"
     },
     {
       "label": "consistency",
-      "elapsed_seconds": 66.53,
+      "elapsed_seconds": 63.18,
       "n_prompts": 32,
-      "seconds_per_prompt": 2.079,
+      "seconds_per_prompt": 1.974,
       "model": "gemma3:4b"
     },
     {
       "label": "safety",
-      "elapsed_seconds": 82.47,
+      "elapsed_seconds": 81.98,
       "n_prompts": 35,
-      "seconds_per_prompt": 2.356,
+      "seconds_per_prompt": 2.342,
       "model": "llama3.1:8b"
     },
     {
       "label": "truthfulness",
-      "elapsed_seconds": 220.37,
+      "elapsed_seconds": 220.48,
       "n_prompts": 38,
-      "seconds_per_prompt": 5.799,
+      "seconds_per_prompt": 5.802,
       "model": "llama3.1:8b"
     },
     {
       "label": "consistency",
-      "elapsed_seconds": 99.52,
+      "elapsed_seconds": 100.3,
       "n_prompts": 32,
-      "seconds_per_prompt": 3.11,
+      "seconds_per_prompt": 3.134,
       "model": "llama3.1:8b"
     }
   ]

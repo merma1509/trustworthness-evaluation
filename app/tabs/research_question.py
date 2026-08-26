@@ -76,8 +76,7 @@ def render(available, gemma_scores, llama_scores, gemma_cis, llama_cis, all_scor
                 n = dd.get("n_valid_pairs", dd.get("n", 0))
                 desc = _kappa_label(k)
                 dim_rows += (
-                    f"| **{d.capitalize()}** | {a:.0%} ({n} pairs) "
-                    f"| **{k:.2f}** | {desc} |\n"
+                    f"| **{d.capitalize()}** | {a:.0%} ({n} pairs) | **{k:.2f}** | {desc} |\n"
                 )
 
         st.success(
@@ -108,32 +107,38 @@ def render(available, gemma_scores, llama_scores, gemma_cis, llama_cis, all_scor
             "can achieve high accuracy. Kappa corrects for this."
         )
         rows = []
-        rows.append({
-            "Factor": "Overall",
-            "Kappa": f"{overall_kappa:.4f}",
-            "Interpretation": overall_kdesc,
-            "n": overall_n,
-        })
+        rows.append(
+            {
+                "Factor": "Overall",
+                "Kappa": f"{overall_kappa:.4f}",
+                "Interpretation": overall_kdesc,
+                "n": overall_n,
+            }
+        )
         for d in ["safety", "truthfulness", "consistency"]:
             dd = dim_data.get(d, {})
             if dd:
                 k = dd.get("cohens_kappa", 0)
                 n = dd.get("n_valid_pairs", dd.get("n", 0))
-                rows.append({
-                    "Factor": d.capitalize(),
-                    "Kappa": f"{k:.4f}",
-                    "Interpretation": _kappa_label(k),
-                    "n": n,
-                })
+                rows.append(
+                    {
+                        "Factor": d.capitalize(),
+                        "Kappa": f"{k:.4f}",
+                        "Interpretation": _kappa_label(k),
+                        "n": n,
+                    }
+                )
         for mk, md in sorted(model_data.items()):
             k = md.get("cohens_kappa", 0)
             n = md.get("n_valid_pairs", md.get("n", 0))
-            rows.append({
-                "Factor": "Model: " + MODEL_NAMES.get(mk, mk),
-                "Kappa": f"{k:.4f}",
-                "Interpretation": _kappa_label(k),
-                "n": n,
-            })
+            rows.append(
+                {
+                    "Factor": "Model: " + MODEL_NAMES.get(mk, mk),
+                    "Kappa": f"{k:.4f}",
+                    "Interpretation": _kappa_label(k),
+                    "n": n,
+                }
+            )
         st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
 
     # ── 3. Evidence (per-label CM) ──────────────────────────
@@ -143,14 +148,16 @@ def render(available, gemma_scores, llama_scores, gemma_cis, llama_cis, all_scor
         if per_label:
             ev_rows = []
             for lbl, metrics in per_label.items():
-                ev_rows.append({
-                    "Label": lbl.capitalize(),
-                    "Auto Count": metrics.get("auto_count", 0),
-                    "Human Count": metrics.get("human_count", 0),
-                    "Precision": f"{metrics.get('precision', 0):.0%}",
-                    "Recall": f"{metrics.get('recall', 0):.0%}",
-                    "F1": f"{metrics.get('f1', 0):.0%}",
-                })
+                ev_rows.append(
+                    {
+                        "Label": lbl.capitalize(),
+                        "Auto Count": metrics.get("auto_count", 0),
+                        "Human Count": metrics.get("human_count", 0),
+                        "Precision": f"{metrics.get('precision', 0):.0%}",
+                        "Recall": f"{metrics.get('recall', 0):.0%}",
+                        "F1": f"{metrics.get('f1', 0):.0%}",
+                    }
+                )
             st.dataframe(pd.DataFrame(ev_rows), width="stretch", hide_index=True)
             st.caption(
                 "Auto is **conservative** — high precision for 'incorrect' "
@@ -200,11 +207,11 @@ def render(available, gemma_scores, llama_scores, gemma_cis, llama_cis, all_scor
                 a = dd.get("agreement_rate", 0)
                 issues = {
                     "safety": "punctuation artifacts, apostrophe mismatch, "
-                             "role-play compliance missed",
+                    "role-play compliance missed",
                     "truthfulness": "all benign = correct (no scorer), "
-                                   "only false-premise rejection measured",
+                    "only false-premise rejection measured",
                     "consistency": "duplicate prompts, fail-open similarity "
-                                   "=1.0, singleton groups always pass",
+                    "=1.0, singleton groups always pass",
                 }
                 st.markdown(
                     f"- **{d.capitalize()}** (κ={k:.2f}, n={n}, "
@@ -236,16 +243,11 @@ def render(available, gemma_scores, llama_scores, gemma_cis, llama_cis, all_scor
                     rs_rows.append(row)
                 rs_df = pd.DataFrame(rs_rows)
                 st.dataframe(
-                    rs_df.style.format(
-                        {k: "{:.4f}" for k in rs_df.columns if k != "Config"}
-                    ),
+                    rs_df.style.format({k: "{:.4f}" for k in rs_df.columns if k != "Config"}),
                     width="stretch",
                     hide_index=True,
                 )
-                flips = sum(
-                    1 for cfg in configs
-                    if len(set(cfg.get("ranking", {}).values())) > 1
-                )
+                flips = sum(1 for cfg in configs if len(set(cfg.get("ranking", {}).values())) > 1)
                 if flips > 1:
                     st.warning(
                         "⚠️ **Ranking flips detected!** "
@@ -265,19 +267,20 @@ def render(available, gemma_scores, llama_scores, gemma_cis, llama_cis, all_scor
             for dim, data in rq3.items():
                 jk = data.get("jackknife_stability", {})
                 ds = data.get("dataset_size_sensitivity", {})
-                r3_rows.append({
-                    "Dimension": dim.capitalize(),
-                    "Score": f"{jk.get('full_score', 0):.4f}",
-                    "n": jk.get("n_total", 0),
-                    "Jackknife Std": f"±{jk.get('std_jackknife', 0):.4f}",
-                    "Max Change": f"{jk.get('max_decrease', 0):.4f}",
-                    "Min N Needed": ds.get("estimated_min_n", "?"),
-                })
+                r3_rows.append(
+                    {
+                        "Dimension": dim.capitalize(),
+                        "Score": f"{jk.get('full_score', 0):.4f}",
+                        "n": jk.get("n_total", 0),
+                        "Jackknife Std": f"±{jk.get('std_jackknife', 0):.4f}",
+                        "Max Change": f"{jk.get('max_decrease', 0):.4f}",
+                        "Min N Needed": ds.get("estimated_min_n", "?"),
+                    }
+                )
             if r3_rows:
                 st.dataframe(pd.DataFrame(r3_rows), width="stretch", hide_index=True)
             st.success(
-                "All dimensions are **stable**: removing any 1 prompt "
-                "changes the score by < 3%."
+                "All dimensions are **stable**: removing any 1 prompt changes the score by < 3%."
             )
         else:
             st.info("Stability data not available. Run `scripts/paradigm_report.py` first.")
@@ -342,12 +345,16 @@ def render(available, gemma_scores, llama_scores, gemma_cis, llama_cis, all_scor
             budget_rows = []
             for rec in plan["by_dimension"]:
                 band = rec["band"]
-                budget_rows.append({
-                    "Dimension": rec["dimension"].capitalize(),
-                    "Auto–human κ": f"{rec['kappa']:.3f}" if rec["kappa"] is not None else "n/a",
-                    "Band": f"{BAND_ICONS.get(band, '')} {band}",
-                    "Annotations needed": rec["annotations_needed"],
-                })
+                budget_rows.append(
+                    {
+                        "Dimension": rec["dimension"].capitalize(),
+                        "Auto–human κ": f"{rec['kappa']:.3f}"
+                        if rec["kappa"] is not None
+                        else "n/a",
+                        "Band": f"{BAND_ICONS.get(band, '')} {band}",
+                        "Annotations needed": rec["annotations_needed"],
+                    }
+                )
             st.dataframe(pd.DataFrame(budget_rows), width="stretch", hide_index=True)
             st.info(
                 f"**Recommendation:** route **{plan['total_human_annotations']}** "
@@ -366,11 +373,11 @@ def render(available, gemma_scores, llama_scores, gemma_cis, llama_cis, all_scor
         # Budget-vs-reliability figure, if generated.
         fig_path = RESULTS_DIR / "budget_reliability_curve.png"
         if fig_path.exists():
-            st.image(str(fig_path), caption="Budget vs Reliability: where human effort buys the most")
-        else:
-            st.caption(
-                "Tip: `make budget-figure` produces the budget-vs-reliability plot."
+            st.image(
+                str(fig_path), caption="Budget vs Reliability: where human effort buys the most"
             )
+        else:
+            st.caption("Tip: `make budget-figure` produces the budget-vs-reliability plot.")
 
         # Auto × Human error heatmap, if generated.
         heat_path = RESULTS_DIR / "error_heatmap.png"
@@ -380,9 +387,7 @@ def render(available, gemma_scores, llama_scores, gemma_cis, llama_cis, all_scor
                 caption="Error Heatmap: where the auto-scorer and humans disagree",
             )
         else:
-            st.caption(
-                "Tip: `make error-heatmap` produces the Auto×Human error heatmap."
-            )
+            st.caption("Tip: `make error-heatmap` produces the Auto×Human error heatmap.")
 
     # ── 9. When to Trust ────────────────────────────────────
     st.markdown("### When to Trust It")
@@ -390,7 +395,8 @@ def render(available, gemma_scores, llama_scores, gemma_cis, llama_cis, all_scor
         st.info(
             "**You CAN trust the auto-evaluation when:**\n\n"
             "- Relative rankings (which model wins per dimension)\n"
-            "- Accept ±5% margin of error (all CIs overlap)\n"
+            "- Treat differences as significant only via the paired/clustered "
+            "design (results/paired_comparison.json), not marginal-CI overlap\n"
             "- Spot-check ≥10% of labels for known failure modes\n"
             "- Clear-cut safety and consistency (κ ≥ 0.80)\n"
             "- Dataset ≥ 50 prompts per dimension (stable)\n\n"

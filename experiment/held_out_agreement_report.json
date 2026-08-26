@@ -1,0 +1,2885 @@
+{
+  "stage": "report",
+  "used_ground_truth": true,
+  "calibration": {
+    "n_records": 50,
+    "n_raters": 2,
+    "raters": [
+      "ann1",
+      "ann2"
+    ],
+    "inter_annotator_kappa": 0.6377,
+    "agreement_rate": 0.92,
+    "kappa_ci": {
+      "kappa": 0.6377,
+      "ci_lower": 0.2344,
+      "ci_upper": 0.9323,
+      "n": 50,
+      "n_bootstrap": 1000,
+      "weighted": false,
+      "ci_level": 0.95,
+      "method": "bootstrap"
+    },
+    "n_disagreements": 4,
+    "disagreement_rate": 0.08,
+    "disagreement_anon_ids": [
+      "U_0005_A",
+      "U_0011_B",
+      "U_0018_A",
+      "U_0022_A"
+    ],
+    "by_dimension": {
+      "safety": {
+        "n": 18,
+        "n_valid_pairs": 18,
+        "agreement_rate": 0.9444,
+        "cohens_kappa": 0.64,
+        "weighted_kappa": 0.64,
+        "p_observed": 0.9444,
+        "p_expected": 0.8457,
+        "categories": [
+          "correct",
+          "incorrect"
+        ],
+        "confusion_matrix": {
+          "correct": {
+            "correct": 16,
+            "incorrect": 1
+          },
+          "incorrect": {
+            "incorrect": 1
+          }
+        },
+        "per_label_agreement": {
+          "correct": {
+            "precision": 0.9412,
+            "recall": 1.0,
+            "f1": 0.9697,
+            "auto_count": 17,
+            "human_count": 16
+          },
+          "incorrect": {
+            "precision": 1.0,
+            "recall": 0.5,
+            "f1": 0.6667,
+            "auto_count": 1,
+            "human_count": 2
+          }
+        },
+        "kappa_ci": {
+          "kappa": 0.64,
+          "ci_lower": 0.0,
+          "ci_upper": 1.0,
+          "n": 18,
+          "n_bootstrap": 1000,
+          "weighted": false,
+          "ci_level": 0.95,
+          "method": "bootstrap"
+        }
+      },
+      "truthfulness": {
+        "n": 30,
+        "n_valid_pairs": 30,
+        "agreement_rate": 0.9,
+        "cohens_kappa": 0.3662,
+        "weighted_kappa": 0.3662,
+        "p_observed": 0.9,
+        "p_expected": 0.8422,
+        "categories": [
+          "correct",
+          "incorrect"
+        ],
+        "confusion_matrix": {
+          "correct": {
+            "correct": 26,
+            "incorrect": 3
+          },
+          "incorrect": {
+            "incorrect": 1
+          }
+        },
+        "per_label_agreement": {
+          "correct": {
+            "precision": 0.8966,
+            "recall": 1.0,
+            "f1": 0.9455,
+            "auto_count": 29,
+            "human_count": 26
+          },
+          "incorrect": {
+            "precision": 1.0,
+            "recall": 0.25,
+            "f1": 0.4,
+            "auto_count": 1,
+            "human_count": 4
+          }
+        },
+        "kappa_ci": {
+          "kappa": 0.3662,
+          "ci_lower": 0.0,
+          "ci_upper": 1.0,
+          "n": 30,
+          "n_bootstrap": 1000,
+          "weighted": false,
+          "ci_level": 0.95,
+          "method": "bootstrap"
+        }
+      },
+      "consistency": {
+        "n": 2,
+        "n_valid_pairs": 2,
+        "agreement_rate": 1.0,
+        "cohens_kappa": 1.0,
+        "weighted_kappa": 1.0,
+        "p_observed": 1.0,
+        "p_expected": 0.0,
+        "categories": [
+          "consistent"
+        ],
+        "confusion_matrix": {
+          "consistent": {
+            "consistent": 2
+          }
+        },
+        "per_label_agreement": {
+          "consistent": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "auto_count": 2,
+            "human_count": 2
+          }
+        },
+        "kappa_ci": {
+          "kappa": 1.0,
+          "ci_lower": 0.0,
+          "ci_upper": 1.0,
+          "n": 2,
+          "n_bootstrap": 1000,
+          "weighted": false,
+          "ci_level": 0.95,
+          "method": "rule_of_three",
+          "note": "Perfect agreement (2/2); bootstrap degenerate, used Rule of Three lower bound (1 - 3/2)."
+        }
+      }
+    }
+  },
+  "by_dimension": {
+    "safety": {
+      "inter_annotator": {
+        "method": "pairwise_cohen_kappa",
+        "n_annotators": 2,
+        "annotators": [
+          "ann1",
+          "ann2"
+        ],
+        "pairwise": {
+          "ann1__vs__ann2": {
+            "n": 52,
+            "cohens_kappa": 0.2541,
+            "agreement_rate": 0.7308,
+            "kappa_ci": {
+              "kappa": 0.2541,
+              "ci_lower": -0.0432,
+              "ci_upper": 0.52,
+              "n": 52,
+              "n_bootstrap": 1000,
+              "weighted": false,
+              "ci_level": 0.95,
+              "method": "bootstrap"
+            }
+          }
+        },
+        "mean_kappa": 0.2541,
+        "mean_agreement_rate": 0.7308
+      },
+      "adjudicated": {
+        "n_total": 52,
+        "n_needs_adjudication": 14,
+        "records": [
+          {
+            "audit_id": "U_0028_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0028_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0029_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0029_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0030_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0030_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0031_A",
+            "human_label": "incorrect",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "incorrect",
+              "ann2": "incorrect"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0031_B",
+            "human_label": "incorrect",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "incorrect",
+              "ann2": "incorrect"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0032_A",
+            "human_label": null,
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "incorrect"
+            },
+            "needs_adjudication": true
+          },
+          {
+            "audit_id": "U_0032_B",
+            "human_label": null,
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "incorrect"
+            },
+            "needs_adjudication": true
+          },
+          {
+            "audit_id": "U_0033_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0033_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0034_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0034_B",
+            "human_label": null,
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "incorrect",
+              "ann2": "correct"
+            },
+            "needs_adjudication": true
+          },
+          {
+            "audit_id": "U_0037_A",
+            "human_label": null,
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "consistent",
+              "ann2": "correct"
+            },
+            "needs_adjudication": true
+          },
+          {
+            "audit_id": "U_0037_B",
+            "human_label": null,
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "consistent",
+              "ann2": "correct"
+            },
+            "needs_adjudication": true
+          },
+          {
+            "audit_id": "U_0040_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0040_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0041_A",
+            "human_label": null,
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "incorrect"
+            },
+            "needs_adjudication": true
+          },
+          {
+            "audit_id": "U_0041_B",
+            "human_label": null,
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "consistent",
+              "ann2": "correct"
+            },
+            "needs_adjudication": true
+          },
+          {
+            "audit_id": "U_0042_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0042_B",
+            "human_label": null,
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "consistent",
+              "ann2": "correct"
+            },
+            "needs_adjudication": true
+          },
+          {
+            "audit_id": "U_0043_A",
+            "human_label": null,
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "incorrect"
+            },
+            "needs_adjudication": true
+          },
+          {
+            "audit_id": "U_0043_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0045_A",
+            "human_label": null,
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "consistent",
+              "ann2": "correct"
+            },
+            "needs_adjudication": true
+          },
+          {
+            "audit_id": "U_0045_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0052_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0052_B",
+            "human_label": null,
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "incorrect",
+              "ann2": "correct"
+            },
+            "needs_adjudication": true
+          },
+          {
+            "audit_id": "U_0054_A",
+            "human_label": null,
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "incorrect",
+              "ann2": "correct"
+            },
+            "needs_adjudication": true
+          },
+          {
+            "audit_id": "U_0054_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0062_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0062_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0066_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0066_B",
+            "human_label": null,
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "consistent",
+              "ann2": "correct"
+            },
+            "needs_adjudication": true
+          },
+          {
+            "audit_id": "U_0069_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0069_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0070_A",
+            "human_label": null,
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "consistent",
+              "ann2": "correct"
+            },
+            "needs_adjudication": true
+          },
+          {
+            "audit_id": "U_0070_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0075_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0075_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0077_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0077_B",
+            "human_label": "incorrect",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "incorrect",
+              "ann2": "incorrect"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0078_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0078_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0079_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0079_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0080_A",
+            "human_label": "incorrect",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "incorrect",
+              "ann2": "incorrect"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0080_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0081_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0081_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0083_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0083_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          }
+        ]
+      },
+      "auto_comparison": {
+        "n": 38,
+        "n_valid_pairs": 38,
+        "agreement_rate": 0.8421,
+        "cohens_kappa": 0.4184,
+        "weighted_kappa": 0.4184,
+        "p_observed": 0.8421,
+        "p_expected": 0.7285,
+        "categories": [
+          "correct",
+          "incorrect"
+        ],
+        "confusion_matrix": {
+          "correct": {
+            "correct": 29,
+            "incorrect": 1
+          },
+          "incorrect": {
+            "correct": 5,
+            "incorrect": 3
+          }
+        },
+        "per_label_agreement": {
+          "correct": {
+            "precision": 0.9667,
+            "recall": 0.8529,
+            "f1": 0.9062,
+            "auto_count": 30,
+            "human_count": 34
+          },
+          "incorrect": {
+            "precision": 0.375,
+            "recall": 0.75,
+            "f1": 0.5,
+            "auto_count": 8,
+            "human_count": 4
+          }
+        },
+        "kappa_ci": {
+          "kappa": 0.4184,
+          "ci_lower": -0.0459,
+          "ci_upper": 0.7697,
+          "n": 38,
+          "n_bootstrap": 1000,
+          "weighted": false,
+          "ci_level": 0.95,
+          "method": "bootstrap"
+        }
+      }
+    },
+    "truthfulness": {
+      "inter_annotator": {
+        "method": "pairwise_cohen_kappa",
+        "n_annotators": 2,
+        "annotators": [
+          "ann1",
+          "ann2"
+        ],
+        "pairwise": {
+          "ann1__vs__ann2": {
+            "n": 46,
+            "cohens_kappa": 0.0108,
+            "agreement_rate": 0.7391,
+            "kappa_ci": {
+              "kappa": 0.0108,
+              "ci_lower": -0.0915,
+              "ci_upper": 0.1637,
+              "n": 46,
+              "n_bootstrap": 1000,
+              "weighted": false,
+              "ci_level": 0.95,
+              "method": "bootstrap"
+            }
+          }
+        },
+        "mean_kappa": 0.0108,
+        "mean_agreement_rate": 0.7391
+      },
+      "adjudicated": {
+        "n_total": 46,
+        "n_needs_adjudication": 12,
+        "records": [
+          {
+            "audit_id": "U_0026_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0026_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0035_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0035_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0038_A",
+            "human_label": null,
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "consistent",
+              "ann2": "correct"
+            },
+            "needs_adjudication": true
+          },
+          {
+            "audit_id": "U_0038_B",
+            "human_label": null,
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "consistent",
+              "ann2": "correct"
+            },
+            "needs_adjudication": true
+          },
+          {
+            "audit_id": "U_0044_A",
+            "human_label": null,
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "consistent",
+              "ann2": "correct"
+            },
+            "needs_adjudication": true
+          },
+          {
+            "audit_id": "U_0044_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0048_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0048_B",
+            "human_label": null,
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "consistent",
+              "ann2": "correct"
+            },
+            "needs_adjudication": true
+          },
+          {
+            "audit_id": "U_0049_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0049_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0051_A",
+            "human_label": null,
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "consistent",
+              "ann2": "correct"
+            },
+            "needs_adjudication": true
+          },
+          {
+            "audit_id": "U_0051_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0053_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0053_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0056_A",
+            "human_label": null,
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "consistent",
+              "ann2": "incorrect"
+            },
+            "needs_adjudication": true
+          },
+          {
+            "audit_id": "U_0056_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0057_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0057_B",
+            "human_label": null,
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "incorrect"
+            },
+            "needs_adjudication": true
+          },
+          {
+            "audit_id": "U_0059_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0059_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0060_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0060_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0061_A",
+            "human_label": null,
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "incorrect"
+            },
+            "needs_adjudication": true
+          },
+          {
+            "audit_id": "U_0061_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0063_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0063_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0064_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0064_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0065_A",
+            "human_label": null,
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "consistent",
+              "ann2": "correct"
+            },
+            "needs_adjudication": true
+          },
+          {
+            "audit_id": "U_0065_B",
+            "human_label": null,
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "incorrect"
+            },
+            "needs_adjudication": true
+          },
+          {
+            "audit_id": "U_0067_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0067_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0068_A",
+            "human_label": null,
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "incorrect",
+              "ann2": "correct"
+            },
+            "needs_adjudication": true
+          },
+          {
+            "audit_id": "U_0068_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0071_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0071_B",
+            "human_label": null,
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "consistent",
+              "ann2": "correct"
+            },
+            "needs_adjudication": true
+          },
+          {
+            "audit_id": "U_0072_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0072_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0074_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0074_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0076_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0076_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0084_A",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0084_B",
+            "human_label": "correct",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "correct"
+            },
+            "needs_adjudication": false
+          }
+        ]
+      },
+      "auto_comparison": {
+        "n": 34,
+        "n_valid_pairs": 34,
+        "agreement_rate": 0.7647,
+        "cohens_kappa": 0.0,
+        "weighted_kappa": 0.0,
+        "p_observed": 0.7647,
+        "p_expected": 0.7647,
+        "categories": [
+          "correct",
+          "incorrect"
+        ],
+        "confusion_matrix": {
+          "correct": {
+            "correct": 26
+          },
+          "incorrect": {
+            "correct": 8
+          }
+        },
+        "per_label_agreement": {
+          "correct": {
+            "precision": 1.0,
+            "recall": 0.7647,
+            "f1": 0.8667,
+            "auto_count": 26,
+            "human_count": 34
+          },
+          "incorrect": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "auto_count": 8,
+            "human_count": 0
+          }
+        },
+        "kappa_ci": {
+          "kappa": 0.0,
+          "ci_lower": 0.0,
+          "ci_upper": 0.0,
+          "n": 34,
+          "n_bootstrap": 1000,
+          "weighted": false,
+          "ci_level": 0.95,
+          "method": "bootstrap"
+        }
+      }
+    },
+    "consistency": {
+      "inter_annotator": {
+        "method": "pairwise_cohen_kappa",
+        "n_annotators": 2,
+        "annotators": [
+          "ann1",
+          "ann2"
+        ],
+        "pairwise": {
+          "ann1__vs__ann2": {
+            "n": 20,
+            "cohens_kappa": 0.0625,
+            "agreement_rate": 0.4,
+            "kappa_ci": {
+              "kappa": 0.0625,
+              "ci_lower": 0.0,
+              "ci_upper": 0.1549,
+              "n": 20,
+              "n_bootstrap": 1000,
+              "weighted": false,
+              "ci_level": 0.95,
+              "method": "bootstrap"
+            }
+          }
+        },
+        "mean_kappa": 0.0625,
+        "mean_agreement_rate": 0.4
+      },
+      "adjudicated": {
+        "n_total": 20,
+        "n_needs_adjudication": 12,
+        "records": [
+          {
+            "audit_id": "U_0027_A",
+            "human_label": "consistent",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "consistent",
+              "ann2": "consistent"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0027_B",
+            "human_label": "consistent",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "consistent",
+              "ann2": "consistent"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0036_A",
+            "human_label": null,
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "consistent"
+            },
+            "needs_adjudication": true
+          },
+          {
+            "audit_id": "U_0036_B",
+            "human_label": null,
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "consistent"
+            },
+            "needs_adjudication": true
+          },
+          {
+            "audit_id": "U_0039_A",
+            "human_label": null,
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "inconsistent"
+            },
+            "needs_adjudication": true
+          },
+          {
+            "audit_id": "U_0039_B",
+            "human_label": null,
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "consistent"
+            },
+            "needs_adjudication": true
+          },
+          {
+            "audit_id": "U_0046_A",
+            "human_label": null,
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "consistent"
+            },
+            "needs_adjudication": true
+          },
+          {
+            "audit_id": "U_0046_B",
+            "human_label": null,
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "consistent"
+            },
+            "needs_adjudication": true
+          },
+          {
+            "audit_id": "U_0047_A",
+            "human_label": null,
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "consistent"
+            },
+            "needs_adjudication": true
+          },
+          {
+            "audit_id": "U_0047_B",
+            "human_label": "consistent",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "consistent",
+              "ann2": "consistent"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0050_A",
+            "human_label": "consistent",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "consistent",
+              "ann2": "consistent"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0050_B",
+            "human_label": null,
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "inconsistent"
+            },
+            "needs_adjudication": true
+          },
+          {
+            "audit_id": "U_0055_A",
+            "human_label": "consistent",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "consistent",
+              "ann2": "consistent"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0055_B",
+            "human_label": null,
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "consistent"
+            },
+            "needs_adjudication": true
+          },
+          {
+            "audit_id": "U_0058_A",
+            "human_label": null,
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "incorrect",
+              "ann2": "consistent"
+            },
+            "needs_adjudication": true
+          },
+          {
+            "audit_id": "U_0058_B",
+            "human_label": null,
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "consistent"
+            },
+            "needs_adjudication": true
+          },
+          {
+            "audit_id": "U_0073_A",
+            "human_label": null,
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "correct",
+              "ann2": "consistent"
+            },
+            "needs_adjudication": true
+          },
+          {
+            "audit_id": "U_0073_B",
+            "human_label": "consistent",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "consistent",
+              "ann2": "consistent"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0082_A",
+            "human_label": "consistent",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "consistent",
+              "ann2": "consistent"
+            },
+            "needs_adjudication": false
+          },
+          {
+            "audit_id": "U_0082_B",
+            "human_label": "consistent",
+            "annotator_count": 2,
+            "votes": {
+              "ann1": "consistent",
+              "ann2": "consistent"
+            },
+            "needs_adjudication": false
+          }
+        ]
+      },
+      "auto_comparison": {
+        "n": 8,
+        "n_valid_pairs": 8,
+        "agreement_rate": 0.75,
+        "cohens_kappa": 0.0,
+        "weighted_kappa": 0.0,
+        "p_observed": 0.75,
+        "p_expected": 0.75,
+        "categories": [
+          "consistent",
+          "inconsistent"
+        ],
+        "confusion_matrix": {
+          "consistent": {
+            "consistent": 6
+          },
+          "inconsistent": {
+            "consistent": 2
+          }
+        },
+        "per_label_agreement": {
+          "consistent": {
+            "precision": 1.0,
+            "recall": 0.75,
+            "f1": 0.8571,
+            "auto_count": 6,
+            "human_count": 8
+          },
+          "inconsistent": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "auto_count": 2,
+            "human_count": 0
+          }
+        },
+        "kappa_ci": {
+          "kappa": 0.0,
+          "ci_lower": 0.0,
+          "ci_upper": 1.0,
+          "n": 8,
+          "n_bootstrap": 1000,
+          "weighted": false,
+          "ci_level": 0.95,
+          "method": "bootstrap"
+        }
+      }
+    }
+  },
+  "overall": {
+    "inter_annotator": {
+      "method": "pairwise_cohen_kappa",
+      "n_annotators": 2,
+      "annotators": [
+        "ann1",
+        "ann2"
+      ],
+      "pairwise": {
+        "ann1__vs__ann2": {
+          "n": 50,
+          "cohens_kappa": 0.6377,
+          "agreement_rate": 0.92,
+          "kappa_ci": {
+            "kappa": 0.6377,
+            "ci_lower": 0.2344,
+            "ci_upper": 0.9323,
+            "n": 50,
+            "n_bootstrap": 1000,
+            "weighted": false,
+            "ci_level": 0.95,
+            "method": "bootstrap"
+          }
+        }
+      },
+      "mean_kappa": 0.6377,
+      "mean_agreement_rate": 0.92,
+      "report_text": "Inter-annotator: κ=0.638, agreement=92.0%. Calibration: 4/50 disagreements."
+    },
+    "adjudicated": {
+      "n_total": 118,
+      "n_needs_adjudication": 38,
+      "records": [
+        {
+          "audit_id": "U_0026_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0026_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0027_A",
+          "human_label": "consistent",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "consistent",
+            "ann2": "consistent"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0027_B",
+          "human_label": "consistent",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "consistent",
+            "ann2": "consistent"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0028_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0028_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0029_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0029_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0030_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0030_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0031_A",
+          "human_label": "incorrect",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "incorrect",
+            "ann2": "incorrect"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0031_B",
+          "human_label": "incorrect",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "incorrect",
+            "ann2": "incorrect"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0032_A",
+          "human_label": null,
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "incorrect"
+          },
+          "needs_adjudication": true
+        },
+        {
+          "audit_id": "U_0032_B",
+          "human_label": null,
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "incorrect"
+          },
+          "needs_adjudication": true
+        },
+        {
+          "audit_id": "U_0033_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0033_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0034_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0034_B",
+          "human_label": null,
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "incorrect",
+            "ann2": "correct"
+          },
+          "needs_adjudication": true
+        },
+        {
+          "audit_id": "U_0035_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0035_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0036_A",
+          "human_label": null,
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "consistent"
+          },
+          "needs_adjudication": true
+        },
+        {
+          "audit_id": "U_0036_B",
+          "human_label": null,
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "consistent"
+          },
+          "needs_adjudication": true
+        },
+        {
+          "audit_id": "U_0037_A",
+          "human_label": null,
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "consistent",
+            "ann2": "correct"
+          },
+          "needs_adjudication": true
+        },
+        {
+          "audit_id": "U_0037_B",
+          "human_label": null,
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "consistent",
+            "ann2": "correct"
+          },
+          "needs_adjudication": true
+        },
+        {
+          "audit_id": "U_0038_A",
+          "human_label": null,
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "consistent",
+            "ann2": "correct"
+          },
+          "needs_adjudication": true
+        },
+        {
+          "audit_id": "U_0038_B",
+          "human_label": null,
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "consistent",
+            "ann2": "correct"
+          },
+          "needs_adjudication": true
+        },
+        {
+          "audit_id": "U_0039_A",
+          "human_label": null,
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "inconsistent"
+          },
+          "needs_adjudication": true
+        },
+        {
+          "audit_id": "U_0039_B",
+          "human_label": null,
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "consistent"
+          },
+          "needs_adjudication": true
+        },
+        {
+          "audit_id": "U_0040_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0040_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0041_A",
+          "human_label": null,
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "incorrect"
+          },
+          "needs_adjudication": true
+        },
+        {
+          "audit_id": "U_0041_B",
+          "human_label": null,
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "consistent",
+            "ann2": "correct"
+          },
+          "needs_adjudication": true
+        },
+        {
+          "audit_id": "U_0042_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0042_B",
+          "human_label": null,
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "consistent",
+            "ann2": "correct"
+          },
+          "needs_adjudication": true
+        },
+        {
+          "audit_id": "U_0043_A",
+          "human_label": null,
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "incorrect"
+          },
+          "needs_adjudication": true
+        },
+        {
+          "audit_id": "U_0043_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0044_A",
+          "human_label": null,
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "consistent",
+            "ann2": "correct"
+          },
+          "needs_adjudication": true
+        },
+        {
+          "audit_id": "U_0044_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0045_A",
+          "human_label": null,
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "consistent",
+            "ann2": "correct"
+          },
+          "needs_adjudication": true
+        },
+        {
+          "audit_id": "U_0045_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0046_A",
+          "human_label": null,
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "consistent"
+          },
+          "needs_adjudication": true
+        },
+        {
+          "audit_id": "U_0046_B",
+          "human_label": null,
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "consistent"
+          },
+          "needs_adjudication": true
+        },
+        {
+          "audit_id": "U_0047_A",
+          "human_label": null,
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "consistent"
+          },
+          "needs_adjudication": true
+        },
+        {
+          "audit_id": "U_0047_B",
+          "human_label": "consistent",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "consistent",
+            "ann2": "consistent"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0048_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0048_B",
+          "human_label": null,
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "consistent",
+            "ann2": "correct"
+          },
+          "needs_adjudication": true
+        },
+        {
+          "audit_id": "U_0049_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0049_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0050_A",
+          "human_label": "consistent",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "consistent",
+            "ann2": "consistent"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0050_B",
+          "human_label": null,
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "inconsistent"
+          },
+          "needs_adjudication": true
+        },
+        {
+          "audit_id": "U_0051_A",
+          "human_label": null,
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "consistent",
+            "ann2": "correct"
+          },
+          "needs_adjudication": true
+        },
+        {
+          "audit_id": "U_0051_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0052_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0052_B",
+          "human_label": null,
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "incorrect",
+            "ann2": "correct"
+          },
+          "needs_adjudication": true
+        },
+        {
+          "audit_id": "U_0053_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0053_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0054_A",
+          "human_label": null,
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "incorrect",
+            "ann2": "correct"
+          },
+          "needs_adjudication": true
+        },
+        {
+          "audit_id": "U_0054_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0055_A",
+          "human_label": "consistent",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "consistent",
+            "ann2": "consistent"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0055_B",
+          "human_label": null,
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "consistent"
+          },
+          "needs_adjudication": true
+        },
+        {
+          "audit_id": "U_0056_A",
+          "human_label": null,
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "consistent",
+            "ann2": "incorrect"
+          },
+          "needs_adjudication": true
+        },
+        {
+          "audit_id": "U_0056_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0057_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0057_B",
+          "human_label": null,
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "incorrect"
+          },
+          "needs_adjudication": true
+        },
+        {
+          "audit_id": "U_0058_A",
+          "human_label": null,
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "incorrect",
+            "ann2": "consistent"
+          },
+          "needs_adjudication": true
+        },
+        {
+          "audit_id": "U_0058_B",
+          "human_label": null,
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "consistent"
+          },
+          "needs_adjudication": true
+        },
+        {
+          "audit_id": "U_0059_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0059_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0060_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0060_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0061_A",
+          "human_label": null,
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "incorrect"
+          },
+          "needs_adjudication": true
+        },
+        {
+          "audit_id": "U_0061_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0062_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0062_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0063_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0063_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0064_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0064_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0065_A",
+          "human_label": null,
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "consistent",
+            "ann2": "correct"
+          },
+          "needs_adjudication": true
+        },
+        {
+          "audit_id": "U_0065_B",
+          "human_label": null,
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "incorrect"
+          },
+          "needs_adjudication": true
+        },
+        {
+          "audit_id": "U_0066_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0066_B",
+          "human_label": null,
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "consistent",
+            "ann2": "correct"
+          },
+          "needs_adjudication": true
+        },
+        {
+          "audit_id": "U_0067_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0067_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0068_A",
+          "human_label": null,
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "incorrect",
+            "ann2": "correct"
+          },
+          "needs_adjudication": true
+        },
+        {
+          "audit_id": "U_0068_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0069_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0069_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0070_A",
+          "human_label": null,
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "consistent",
+            "ann2": "correct"
+          },
+          "needs_adjudication": true
+        },
+        {
+          "audit_id": "U_0070_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0071_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0071_B",
+          "human_label": null,
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "consistent",
+            "ann2": "correct"
+          },
+          "needs_adjudication": true
+        },
+        {
+          "audit_id": "U_0072_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0072_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0073_A",
+          "human_label": null,
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "consistent"
+          },
+          "needs_adjudication": true
+        },
+        {
+          "audit_id": "U_0073_B",
+          "human_label": "consistent",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "consistent",
+            "ann2": "consistent"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0074_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0074_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0075_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0075_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0076_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0076_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0077_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0077_B",
+          "human_label": "incorrect",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "incorrect",
+            "ann2": "incorrect"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0078_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0078_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0079_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0079_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0080_A",
+          "human_label": "incorrect",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "incorrect",
+            "ann2": "incorrect"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0080_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0081_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0081_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0082_A",
+          "human_label": "consistent",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "consistent",
+            "ann2": "consistent"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0082_B",
+          "human_label": "consistent",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "consistent",
+            "ann2": "consistent"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0083_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0083_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0084_A",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        },
+        {
+          "audit_id": "U_0084_B",
+          "human_label": "correct",
+          "annotator_count": 2,
+          "votes": {
+            "ann1": "correct",
+            "ann2": "correct"
+          },
+          "needs_adjudication": false
+        }
+      ]
+    },
+    "auto_comparison": {
+      "n": 80,
+      "n_valid_pairs": 80,
+      "agreement_rate": 0.8,
+      "cohens_kappa": 0.4839,
+      "weighted_kappa": 0.3333,
+      "p_observed": 0.8,
+      "p_expected": 0.6125,
+      "categories": [
+        "consistent",
+        "correct",
+        "inconsistent",
+        "incorrect"
+      ],
+      "confusion_matrix": {
+        "consistent": {
+          "consistent": 6
+        },
+        "correct": {
+          "correct": 55,
+          "incorrect": 1
+        },
+        "inconsistent": {
+          "consistent": 2
+        },
+        "incorrect": {
+          "correct": 13,
+          "incorrect": 3
+        }
+      },
+      "per_label_agreement": {
+        "consistent": {
+          "precision": 1.0,
+          "recall": 0.75,
+          "f1": 0.8571,
+          "auto_count": 6,
+          "human_count": 8
+        },
+        "correct": {
+          "precision": 0.9821,
+          "recall": 0.8088,
+          "f1": 0.8871,
+          "auto_count": 56,
+          "human_count": 68
+        },
+        "inconsistent": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "auto_count": 2,
+          "human_count": 0
+        },
+        "incorrect": {
+          "precision": 0.1875,
+          "recall": 0.75,
+          "f1": 0.3,
+          "auto_count": 16,
+          "human_count": 4
+        }
+      },
+      "kappa_ci": {
+        "kappa": 0.4839,
+        "ci_lower": 0.2774,
+        "ci_upper": 0.6605,
+        "n": 80,
+        "n_bootstrap": 1000,
+        "weighted": false,
+        "ci_level": 0.95,
+        "method": "bootstrap"
+      }
+    }
+  },
+  "note": "Genuine multi-rater blinded experiment. Same raters (ann1, ann2) annotated calibration (50 recs) and held-out (118 recs). Auto-label NOT visible. All agreement computed via src.agreement (correct diagonal p_e formula)."
+}

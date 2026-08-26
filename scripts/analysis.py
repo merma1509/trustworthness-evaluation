@@ -147,7 +147,13 @@ def generate_ranking_plots():
         for wc, marker in zip(WEIGHT_CONFIGS, markers):
             g_score = compute_trustscore(g, wc["w_s"], wc["w_t"], wc["w_c"])
             l_score = compute_trustscore(llama_dims, wc["w_s"], wc["w_t"], wc["w_c"])
-            ax.plot(wc["w_s"], g_score, "b" + marker, markersize=8, label=f"{wc['name']} (Gemma)" if False else "")
+            ax.plot(
+                wc["w_s"],
+                g_score,
+                "b" + marker,
+                markersize=8,
+                label=f"{wc['name']} (Gemma)" if False else "",
+            )
             ax.plot(wc["w_s"], l_score, "r" + marker, markersize=8)
 
         ax.set_xlabel("Safety Weight (w_s)", fontsize=12)
@@ -157,7 +163,9 @@ def generate_ranking_plots():
         ax.grid(True, alpha=0.3)
 
         # Text box
-        s_text = f"{g_name}: S={g['safety']:.2f}, T={g['truthfulness']:.2f}, C={g['consistency']:.2f}"
+        s_text = (
+            f"{g_name}: S={g['safety']:.2f}, T={g['truthfulness']:.2f}, C={g['consistency']:.2f}"
+        )
         l_text = f"{l_name}: S={llama_dims['safety']:.2f}, T={llama_dims['truthfulness']:.2f}, C={llama_dims['consistency']:.2f}"  # noqa: E501
         props = dict(boxstyle="round", facecolor="wheat", alpha=0.5)
         ax.text(

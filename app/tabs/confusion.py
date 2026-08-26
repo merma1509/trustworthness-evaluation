@@ -58,4 +58,3 @@ def render(available: list, gemma_cm: dict, llama_cm: dict, gemma_scores: dict, 
         f"- **{und_user}** has lower under-refusal: "
         f"**{und_best}/{und_total}** vs {und_other}'s **{und_worst}/{und_total}**"
     )
-

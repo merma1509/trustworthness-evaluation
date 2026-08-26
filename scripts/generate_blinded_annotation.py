@@ -12,10 +12,11 @@ prompt/response text is joined from ``results/raw_outputs/*.jsonl``
 
 Usage:
     python3 scripts/generate_blinded_annotation.py \
-        --audit results/audit/all_audit.jsonl \
-        --output results/audit/blinded \
+        --audit experiment/all_audit_full.jsonl \
+        --output experiment/blinded \
         --calibration-ratio 0.3
 """
+
 import argparse
 import json
 import random
@@ -30,11 +31,14 @@ def _parse_audit_id(audit_id: str) -> tuple:
     """Return (model, dimension, key) from e.g. ``gemma3_4b_truth_BEN_003``"""
     for mtok in MODEL_TOKENS:
         if audit_id.startswith(mtok + "_"):
-            rest = audit_id[len(mtok) + 1:]
-            for tok, dim in [("safety", "safety"), ("truth", "truthfulness"),
-                             ("cons", "consistency")]:
+            rest = audit_id[len(mtok) + 1 :]
+            for tok, dim in [
+                ("safety", "safety"),
+                ("truth", "truthfulness"),
+                ("cons", "consistency"),
+            ]:
                 if rest.startswith(tok + "_"):
-                    return mtok, dim, rest[len(tok) + 1:]
+                    return mtok, dim, rest[len(tok) + 1 :]
     return None, None, None
 
 
@@ -177,16 +181,23 @@ def _strip_ground_truth(rec: dict) -> dict:
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--audit", default="results/audit/all_audit.jsonl")
+    parser.add_argument("--audit", default="experiment/all_audit_full.jsonl")
     parser.add_argument("--raw", default="results/raw_outputs")
-    parser.add_argument("--output", default="results/audit/blinded")
-    parser.add_argument("--calibration-ratio", type=float, default=0.3,
-                        help="Fraction of units for calibration (default 0.3 -> "
-                             "~30%% calibration, ~70%% held-out).")
+    parser.add_argument("--output", default="experiment/blinded")
+    parser.add_argument(
+        "--calibration-ratio",
+        type=float,
+        default=0.3,
+        help="Fraction of units for calibration (default 0.3 -> "
+        "~30%% calibration, ~70%% held-out).",
+    )
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--no-anonymize", action="store_true",
-                        help="Keep real IDs/dimension for debugging (NOT blinded "
-                             "-- never use for real annotation).")
+    parser.add_argument(
+        "--no-anonymize",
+        action="store_true",
+        help="Keep real IDs/dimension for debugging (NOT blinded "
+        "-- never use for real annotation).",
+    )
     args = parser.parse_args()
 
     audit_path = Path(args.audit)
@@ -224,8 +235,8 @@ def main():
     # longer match the already-collected human annotations (or the analyst's
     # ground-truth mapping). Deterministic list slices keep both the row order
     # and the anon_id -> real-unit mapping stable across regenerations.
-    cal_units = units[:n_cal]          # ordered slice, stable order
-    hold_units = units[n_cal:]         # ordered slice, stable order
+    cal_units = units[:n_cal]  # ordered slice, stable order
+    hold_units = units[n_cal:]  # ordered slice, stable order
 
     # ── Assign neutral sequential anon ids ────────────────────────────────
     # The split is decided on the natural unit (dimension, key), so we first give
@@ -283,8 +294,9 @@ def main():
         units_meta[anon_by_unit[u]] = {
             "dimension": sorted(dims),
             "n_records": len(recs_here),
-            "audit_ids": [_parse_audit_id(r.get("audit_id"))[2] or r.get("audit_id")
-                          for r in recs_here],
+            "audit_ids": [
+                _parse_audit_id(r.get("audit_id"))[2] or r.get("audit_id") for r in recs_here
+            ],
         }
 
     ground_truth_doc = {

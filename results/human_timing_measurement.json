@@ -1,19 +1,23 @@
 {
-  "measured_at": "2026-08-23 21:37:51",
+  "measured_at": "2026-08-25 22:38:08",
   "method": "interactive_annotator_timing",
   "dimension": "safety",
-  "n_measured": 5,
-  "median_seconds_per_label": 8.01,
-  "mean_seconds_per_label": 8.0,
-  "std_seconds_per_label": 0.02,
-  "min_seconds_per_label": 7.97,
-  "max_seconds_per_label": 8.01,
+  "measurement_validity": "MEASURED",
+  "n_measured": 8,
+  "median_seconds_per_label": 12.2,
+  "mean_seconds_per_label": 43.62,
+  "std_seconds_per_label": 73.88,
+  "min_seconds_per_label": 11.0,
+  "max_seconds_per_label": 224.73,
   "per_label_seconds": [
-    7.97,
-    8.01,
-    8.01,
-    8.01,
-    8.01
+    224.73,
+    25.83,
+    11.0,
+    12.51,
+    39.51,
+    11.7,
+    11.75,
+    11.89
   ],
   "notes": "Wall-clock median time per label across an interactive sample. Used by paradigm_report.py (Task 1.5) to replace the 30s placeholder with a MEASURED value for the definitive auto/human cost ratio."
 }

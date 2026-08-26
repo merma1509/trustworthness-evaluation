@@ -96,10 +96,12 @@ def _load_cost_data() -> dict:
 
 
 def _load_human_timing() -> dict:
-    """Try to load a MEASURED human-annotation timing study (Task 1.5).
+    """Try to load a human-annotation timing study (Task 1.5).
 
-    ``scripts/measure_human_annotation_time.py`` writes this file; when present
-    it is used to replace the 30 s placeholder for the definitive cost ratio.
+    Written by ``scripts/measure_human_annotation_time.py`` (live interactive
+    timing; the only way this file is produced). When present it replaces the
+    30 s placeholder for the cost ratio. Whether that value counts as genuinely
+    "MEASURED" is decided by its ``measurement_validity`` field (== "MEASURED").
     """
     path = RESULTS_DIR / "human_timing_measurement.json"
     if path.exists():
@@ -136,8 +138,10 @@ def print_report(report: dict):
     print("=" * 72)
 
     meta = report.get("meta", {})
-    print(f"\n  Meta: {meta.get('labelled_records',0)}/{meta.get('total_audit_records',0)} "
-          f"records labelled ({meta.get('pct_labelled',0)}%)")
+    print(
+        f"\n  Meta: {meta.get('labelled_records', 0)}/{meta.get('total_audit_records', 0)} "
+        f"records labelled ({meta.get('pct_labelled', 0)}%)"
+    )
 
     # ── RQ1 ──────────────────────────────────────────────
     print(f"\n{'─' * 72}")
@@ -148,9 +152,11 @@ def print_report(report: dict):
     if rq1 and "overall" in rq1:
         oa = rq1["overall"]
         print("\n  Overall:")
-        print(f"    Agreement rate:  {oa.get('agreement_rate',0)*100:.1f}%")
-        print(f"    Cohen's Kappa:   {oa.get('cohens_kappa',0):.4f}  ({_format_agreement_badge(oa.get('cohens_kappa',0))})")
-        print(f"    n = {oa.get('n_valid_pairs',0)}")
+        print(f"    Agreement rate:  {oa.get('agreement_rate', 0) * 100:.1f}%")
+        print(
+            f"    Cohen's Kappa:   {oa.get('cohens_kappa', 0):.4f}  ({_format_agreement_badge(oa.get('cohens_kappa', 0))})"
+        )
+        print(f"    n = {oa.get('n_valid_pairs', 0)}")
 
         if "by_dimension" in rq1:
             print("\n  Per dimension:")
@@ -211,16 +217,20 @@ def print_report(report: dict):
             size_sens = ds.get("dataset_size_sensitivity", {})
 
             print(f"\n  {dim}:")
-            print(f"    Full score: {jackknife.get('full_score', 0):.4f} (n={jackknife.get('n_total', 0)})")
+            print(
+                f"    Full score: {jackknife.get('full_score', 0):.4f} (n={jackknife.get('n_total', 0)})"
+            )
 
             if jackknife:
                 std = jackknife.get("std_jackknife", 0)
                 print(f"    Jackknife std (leave-1-out): ±{std:.4f}")
-                print(f"    Max decrease from full score: {jackknife.get('max_decrease',0):.4f}")
+                print(f"    Max decrease from full score: {jackknife.get('max_decrease', 0):.4f}")
 
             if size_sens:
-                print(f"    Estimated min N for CI width < 0.10: {size_sens.get('estimated_min_n', '?')}")
-                print(f"    Current CI width at n={size_sens.get('full_n','?')}: ", end="")
+                print(
+                    f"    Estimated min N for CI width < 0.10: {size_sens.get('estimated_min_n', '?')}"
+                )
+                print(f"    Current CI width at n={size_sens.get('full_n', '?')}: ", end="")
                 sizes = size_sens.get("sizes", [])
                 if sizes:
                     final = sizes[-1]
@@ -236,8 +246,10 @@ def print_report(report: dict):
                 print(f"    Required N for +/-10% CI @ 95%: {req10.get('n_required', '?')}")
                 print(f"    Required N for +/-5%  CI @ 95%: {req05.get('n_required', '?')}")
                 req_emp = ds.get("required_n_ci_width_0_05_empirical", {})
-                print(f"    Required N for +/-5%  CI @ 95% (EMPIRICAL, bootstrap): "
-                      f"{req_emp.get('n_required', '?')}")
+                print(
+                    f"    Required N for +/-5%  CI @ 95% (EMPIRICAL, bootstrap): "
+                    f"{req_emp.get('n_required', '?')}"
+                )
 
             # Summary finding
             if jackknife:
@@ -258,9 +270,11 @@ def print_report(report: dict):
 
     rq4 = report.get("rq4_cost", {})
     if rq4:
-        print(f"\n  Parameters: {rq4.get('parameters', {}).get('total_responses', 0)} total responses "
-              f"({rq4.get('parameters', {}).get('num_prompts', 0)} prompts × "
-              f"{rq4.get('parameters', {}).get('num_models', 0)} models)")
+        print(
+            f"\n  Parameters: {rq4.get('parameters', {}).get('total_responses', 0)} total responses "
+            f"({rq4.get('parameters', {}).get('num_prompts', 0)} prompts × "
+            f"{rq4.get('parameters', {}).get('num_models', 0)} models)"
+        )
 
         auto = rq4.get("fully_automatic", {})
         human = rq4.get("fully_human", {})
@@ -279,31 +293,35 @@ def print_report(report: dict):
         auto_note = "All models x all prompts"
         human_note = "All labels by annotator"
         hybrid_note = "Auto 100% + human 50%"
-        auto_t = auto.get('time_hours', 0)
-        auto_c = auto.get('cost', 0)
-        human_t = human.get('time_hours', 0)
-        human_c = human.get('cost', 0)
-        hybrid_t = hybrid.get('time_hours', 0)
-        hybrid_c = hybrid.get('cost', 0)
+        auto_t = auto.get("time_hours", 0)
+        auto_c = auto.get("cost", 0)
+        human_t = human.get("time_hours", 0)
+        human_c = human.get("cost", 0)
+        hybrid_t = hybrid.get("time_hours", 0)
+        hybrid_c = hybrid.get("cost", 0)
         print(f"    {label_a:<25} {auto_t:>6.1f}h  ${auto_c:>6.2f}  {auto_note}")
         print(f"    {label_h:<25} {human_t:>6.1f}h  ${human_c:>6.2f}  {human_note}")
         print(f"    {label_hyb:<25} {hybrid_t:>6.1f}h  ${hybrid_c:>6.2f}  {hybrid_note}")
 
         params = rq4.get("parameters", {})
         meas_flag = "MEASURED" if rq4.get("cost_is_measured") else "ESTIMATED"
-        print(f"\n    Human time per label: {rq4.get('parameters', {}).get('human_time_per_label_sec', '?')}s  "
-              f"[{params.get('human_time_source', 'default placeholder')}]")
+        print(
+            f"\n    Human time per label: {rq4.get('parameters', {}).get('human_time_per_label_sec', '?')}s  "
+            f"[{params.get('human_time_source', 'default placeholder')}]"
+        )
         print(f"    Cost basis: {meas_flag}")
 
         print("\n  Recommendation:")
-        print(f"    {rq4.get('recommendation','')}")
+        print(f"    {rq4.get('recommendation', '')}")
 
         measured = rq4.get("measured_times")
         if measured:
             print("\n  Measured times:")
             for rec in measured.get("records", []):
-                print(f"    {rec.get('label','')}: {rec.get('elapsed_seconds',0)}s "
-                      f"({rec.get('seconds_per_prompt',0):.2f}s/prompt)")
+                print(
+                    f"    {rec.get('label', '')}: {rec.get('elapsed_seconds', 0)}s "
+                    f"({rec.get('seconds_per_prompt', 0):.2f}s/prompt)"
+                )
     else:
         print("\n No cost data available.")
 
@@ -316,17 +334,17 @@ def print_report(report: dict):
 # Main
 # ──────────────────────────────────────────────────────────────
 def main():
-    parser = argparse.ArgumentParser(
-        description="Measurement Validation Report (Paradigm Shift)"
-    )
+    parser = argparse.ArgumentParser(description="Measurement Validation Report (Paradigm Shift)")
     parser.add_argument(
-        "--audit", "-a",
+        "--audit",
+        "-a",
         type=str,
         default="results/audit/all_audit.jsonl",
         help="Path to audit JSONL file",
     )
     parser.add_argument(
-        "--output", "-o",
+        "--output",
+        "-o",
         type=str,
         default="results/validation_report.json",
         help="Output path for JSON report",
@@ -341,17 +359,18 @@ def main():
         type=float,
         default=None,
         help="MEASURED average auto-inference seconds per prompt. "
-             "Overrides the default when not using --with-cost.",
+        "Overrides the default when not using --with-cost.",
     )
     parser.add_argument(
         "--human-time-per-label",
         type=float,
         default=30.0,
         help="MEASURED average human-annotation seconds per label. "
-             "Fill from a real timing study (Task 1.5) for a definitive ratio.",
+        "Fill from a real timing study (Task 1.5) for a definitive ratio.",
     )
     parser.add_argument(
-        "--verbose", "-v",
+        "--verbose",
+        "-v",
         action="store_true",
         help="Print detailed per-record information",
     )
@@ -368,17 +387,19 @@ def main():
 
     # Load per-prompt scores
     per_prompt_scores = _extract_per_prompt_scores()
-    print(f"  Per-prompt scores loaded: "
-          f"safety={len(per_prompt_scores.get('safety',[]))}, "
-          f"truthfulness={len(per_prompt_scores.get('truthfulness',[]))}, "
-          f"consistency={len(per_prompt_scores.get('consistency',[]))}")
+    print(
+        f"  Per-prompt scores loaded: "
+        f"safety={len(per_prompt_scores.get('safety', []))}, "
+        f"truthfulness={len(per_prompt_scores.get('truthfulness', []))}, "
+        f"consistency={len(per_prompt_scores.get('consistency', []))}"
+    )
 
     # Load cost data
     cost_data = None
     if args.with_cost:
         cost_data = _load_cost_data()
         if cost_data:
-            print(f"  Cost tracker data loaded: {cost_data.get('total_prompts',0)} prompts")
+            print(f"  Cost tracker data loaded: {cost_data.get('total_prompts', 0)} prompts")
 
     # MEASURED auto-time: prefer the CostTracker's measured avg seconds/prompt
     # (results/cost_tracker.json produced by a real run), then an explicit CLI
@@ -396,8 +417,7 @@ def main():
     auto_src = (
         "MEASURED (--auto-time-per-prompt)"
         if args.auto_time_per_prompt is not None
-        else ("MEASURED (cost_tracker.json)" if measured_auto is not None
-              else "default (assumed)")
+        else ("MEASURED (cost_tracker.json)" if measured_auto is not None else "default (assumed)")
     )
     print(f"  Auto time per prompt: {auto_time:.2f}s  [{auto_src}]")
 
@@ -405,10 +425,17 @@ def main():
     # produced. When present it overrides the 30 s placeholder for the ratio.
     human_timing = _load_human_timing()
     if human_timing:
+        validity = (human_timing.get("measurement_validity") or "").upper()
+        label = (
+            "MEASURED"
+            if validity == "MEASURED"
+            else f"{validity or 'EMULATED/PLACEHOLDER'} (not a verified interactive run)"
+        )
         print(
             f"  Human timing loaded: {human_timing.get('median_seconds_per_label', '?')}s/label "
             f"(n={human_timing.get('n_measured', '?')}) from "
-            f"{RESULTS_DIR / 'human_timing_measurement.json'}"
+            f"{RESULTS_DIR / 'human_timing_measurement.json'} "
+            f"[{label}]"
         )
     else:
         print(
@@ -431,7 +458,15 @@ def main():
         "MEASURED (--human-time-per-label)"
         if args.human_time_per_label != 30.0
         else (
-            f"MEASURED (human_timing_measurement.json: {human_timing.get('measured_at', '?')})"
+            (
+                f"MEASURED (human_timing_measurement.json: {human_timing.get('measured_at', '?')})"
+                if (human_timing.get("measurement_validity") or "").upper() == "MEASURED"
+                else (
+                    f"{(human_timing.get('measurement_validity') or 'EMULATED/PLACEHOLDER').upper()} "
+                    f"(human_timing_measurement.json: {human_timing.get('measured_at', '?')}) — "
+                    f"not a verified interactive timing study"
+                )
+            )
             if human_timing and human_timing.get("median_seconds_per_label")
             else "default placeholder (not yet measured)"
         )
@@ -446,7 +481,9 @@ def main():
         cost_tracker_data=cost_data,
         auto_time_per_prompt=auto_time,
         human_time_per_label=human_time,
-        measured_human_timing=human_timing if human_timing and human_timing.get("median_seconds_per_label") else None,
+        measured_human_timing=human_timing
+        if human_timing and human_timing.get("median_seconds_per_label")
+        else None,
     )
 
     # Save
@@ -475,8 +512,7 @@ def main():
             json.dump(agreement_out, f, indent=2, ensure_ascii=False)
         n = agreement_out["total_records"]
         k = overall.get("cohens_kappa", 0)
-        print(f"  Agreement report saved to {agreement_path} "
-              f"(n={n}, κ={k:.4f})")
+        print(f"  Agreement report saved to {agreement_path} (n={n}, κ={k:.4f})")
     else:
         print("  No agreement data found — skipping agreement_report.json")
 
@@ -489,23 +525,26 @@ def main():
     rq3 = report.get("rq3_dataset_stability", {})
     if rq3:
         avg_kappa = rq1.get("cohens_kappa", 0)
-        print(f"  RQ1: Auto-human agreement: k={avg_kappa:.3f} "
-              f"({_format_agreement_badge(avg_kappa)})")
+        print(
+            f"  RQ1: Auto-human agreement: k={avg_kappa:.3f} ({_format_agreement_badge(avg_kappa)})"
+        )
         # Find min dimensions stability
         stable_dims = [
-            d for d, ds in rq3.items()
+            d
+            for d, ds in rq3.items()
             if ds.get("jackknife_stability", {}).get("std_jackknife", 1) < 0.05
         ]
         unstable_dims = [
-            d for d, ds in rq3.items()
+            d
+            for d, ds in rq3.items()
             if ds.get("jackknife_stability", {}).get("std_jackknife", 1) >= 0.05
         ]
         if stable_dims:
             print(f"  RQ3: Stable dimensions: {', '.join(stable_dims)}")
         if unstable_dims:
             print(f"  RQ3: Unstable dimensions: {', '.join(unstable_dims)} (NEED MORE DATA)")
-    human_cost = report.get('rq4_cost', {}).get('fully_human', {}).get('cost', 1)
-    auto_cost = max(report.get('rq4_cost', {}).get('fully_automatic', {}).get('cost', 0.01), 0.01)
+    human_cost = report.get("rq4_cost", {}).get("fully_human", {}).get("cost", 1)
+    auto_cost = max(report.get("rq4_cost", {}).get("fully_automatic", {}).get("cost", 0.01), 0.01)
     ratio = human_cost / auto_cost
     print(f"  RQ4: Cost ratio auto/human = {ratio:.0f}x")
     print()
@@ -513,4 +552,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

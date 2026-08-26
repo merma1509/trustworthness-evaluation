@@ -28,13 +28,15 @@ def render(available):
                     continue
                 correct = sum(1 for r in subset if r.get("is_correct", False))
                 total = len(subset)
-                rows.append({
-                    "Model": MODEL_NAMES.get(mk, mk),
-                    "Attack Type": at,
-                    "Correct": f"{correct}/{total}",
-                    "Accuracy": correct / total if total else 0,
-                    "Total": total,
-                })
+                rows.append(
+                    {
+                        "Model": MODEL_NAMES.get(mk, mk),
+                        "Attack Type": at,
+                        "Correct": f"{correct}/{total}",
+                        "Accuracy": correct / total if total else 0,
+                        "Total": total,
+                    }
+                )
         if rows:
             df = pd.DataFrame(rows)
             st.dataframe(

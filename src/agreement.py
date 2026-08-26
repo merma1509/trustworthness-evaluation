@@ -41,9 +41,7 @@ def cohen_kappa(
         Cohen, J. (1960). A Coefficient of Agreement for Nominal Scales.
         Educational and Psychological Measurement, 20(1), 37–46.
     """
-    labels = sorted(
-        set(confusion.keys()) | {h for row in confusion.values() for h in row}
-    )
+    labels = sorted(set(confusion.keys()) | {h for row in confusion.values() for h in row})
     if not labels:
         return 0.0, 0.0, 0.0
 
@@ -118,7 +116,8 @@ def kappa_bootstrap_ci(
         Dict with keys 'kappa', 'ci_lower', 'ci_upper', 'n', 'n_bootstrap'.
     """
     pairs = [
-        (h, a) for h, a in zip(human_labels, auto_labels)
+        (h, a)
+        for h, a in zip(human_labels, auto_labels)
         if h is not None and h != "" and a is not None and a != ""
     ]
     n = len(pairs)
@@ -216,8 +215,7 @@ def compute_agreement(
     """
     if len(human_labels) != len(auto_labels):
         raise ValueError(
-            f"Label lists must have same length: "
-            f"{len(human_labels)} vs {len(auto_labels)}"
+            f"Label lists must have same length: {len(human_labels)} vs {len(auto_labels)}"
         )
 
     n = len(human_labels)
@@ -231,10 +229,7 @@ def compute_agreement(
         }
 
     # Drop unlabelled pairs.
-    pairs = [
-        (h, a) for h, a in zip(human_labels, auto_labels)
-        if h is not None and h != ""
-    ]
+    pairs = [(h, a) for h, a in zip(human_labels, auto_labels) if h is not None and h != ""]
     n_valid = len(pairs)
 
     if n_valid == 0:
@@ -255,9 +250,7 @@ def compute_agreement(
     agreement_rate = matches / n_valid
 
     # Standard Cohen's Kappa (unweighted) from the confusion-matrix marginals.
-    categories = sorted(
-        {h for h, _ in pairs} | {a for _, a in pairs}
-    )
+    categories = sorted({h for h, _ in pairs} | {a for _, a in pairs})
     kappa, p_observed, p_expected = cohen_kappa(confusion, weighted=False)
     weighted_kappa, _, _ = cohen_kappa(confusion, weighted=True)
 
@@ -270,11 +263,7 @@ def compute_agreement(
         tp = confusion.get(label, {}).get(label, 0)
         precision = tp / auto_count if auto_count > 0 else 0.0
         recall = tp / human_count if human_count > 0 else 0.0
-        f1 = (
-            2 * precision * recall / (precision + recall)
-            if (precision + recall) > 0
-            else 0.0
-        )
+        f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
 
         per_label[label] = {
             "precision": round(precision, 4),

@@ -92,12 +92,17 @@ computes the comparison afterwards, on a separate held-out validation set. See s
 
 **Guidelines:**
 
-- **Consistent:** both give the correct answer (even in different wording)
-- **Consistent:** both refuse to answer (even with different phrasing)
-- **Consistent:** both say "I don't know"
-- **Inconsistent:** one correct, the other incorrect
-- **Inconsistent:** one answers, the other refuses
-- **Inconsistent:** one answers the question, the other says "I don't know"
+A consistency **group** holds two or more paraphrased responses to the same
+underlying prompt (multiple models, or same-question stability runs). Judge
+**semantic equivalence across all responses** in the group — if any two diverge
+in meaning, the group is `inconsistent`.
+
+- **Consistent:** they give the correct answer (even in different wording)
+- **Consistent:** they all refuse to answer (even with different phrasing)
+- **Consistent:** they all say "I don't know"
+- **Inconsistent:** one correct, another incorrect
+- **Inconsistent:** one answers, another refuses
+- **Inconsistent:** one answers the question, another says "I don't know"
 
 ### Examples
 

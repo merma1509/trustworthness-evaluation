@@ -37,16 +37,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.config import RESULTS_DIR
 
-
 # Measured human-label economics (Part 1, rq4_cost).
 HUMAN_SECONDS_PER_LABEL = 8.01
 HUMAN_HOURLY_COST = 20.0
 
 # Per-dimension total record counts on the full audit set.
 DEFAULT_N = {
-    "safety": 70,          # 35 prompts x 2 models
-    "truthfulness": 76,    # 38 prompts x 2 models
-    "consistency": 64,     # 32 prompts x 2 models (paired groups scaled)
+    "safety": 70,  # 35 prompts x 2 models
+    "truthfulness": 76,  # 38 prompts x 2 models
+    "consistency": 64,  # 32 prompts x 2 models (paired groups scaled)
 }
 DIMENSION_LABELS = {
     "safety": "Safety",
@@ -144,8 +143,16 @@ def build_curves(kappas: dict, ns: dict = None) -> dict:
         total_n = ns.get(dim, 50)
         labels = list(range(0, total_n + 1, max(1, total_n // 30)))
         rel = [reliability_gain(k, lab, total_n) for lab in labels]
-        cost = [round(lab * HUMAN_SECONDS_PER_LABEL / 3600 * HUMAN_HOURLY_COST, 2) for lab in labels]
-        curves[dim] = {"labels": labels, "reliability": rel, "cost": cost, "kappa": k, "total_n": total_n}
+        cost = [
+            round(lab * HUMAN_SECONDS_PER_LABEL / 3600 * HUMAN_HOURLY_COST, 2) for lab in labels
+        ]
+        curves[dim] = {
+            "labels": labels,
+            "reliability": rel,
+            "cost": cost,
+            "kappa": k,
+            "total_n": total_n,
+        }
     return curves
 
 
@@ -165,12 +172,13 @@ def plot_curves(curves: dict, out_path: Path) -> None:
             color=COLORS.get(dim, "#888888"),
             linewidth=2.5,
             label=(
-                f"{DIMENSION_LABELS.get(dim, dim)} "
-                f"(κ start = {c['kappa']:.2f}, n = {c['total_n']})"
+                f"{DIMENSION_LABELS.get(dim, dim)} (κ start = {c['kappa']:.2f}, n = {c['total_n']})"
             ),
         )
 
-    ax.axhline(0.7, color="grey", linestyle="--", linewidth=1, alpha=0.6, label="Trust gate (κ=0.7)")
+    ax.axhline(
+        0.7, color="grey", linestyle="--", linewidth=1, alpha=0.6, label="Trust gate (κ=0.7)"
+    )
     ax.set_xlabel("Human labels spent", fontsize=12)
     ax.set_ylabel("Auto-vs-gold reliability (proxy κ)", fontsize=12)
     ax.set_title("Budget vs Reliability: where does human effort buy the most?", fontsize=14)
@@ -185,10 +193,15 @@ def plot_curves(curves: dict, out_path: Path) -> None:
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--report", default="",
-                        help="Optional report JSON to source per-dimension κ from.")
-    parser.add_argument("--kappas", nargs="*", default=[],
-                        help="Inline κ overrides, e.g. safety=0.62 truthfulness=0.0")
+    parser.add_argument(
+        "--report", default="", help="Optional report JSON to source per-dimension κ from."
+    )
+    parser.add_argument(
+        "--kappas",
+        nargs="*",
+        default=[],
+        help="Inline κ overrides, e.g. safety=0.62 truthfulness=0.0",
+    )
     parser.add_argument("--output", default=str(RESULTS_DIR / "budget_reliability_curve.png"))
     args = parser.parse_args()
 
@@ -200,7 +213,9 @@ def main():
     kappas.update(inline)
     # Calibration defaults when nothing is provided.
     defaults = {"safety": 0.615, "truthfulness": 0.0, "consistency": 0.615}
-    kappas = {d: kappas.get(d, defaults.get(d, 0.5)) for d in ("safety", "truthfulness", "consistency")}
+    kappas = {
+        d: kappas.get(d, defaults.get(d, 0.5)) for d in ("safety", "truthfulness", "consistency")
+    }
 
     curves = build_curves(kappas)
     plot_curves(curves, Path(args.output))
@@ -217,7 +232,7 @@ def main():
             val = reliability_gain(c["kappa"], lab, c["total_n"])
             row += f"{val:>14.3f}"
         print(row)
-    print(f"\nStarting κ: { ', '.join(f'{d}={k:.3f}' for d, k in kappas.items()) }")
+    print(f"\nStarting κ: {', '.join(f'{d}={k:.3f}' for d, k in kappas.items())}")
 
 
 if __name__ == "__main__":

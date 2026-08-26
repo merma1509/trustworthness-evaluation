@@ -1,15 +1,15 @@
 {
   "pipeline": "paradigm_report.py",
-  "total_records": 30,
-  "labelled_records": 30,
+  "total_records": 130,
+  "labelled_records": 130,
   "overall": {
-    "n": 30,
-    "n_valid_pairs": 30,
-    "agreement_rate": 0.9,
-    "cohens_kappa": 0.82,
-    "weighted_kappa": 0.6667,
-    "p_observed": 0.9,
-    "p_expected": 0.4444,
+    "n": 130,
+    "n_valid_pairs": 130,
+    "agreement_rate": 0.8231,
+    "cohens_kappa": 0.482,
+    "weighted_kappa": 0.3443,
+    "p_observed": 0.8231,
+    "p_expected": 0.6585,
     "categories": [
       "consistent",
       "correct",
@@ -21,142 +21,142 @@
         "consistent": 8
       },
       "correct": {
-        "correct": 17
+        "correct": 94,
+        "incorrect": 3
       },
       "inconsistent": {
-        "consistent": 1,
-        "inconsistent": 1
+        "consistent": 2
       },
       "incorrect": {
-        "correct": 2,
-        "incorrect": 1
+        "correct": 18,
+        "incorrect": 5
       }
     },
     "per_label_agreement": {
       "consistent": {
         "precision": 1.0,
-        "recall": 0.8889,
-        "f1": 0.9412,
+        "recall": 0.8,
+        "f1": 0.8889,
         "auto_count": 8,
-        "human_count": 9
+        "human_count": 10
       },
       "correct": {
-        "precision": 1.0,
-        "recall": 0.8947,
-        "f1": 0.9444,
-        "auto_count": 17,
-        "human_count": 19
+        "precision": 0.9691,
+        "recall": 0.8393,
+        "f1": 0.8995,
+        "auto_count": 97,
+        "human_count": 112
       },
       "inconsistent": {
-        "precision": 0.5,
-        "recall": 1.0,
-        "f1": 0.6667,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
         "auto_count": 2,
-        "human_count": 1
+        "human_count": 0
       },
       "incorrect": {
-        "precision": 0.3333,
-        "recall": 1.0,
-        "f1": 0.5,
-        "auto_count": 3,
-        "human_count": 1
+        "precision": 0.2174,
+        "recall": 0.625,
+        "f1": 0.3226,
+        "auto_count": 23,
+        "human_count": 8
       }
     }
   },
   "by_dimension": {
     "consistency": {
       "n": 10,
-      "agreement_rate": 0.9,
-      "cohens_kappa": 0.6154
+      "agreement_rate": 0.8,
+      "cohens_kappa": 0.0
     },
     "safety": {
-      "n": 10,
-      "agreement_rate": 0.9,
-      "cohens_kappa": 0.6154
+      "n": 56,
+      "agreement_rate": 0.8393,
+      "cohens_kappa": 0.3942
     },
     "truthfulness": {
-      "n": 10,
-      "agreement_rate": 0.9,
-      "cohens_kappa": 0.0
+      "n": 64,
+      "agreement_rate": 0.8125,
+      "cohens_kappa": 0.0747
     }
   },
   "by_model": {
     "gemma3_4b": {
-      "n": 17,
-      "agreement_rate": 0.9412,
-      "cohens_kappa": 0.9006
+      "n": 64,
+      "agreement_rate": 0.7969,
+      "cohens_kappa": 0.4823
     },
     "llama3.1_8b": {
-      "n": 13,
-      "agreement_rate": 0.8462,
-      "cohens_kappa": 0.6941
+      "n": 66,
+      "agreement_rate": 0.8485,
+      "cohens_kappa": 0.472
     }
   },
   "by_attack_type": {
     "benign": {
+      "n": 36,
+      "agreement_rate": 0.9722,
+      "cohens_kappa": 0.0
+    },
+    "direct_prompt_injection": {
+      "n": 7,
+      "agreement_rate": 0.8571,
+      "cohens_kappa": 0.0
+    },
+    "fictional_entity": {
+      "n": 10,
+      "agreement_rate": 0.8,
+      "cohens_kappa": 0.4118
+    },
+    "future_event": {
+      "n": 9,
+      "agreement_rate": 0.7778,
+      "cohens_kappa": -0.125
+    },
+    "impossible_fact": {
+      "n": 11,
+      "agreement_rate": 0.7273,
+      "cohens_kappa": -0.1379
+    },
+    "instruction_override": {
+      "n": 10,
+      "agreement_rate": 0.9,
+      "cohens_kappa": 0.7826
+    },
+    "non_existent_person": {
+      "n": 11,
+      "agreement_rate": 0.9091,
+      "cohens_kappa": 0.0
+    },
+    "nonsensical": {
+      "n": 3,
+      "agreement_rate": 0.3333,
+      "cohens_kappa": 0.0
+    },
+    "perturbation": {
+      "n": 6,
+      "agreement_rate": 0.6667,
+      "cohens_kappa": 0.0
+    },
+    "pop_culture": {
+      "n": 4,
+      "agreement_rate": 0.5,
+      "cohens_kappa": 0.0
+    },
+    "repetition": {
       "n": 4,
       "agreement_rate": 1.0,
       "cohens_kappa": 1.0
     },
-    "direct_prompt_injection": {
-      "n": 2,
-      "agreement_rate": 1.0,
-      "cohens_kappa": 1.0
-    },
-    "fictional_entity": {
-      "n": 2,
-      "agreement_rate": 0.5,
-      "cohens_kappa": 0.0
-    },
-    "future_event": {
-      "n": 2,
-      "agreement_rate": 1.0,
-      "cohens_kappa": 1.0
-    },
-    "impossible_fact": {
-      "n": 1,
-      "agreement_rate": 1.0,
-      "cohens_kappa": 1.0
-    },
-    "instruction_override": {
-      "n": 2,
-      "agreement_rate": 1.0,
-      "cohens_kappa": 1.0
-    },
-    "non_existent_person": {
-      "n": 1,
-      "agreement_rate": 1.0,
-      "cohens_kappa": 1.0
-    },
-    "nonsensical": {
-      "n": 1,
-      "agreement_rate": 1.0,
-      "cohens_kappa": 1.0
-    },
-    "perturbation": {
-      "n": 5,
-      "agreement_rate": 0.8,
-      "cohens_kappa": 0.5455
-    },
-    "pop_culture": {
-      "n": 1,
-      "agreement_rate": 1.0,
-      "cohens_kappa": 1.0
-    },
-    "repetition": {
-      "n": 5,
-      "agreement_rate": 1.0,
-      "cohens_kappa": 1.0
-    },
     "role_hijacking": {
-      "n": 2,
-      "agreement_rate": 1.0,
-      "cohens_kappa": 1.0
+      "n": 10,
+      "agreement_rate": 0.8,
+      "cohens_kappa": 0.0
     },
     "system_leakage": {
-      "n": 2,
-      "agreement_rate": 0.5,
-      "cohens_kappa": 0.0
+      "n": 9,
+      "agreement_rate": 0.5556,
+      "cohens_kappa": 0.1818
     }
   }
 }

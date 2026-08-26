@@ -1,8 +1,7 @@
-.PHONY: help setup run clean clean-all lint audit dashboard eval offlinescore test \
-	blinded-prepare blinded-report blinded-heldout-prepare blinded-heldout-report \
-	generate-audit experiment-prepare experiment-calibration-report \
-	experiment-heldout-report experiment-blinded-verify \
-	experiment-budget budget-figure error-heatmap
+.PHONY: help setup run clean clean-all lint format audit dashboard eval offlinescore test \
+	generate-audit experiment-audit experiment-prepare experiment-heldout-prepare \
+	experiment-heldout-report experiment-blinded-verify experiment-budget \
+	backfill-audit human-timing budget-figure error-heatmap pipeline-figure
 
 SHELL := /bin/bash
 RESULTS := results
@@ -20,7 +19,8 @@ help:
 	@echo "Usage:"
 	@echo "  make setup                    Install dependencies via uv"
 	@echo "  make run                      Run full evaluation pipeline + dashboard" 
-	@echo "                                (has interactive annotation gates)"
+	@echo "                                (fresh audit + blinded splits; interactive"
+	@echo "                                gates; auto-builds held-out report when filled)"
 	@echo "  make eval                     Run evaluation only (no dashboard)"
 	@echo "  make dashboard                Launch Streamlit dashboard only"
 	@echo "  make offlinescore             Run offline rescoring"
@@ -30,22 +30,21 @@ help:
 	@echo "  make lint                     Check code quality with ruff"
 	@echo "  make audit                    Generate manual audit file"
 	@echo "  make test                     Run automated test suite (fails closed)"
-	@echo "  make blinded-prepare          Emit per-annotator blinded annotation templates (calibration)"
-	@echo "  make blinded-report           Inter-annotator κ + gold-vs-auto comparison"
-	@echo "                                (set ANNOTATIONS=\"b1.jsonl b2.jsonl\" DIMENSION=safety)"
-	@echo "  make blinded-heldout-prepare  Emit held-out annotation templates"
-	@echo "                                (set ANNOTATORS=\"ann1 ann2\")"
-	@echo "  make blinded-heldout-report   Final once-only held-out agreement report"
 	@echo ""
-	@echo "Experiment (full-dataset, anonymised):"
-	@echo "  make experiment-audit          Regenerate FULL audit dataset for the experiment"
-	@echo "  make experiment-prepare        Build anonymised calibration/held-out + secret ground truth"
-	@echo "  make experiment-heldout-prepare Emit blank annotator templates (ANNOTATORS=\"ann1 ann2\")"
-	@echo "  make experiment-heldout-report Final held-out report (ANNOTATIONS=\"<2+ filled files>\")"
-	@echo "  make experiment-blinded-verify Verify no auto_label/model/prompt_id leaked"
+	@echo "Blinded held-out EXPERIMENT (full-dataset, anonymised):"
+	@echo "  make experiment-audit                 Regenerate FULL audit dataset for the experiment"
+	@echo "  make experiment-prepare               Build anonymised calibration/held-out + secret ground truth"
+	@echo "  make experiment-heldout-prepare       Emit blank annotator templates (ANNOTATORS=\"ann1 ann2\")"
+	@echo "  make experiment-heldout-report        Final held-out report (ANNOTATIONS=\"<2+ filled files>\")"
+	@echo "  make backfill-audit                   Backfill human labels into all_audit_full.jsonl"
+	@echo "                                          (run after experiment-heldout-report)"
+	@echo "                                          (also auto-built by 'make run' when templates are filled)"
+	@echo "  make experiment-blinded-verify        Verify no auto_label/model/prompt_id leaked"
 	@echo "  make experiment-budget REPORT=<json>  Trust-budget plan (κ-gated human allocation)"
-	@echo "  make budget-figure KAPPAS=...         Budget-vs-reliability figure"
-	@echo "  make error-heatmap                    Auto×Human error heatmap"
+	@echo "  make human-timing DIMENSION=safety SAMPLE=8   MEASURED human timing study (interactive)"
+	@echo "  make budget-figure KAPPAS=...                 Budget-vs-reliability figure"
+	@echo "  make error-heatmap                            Auto×Human error heatmap"
+	@echo "  make pipeline-figure                          Measurement-validation loop diagram"
 
 setup:
 	@echo "Installing dependencies with uv (including dev extras)..."
@@ -100,23 +99,38 @@ clean:
 #
 # Two sources of junk are swept:
 #   * untracked files  -> `git clean -fd` (git never touches committed files),
-#   * ignored work dirs (blinded_work/, blinded_heldout_work/ — per-annotator
-#     templates filled by humans, listed in .gitignore) -> explicit rm -rf.
+#   * ignored work dirs (experiment/held_out_work/ — per-annotator templates
+#     filled by humans, listed in .gitignore) -> explicit rm -rf.
 # Committed files are always preserved; nothing is lost irrecoverably.
 clean-all:
-	@echo "Removing generated / untracked / ignored artifacts under $(RESULTS)/..."
-	@echo "  (git-tracked files are preserved)"
+	@echo "Removing generated / untracked / ignored artifacts..."
+	@echo "  (git-tracked files are preserved; calibration_work/ is kept as evidence)"
+	@echo "  Removing experiment/audit/ (duplicate of paradigm_report.json)..."
+	rm -rf experiment/audit/
+	@echo "  Removing results/ untracked..."
 	git clean -fd -- "$(RESULTS)/"
-	@echo "  Removing ignored annotation work dirs..."
+	@echo "  Removing results/ ignored work dirs..."
 	rm -rf "$(RESULTS)/blinded_work" "$(RESULTS)/blinded_heldout_work"
+	@echo "  Removing experiment/ held-out work (per-annotator files, gitignored)..."
+	rm -rf experiment/held_out_work
 	@echo "  Removing empty leftover directories..."
 	@find "$(RESULTS)" -type d -empty -delete 2>/dev/null || true
+	@find "experiment" -type d -empty -delete 2>/dev/null || true
+	@echo "  Note: experiment/calibration_work/ and experiment/paradigm_report.json are kept."
+	@echo "  (untracked but important: show how calibration ties were resolved)"
 	@echo "Full clean complete"
 
 lint:
 	@echo "Checking code quality..."
 	ruff check src/ scripts/ app/ --fix
 	@echo "Lint complete"
+
+# Auto-format code with ruff (format + import sorting) then re-check.
+format:
+	@echo "Formatting code..."
+	ruff format src/ scripts/ app/
+	ruff check --select I src/ scripts/ app/ --fix
+	@echo "Formatting complete"
 
 audit:
 	@echo "Generating manual audit file..."
@@ -129,62 +143,12 @@ audit:
 test:
 	$(PY) -m pytest -q
 
-# Blinded multi-rater re-annotation workflow.
-# Stage 1: emit per-annotator annotation templates from the blinded JSONL.
-# Set ANNOTATORS="ann1 ann2".
-blinded-prepare:
-	@test -n "$(ANNOTATORS)" || (echo "Set ANNOTATORS=\"ann1 ann2\""; exit 1)
-	@echo "Preparing blinded annotation templates (calibration)..."
-	$(PY) scripts/run_blinded_annotation.py prepare \
-		--input results/audit/blinded/blinded_annotation_calibration.jsonl \
-		--output results/blinded_work \
-		--annotators $(ANNOTATORS)
-	@echo "  → Edit results/blinded_work/<annotator>.jsonl, then run 'make blinded-report'"
-
-# Stage 2: inter-annotator agreement + gold-vs-auto comparison.
-# Set DIMENSION=safety|truthfulness|consistency and ANNOTATIONS="a1.jsonl a2.jsonl".
-blinded-report:
-	@test -n "$(ANNOTATIONS)" || (echo "Set ANNOTATIONS=\"ann1.jsonl ann2.jsonl\""; exit 1)
-	@test -n "$(DIMENSION)" || (echo "Set DIMENSION=safety|truthfulness|consistency"; exit 1)
-	@echo "Computing inter-annotator agreement..."
-	$(PY) scripts/run_blinded_annotation.py report \
-		--annotations $(ANNOTATIONS) \
-		--dimension $(DIMENSION) \
-		--audit results/audit/all_audit.jsonl \
-		--output results/audit/inter_annotator_report.json
-
-# Held-out stage: the held-out validation set is blinded and annotated exactly
-# once, at the very end, to yield the final agreement figures.
-# It must NOT be tuned against (unlike the calibration split).
-# Set ANNOTATORS="ann1 ann2".
-blinded-heldout-prepare:
-	@test -n "$(ANNOTATORS)" || (echo "Set ANNOTATORS=\"ann1 ann2\""; exit 1)
-	@echo "Preparing blinded held-out annotation templates..."
-	$(PY) scripts/run_blinded_annotation.py prepare \
-		--input results/audit/blinded/blinded_annotation_heldout.jsonl \
-		--output results/blinded_heldout_work \
-		--annotators $(ANNOTATORS)
-	@echo "  → Edit results/blinded_heldout_work/<annotator>.jsonl, then run 'make blinded-heldout-report'"
-
-# Final once-only held-out report. Aggregates all dimensions. Set ANNOTATIONS
-# to the FULL paths of the filled templates, e.g.
-# ANNOTATIONS="results/blinded_heldout_work/ann1.jsonl results/blinded_heldout_work/ann2.jsonl".
-blinded-heldout-report:
-	@test -n "$(ANNOTATIONS)" || (echo "Set ANNOTATIONS to the full template paths"; exit 1)
-	@echo "Computing held-out inter-annotator + gold + auto agreement..."
-	$(PY) scripts/run_blinded_annotation.py report \
-		--annotations $(ANNOTATIONS) \
-		--dimension all \
-		--audit results/audit/all_audit.jsonl \
-		--output results/audit/inter_annotator_report_heldout.json
-	@echo "  → Held-out report written to results/audit/inter_annotator_report_heldout.json"
-
 # ── blinded held-out EXPERIMENT (full-dataset, anonymised flow) ──
-# Unlike the results/audit/blinded flow (which keeps real prompt ids for the
-# integration tests), the experiment flow runs on the FULL audit dataset with
-# strict anonymisation: Model A/B + sequential anon ids, dimension kept (needed
-# for the label rubric) but auto_label/attack_type/prompt_id/model hidden. The
-# analyst-only ground truth lets the report re-attach auto labels afterwards.
+# The experiment flow is the single blinded-annotation flow. It runs on the
+# FULL audit dataset with strict anonymisation: Model A/B + sequential anon ids,
+# dimension kept (needed for the label rubric) but auto_label/attack_type/
+# prompt_id/model hidden. The analyst-only ground truth lets the report
+# re-attach auto labels afterwards.
 
 # Regenerate the full audit dataset (all prompts/groups) used by the experiment.
 experiment-audit:
@@ -193,7 +157,7 @@ experiment-audit:
 		--raw "$(RESULTS)/raw_outputs" \
 		--output experiment/all_audit_full.jsonl \
 		--n-safety 100 --n-truthfulness 100 --n-consistency 100 --seed 42
-	@echo "  → experiment/all_audit_full.jsonl"
+	@echo "  -> experiment/all_audit_full.jsonl"
 
 # Build the anonymised calibration/held-out blinded files + secret ground truth.
 experiment-prepare:
@@ -203,8 +167,8 @@ experiment-prepare:
 		--raw "$(RESULTS)/raw_outputs" \
 		--output experiment/blinded \
 		--calibration-ratio 0.3 --seed 42
-	@echo "  → experiment/blinded/{blinded_annotation_calibration,blinded_annotation_heldout}.jsonl"
-	@echo "  → experiment/blinded/ground_truth_blinded.json (ANALYST-ONLY, git-ignored)"
+	@echo "  -> experiment/blinded/{blinded_annotation_calibration,blinded_annotation_heldout}.jsonl"
+	@echo "  -> experiment/blinded/ground_truth_blinded.json (ANALYST-ONLY, git-ignored)"
 
 # Emit one blank annotation template per annotator for the held-out set.
 # Set ANNOTATORS="ann1 ann2".
@@ -215,7 +179,7 @@ experiment-heldout-prepare:
 		--input experiment/blinded/blinded_annotation_heldout.jsonl \
 		--output experiment/held_out_work \
 		--annotators $(ANNOTATORS)
-	@echo "  → Edit experiment/held_out_work/<annotator>.jsonl, then run 'make experiment-heldout-report'"
+	@echo "  -> Edit experiment/held_out_work/<annotator>.jsonl, then run 'make experiment-heldout-report'"
 
 # Final once-only held-out report (aggregates all dimensions). Set ANNOTATIONS to
 # the FILLED template paths, e.g.
@@ -229,7 +193,22 @@ experiment-heldout-report:
 		--audit experiment/all_audit_full.jsonl \
 		--ground-truth experiment/blinded/ground_truth_blinded.json \
 		--output experiment/held_out_agreement_report.json
-	@echo "  → Held-out report written to experiment/held_out_agreement_report.json"
+	@echo "  -> Held-out report written to experiment/held_out_agreement_report.json"
+
+# Backfill human gold labels into all_audit_full.jsonl from experiment reports
+# and calibration annotations. After this, paradigm_report.py can read human
+# labels directly from the audit file.
+# Run this AFTER experiment-heldout-report (and after filling calibration ties).
+backfill-audit:
+	@echo "Backfilling human labels into experiment/all_audit_full.jsonl..."
+	$(PY) scripts/backfill_audit.py \
+		--audit experiment/all_audit_full.jsonl \
+		--ground-truth experiment/blinded/ground_truth_blinded.json \
+		--experiment-report experiment/held_out_agreement_report.json \
+		--calibration-ann experiment/calibration_work/ann1_calibration.jsonl \
+		--calibration-ann experiment/calibration_work/ann2_calibration.jsonl \
+		--output experiment/all_audit_full.jsonl
+	@echo "  -> experiment/all_audit_full.jsonl updated"
 
 # Verify the blinded files leak nothing (auto_label/model/prompt_id/attack_type).
 experiment-blinded-verify:
@@ -242,7 +221,23 @@ probs=[]; \
 [probs.append((p,m)) for p in glob.glob('experiment/blinded/blinded_annotation_*.jsonl') for l in open(p) if l.strip() for m in mods if m in str(json.loads(l))]; \
 print('leaks:', len(probs), probs[:10]); \
 raise SystemExit(1 if probs else 0)"
-	@echo "  → OK: no leaked fields in experiment/blinded"
+	@echo "  -> OK: no leaked fields in experiment/blinded"
+
+# Single source of truth for the budget/cost ratio: MEASURED per-label human
+# annotation time via the live interactive timing study. A human annotator
+# labels the sampled records one-by-one and the wall-clock time per decision is
+# recorded (written to results/human_timing_measurement.json, which both
+# paradigm_report.py (RQ4 cost) and budget_optimizer.py consume.
+#
+# Picks the dimension with DIMENSION=safety|truthfulness|consistency and the
+# sample size with SAMPLE=n (default 8). This REQUIRES a human at the keyboard.
+human-timing:
+	$(PY) scripts/measure_human_annotation_time.py \
+		--input results/audit/all_audit.jsonl \
+		--dimension $(if $(DIMENSION),$(DIMENSION),safety) \
+		--sample $(if $(SAMPLE),$(SAMPLE),8) \
+		--output results/human_timing_measurement.json
+	@echo "  -> MEASURED human timing study written to results/human_timing_measurement.json"
 
 # Trust-budget plan: turn the held-out gold-vs-auto κ into a human-allocation
 # policy. REPORT defaults to the experiment report once produced.
@@ -260,7 +255,7 @@ experiment-budget:
 		--output $$budget \
 		$(if $(GATE_TRUST),--gate-trust $(GATE_TRUST)) \
 		$(if $(GATE_UNVERIFIED),--gate-unverified $(GATE_UNVERIFIED))
-	@echo "  → Budget plan written to results/budget_plan.json"
+	@echo "  -> Budget plan written to results/budget_plan.json"
 
 # Budget-vs-reliability figure. Optionally pass REPORT=<json> or
 # inline KAPPAS="safety=0.615 truthfulness=0.0 consistency=0.615".
@@ -270,7 +265,7 @@ budget-figure:
 	KAPPA_ARG=""; \
 	if [ -n "$(KAPPAS)" ]; then KAPPA_ARG="--kappas $(KAPPAS)"; fi; \
 	$(PY) scripts/budget_reliability_curve.py $$REPORT_ARG $$KAPPA_ARG --output results/budget_reliability_curve.png
-	@echo "  → Figure written to results/budget_reliability_curve.png"
+	@echo "  -> Figure written to results/budget_reliability_curve.png"
 
 # Auto × Human error heatmap from the agreement/validation reports.
 error-heatmap:
@@ -278,5 +273,11 @@ error-heatmap:
 		--agreement results/audit/agreement_report.json \
 		--validation results/validation_report.json \
 		--output results/error_heatmap.png
-	@echo "  → Figure written to results/error_heatmap.png"
+	@echo "  -> Figure written to results/error_heatmap.png"
+
+# Measurement-validation loop diagram. Pure structure — no
+# numeric values, so it is valid for every run regardless of the fresh data.
+pipeline-figure:
+	$(PY) scripts/pipeline_diagram.py --output results/pipeline_loop.png
+	@echo "  -> Figure written to results/pipeline_loop.png"
 

@@ -66,11 +66,15 @@ st.sidebar.markdown("### Quick Links")
 st.sidebar.markdown("[GitHub Repo](https://github.com/merma1509/trustworthness-evaluation)")
 st.sidebar.markdown("[README](https://github.com/merma1509/trustworthness-evaluation#readme)")
 st.sidebar.markdown("---")
-st.sidebar.caption(f"Pipeline: `./demo.sh` | Models: {', '.join(MODEL_NAMES.values())} | Prompts: 105")
+st.sidebar.caption(
+    f"Pipeline: `./demo.sh` | Models: {', '.join(MODEL_NAMES.values())} | Prompts: 105"
+)
 
 # ─── Main Content ───────────────────────────────────────────
 st.title("Trustworthiness Evaluation")
-st.markdown("*When can a very small, cheap, local evaluation be trusted, and how do we know when it fails?*")
+st.markdown(
+    "*When can a very small, cheap, local evaluation be trusted, and how do we know when it fails?*"
+)
 
 if not available:
     st.warning("\u26a0\ufe0f No evaluation results found. Run `./demo.sh` first.")
@@ -91,9 +95,19 @@ gemma_cm = get_confusion_matrix(gemma_scores)
 llama_cm = get_confusion_matrix(llama_scores)
 
 # ─── Tabs ────────────────────────────────────────────────────
-tab_overview, tab_dimensions, tab_confusion, tab_weights, \
-    tab_research, tab_failure, tab_human, tab_audit, \
-    tab_verification, tab_raw = st.tabs([
+(
+    tab_overview,
+    tab_dimensions,
+    tab_confusion,
+    tab_weights,
+    tab_research,
+    tab_failure,
+    tab_human,
+    tab_audit,
+    tab_verification,
+    tab_raw,
+) = st.tabs(
+    [
         "Overview",
         "Dimensions",
         "Confusion Matrix",
@@ -104,13 +118,16 @@ tab_overview, tab_dimensions, tab_confusion, tab_weights, \
         "Manual Audit",
         "Verification",
         "Raw Outputs",
-    ])
+    ]
+)
 
 with tab_overview:
     render_overview(available, all_scores, gemma_scores, llama_scores, gemma_cis, llama_cis)
 
 with tab_dimensions:
-    render_dimensions(available, all_scores, gemma_scores, llama_scores, gemma_cis, llama_cis, all_cis)
+    render_dimensions(
+        available, all_scores, gemma_scores, llama_scores, gemma_cis, llama_cis, all_cis
+    )
 
 with tab_confusion:
     render_confusion(available, gemma_cm, llama_cm, gemma_scores, llama_scores)
@@ -119,7 +136,9 @@ with tab_weights:
     render_weights(available, all_scores, all_weight_sensitivity)
 
 with tab_research:
-    render_research(available, gemma_scores, llama_scores, gemma_cis, llama_cis, all_scores, all_cis)
+    render_research(
+        available, gemma_scores, llama_scores, gemma_cis, llama_cis, all_scores, all_cis
+    )
 
 with tab_failure:
     render_failure(available)
@@ -142,4 +161,3 @@ st.markdown(
     "*Built for the course 'Security and Interpretability of Machine Learning' at Innopolis University. "
     "[GitHub](https://github.com/merma1509/trustworthness-evaluation)*"
 )
-

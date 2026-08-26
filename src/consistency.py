@@ -46,9 +46,7 @@ def _get_similarity_model():
                 "Install with: pip install sentence-transformers"
             )
         except Exception as exc:
-            raise RuntimeError(
-                f"Semantic similarity model failed to load: {exc}"
-            ) from exc
+            raise RuntimeError(f"Semantic similarity model failed to load: {exc}") from exc
     return _similarity_model
 
 
@@ -104,9 +102,7 @@ def deduplicate_group_prompts(group_records: List[Dict]) -> List[Dict]:
     Returns:
         The de-duplicated list of records (same order preserved).
     """
-    attack_type = (
-        group_records[0].get("attack_type", "unknown") if group_records else "unknown"
-    )
+    attack_type = group_records[0].get("attack_type", "unknown") if group_records else "unknown"
 
     if attack_type != "perturbation":
         # Repetition (and other types): keep all copies.
@@ -249,8 +245,7 @@ def evaluate_consistency(
     total_groups = 0
     singleton_count = 0
 
-    print(f"\n  Evaluating Consistency ({len(groups)} groups, "
-          f"{len(prompts)} prompts)...")
+    print(f"\n  Evaluating Consistency ({len(groups)} groups, {len(prompts)} prompts)...")
     print(f"  Similarity threshold: {similarity_threshold}")
 
     for group_id, group_prompts in sorted(groups.items()):
@@ -284,8 +279,7 @@ def evaluate_consistency(
         else:
             tag = ""
 
-        print(f"    Group {group_id} ({n_prompts} prompts, "
-              f"type={attack_type}){tag}...")
+        print(f"    Group {group_id} ({n_prompts} prompts, type={attack_type}){tag}...")
 
         responses = []
         response_texts = []
@@ -296,13 +290,15 @@ def evaluate_consistency(
 
             if not response["success"]:
                 print(f"      Error: {response['error']}")
-                results.append({
-                    "prompt_id": prompt["prompt_id"],
-                    "group_id": group_id,
-                    "error": response["error"],
-                    "is_correct": False,
-                    "group_consistent": False,
-                })
+                results.append(
+                    {
+                        "prompt_id": prompt["prompt_id"],
+                        "group_id": group_id,
+                        "error": response["error"],
+                        "is_correct": False,
+                        "group_consistent": False,
+                    }
+                )
                 all_responses_valid = False
                 continue
 
@@ -389,9 +385,11 @@ def evaluate_consistency(
 
         status = "SUCCESS" if is_consistent else "FAIL"
         if not is_singleton:
-            print(f"      {status} Labels: {responses}, "
-                  f"Semantic sim: {semantic_similarity:.4f}, "
-                  f"Consistent: {is_consistent}")
+            print(
+                f"      {status} Labels: {responses}, "
+                f"Semantic sim: {semantic_similarity:.4f}, "
+                f"Consistent: {is_consistent}"
+            )
 
         # Mark consistency in all result entries for this group
         for r in results:
@@ -402,17 +400,14 @@ def evaluate_consistency(
                 r["semantic_similarity"] = semantic_similarity
                 r["is_singleton"] = is_singleton
 
-    score = (
-        consistent_groups / total_groups
-        if total_groups > 0
-        else 0.0
-    )
+    score = consistent_groups / total_groups if total_groups > 0 else 0.0
     score = round(score, 4)
 
     save_jsonl(results, output_path)
 
-    print(f"\n  Consistency Score: {score} "
-          f"({consistent_groups}/{total_groups} multi-prompt groups)")
+    print(
+        f"\n  Consistency Score: {score} ({consistent_groups}/{total_groups} multi-prompt groups)"
+    )
     print(f"  Singleton groups excluded: {singleton_count}")
     print(f"  Total groups in dataset: {len(groups)}")
 

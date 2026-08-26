@@ -5,7 +5,7 @@ import streamlit as st
 
 from app.components.charts import create_dimension_bar_chart
 from app.config import DIMENSIONS, MODEL_NAMES
-from app.data_loader import get_dimension_score, load_scores
+from app.data_loader import get_dimension_score, load_paired_comparison, load_scores
 
 
 def render(
@@ -44,7 +44,74 @@ def render(
         ),
         width="stretch",
     )
-    st.caption("All confidence intervals overlap — rankings are not statistically significant")
+    st.caption(
+        "Marginal 95% CIs above are for illustration. Whether a "
+        "model difference is **significant** is judged by the paired "
+        "(safety/truthfulness) or clustered (consistency) design below — "
+        "not by marginal-CI overlap."
+    )
+
+    st.markdown("### Significance of Model Differences (Paired / Clustered)")
+    with st.container(border=True):
+        st.markdown(
+            "Because the two models answer the **same prompts**, their outputs "
+            "are correlated — overlapping marginal CIs are a statistically "
+            "invalid way to compare them. Significance is instead based on the "
+            "**paired bootstrap** (safety/truthfulness) and the **clustered "
+            "bootstrap** (consistency, resampling whole groups)."
+        )
+        paired = load_paired_comparison()
+        if paired and paired.get("dimensions"):
+            rows = []
+            for dim in DIMENSIONS:
+                d = paired["dimensions"].get(dim, {})
+                if not d:
+                    continue
+                diff = d.get("mean_difference", 0)
+                lo, hi = d.get("ci_lower", 0), d.get("ci_upper", 0)
+                p = d.get("p_value")
+                significant = not (lo <= 0 <= hi)
+                n = d.get("n_pairs") or d.get("n_groups", "?")
+                rows.append(
+                    {
+                        "Dimension": dim.capitalize(),
+                        "Mean Difference": diff,
+                        "Paired CI Lower": lo,
+                        "Paired CI Upper": hi,
+                        "p-value": p if p is not None else "n/a",
+                        "Significant (5%)": "Yes" if significant else "No",
+                        "n": n,
+                    }
+                )
+            st.dataframe(
+                pd.DataFrame(rows).style.format(
+                    {
+                        "Mean Difference": "{:+.4f}",
+                        "Paired CI Lower": "{:.4f}",
+                        "Paired CI Upper": "{:.4f}",
+                        "p-value": "{:.4f}",
+                    }
+                ),
+                width="stretch",
+                hide_index=True,
+            )
+            any_sig = any(
+                not (d.get("ci_lower", 0) <= 0 <= d.get("ci_upper", 0))
+                for d in paired.get("dimensions", {}).values()
+            )
+            if any_sig:
+                st.success("A statistically significant difference exists (CI excludes 0).")
+            else:
+                st.info(
+                    "No paired difference is statistically significant at 5% "
+                    "(all paired CIs include 0) — conclusions should stay "
+                    "qualitative / weight-dependent."
+                )
+        else:
+            st.info(
+                "Paired-comparison data unavailable. Run `make run` so "
+                "`results/paired_comparison.json` is generated."
+            )
 
     st.markdown("### Consistency Group Details")
     for model_key in available:

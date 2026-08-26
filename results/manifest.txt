@@ -1,10 +1,10 @@
 ========================================================================
   Trustworthness Evaluation — Model Manifest
 ========================================================================
-  Generated: 2026-08-23 20:19:15
+  Generated: 2026-08-25 22:16:13
 
 ── Git ──
-  Commit:    95846795704c686488bc4afa559159003b880174
+  Commit:    6afbc22df89307256a7a9a07f4e971ca6dae0794
   Branch:    part1-correctness-fixes
   Tag:       (no tag)
 

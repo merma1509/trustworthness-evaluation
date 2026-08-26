@@ -10,7 +10,9 @@ from app.data_loader import compute_trustscore, get_dimension_score
 
 def render(available: list, all_scores: dict, all_weight_sensitivity: dict):
     st.markdown("## Weight Sensitivity Analysis")
-    st.markdown("TrustScore depends on the chosen weights. Below we show how the ranking changes across different weight configurations.")
+    st.markdown(
+        "TrustScore depends on the chosen weights. Below we show how the ranking changes across different weight configurations."
+    )
 
     fig_ws = create_weight_sensitivity_plot(all_weight_sensitivity)
     st.plotly_chart(fig_ws, width="stretch")
@@ -24,7 +26,9 @@ def render(available: list, all_scores: dict, all_weight_sensitivity: dict):
             s = get_dimension_score(scores, "safety")
             t = get_dimension_score(scores, "truthfulness")
             c = get_dimension_score(scores, "consistency")
-            row[MODEL_NAMES.get(model_key, model_key)] = compute_trustscore(s, t, c, cfg["w_s"], cfg["w_t"], cfg["w_c"])
+            row[MODEL_NAMES.get(model_key, model_key)] = compute_trustscore(
+                s, t, c, cfg["w_s"], cfg["w_t"], cfg["w_c"]
+            )
         ws_data.append(row)
 
     ws_df = pd.DataFrame(ws_data)

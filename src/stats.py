@@ -3,6 +3,7 @@ Provides: bootstrap confidence intervals (independent, paired, clustered),
           weight sensitivity analysis, jackknife, cost tracking,
           dataset size sensitivity
 """
+
 import time
 from typing import Dict, List, Optional
 
@@ -167,13 +168,15 @@ def compute_dataset_size_sensitivity(
         ci_upper = float(np.percentile(means, (1.0 - alpha) * 100))
         ci_width = round(ci_upper - ci_lower, 4)
 
-        results.append({
-            "n": n_target,
-            "mean_score": round(float(np.mean(means)), 4),
-            "ci_lower": round(ci_lower, 4),
-            "ci_upper": round(ci_upper, 4),
-            "ci_width": ci_width,
-        })
+        results.append(
+            {
+                "n": n_target,
+                "mean_score": round(float(np.mean(means)), 4),
+                "ci_lower": round(ci_lower, 4),
+                "ci_upper": round(ci_upper, 4),
+                "ci_width": ci_width,
+            }
+        )
 
     # Estimate minimum N for CI width < 0.10 (rule-of-thumb for binary data)
     estimated_min_n = full_n
@@ -235,7 +238,7 @@ def estimate_required_sample_size(
     alpha = 1.0 - confidence
     z = float(norm.ppf(1.0 - alpha / 2))
     variance = expected_proportion * (1.0 - expected_proportion)
-    n_required = int(np.ceil((z ** 2) * variance / (precision ** 2)))
+    n_required = int(np.ceil((z**2) * variance / (precision**2)))
 
     return {
         "n_required": n_required,
@@ -434,21 +437,17 @@ def compute_clustered_consistency_ci(
         ValueError: if the group intersection is empty.
     """
     # Intersection of groups (only groups present in both models)
-    common_groups = sorted(
-        set(model1_group_results.keys()) & set(model2_group_results.keys())
-    )
+    common_groups = sorted(set(model1_group_results.keys()) & set(model2_group_results.keys()))
     if len(common_groups) == 0:
         raise ValueError(
-            "No common groups between the two models. "
-            "Cannot compute paired / clustered bootstrap."
+            "No common groups between the two models. Cannot compute paired / clustered bootstrap."
         )
 
     n = len(common_groups)
 
     # Per-group differences
     differences = [
-        (1 if model1_group_results[gid] else 0)
-        - (1 if model2_group_results[gid] else 0)
+        (1 if model1_group_results[gid] else 0) - (1 if model2_group_results[gid] else 0)
         for gid in common_groups
     ]
     mean_diff = float(np.mean(differences))
@@ -520,6 +519,7 @@ DEFAULT_WEIGHT_CONFIGS = [
     {"name": "Consistency-heavy", "w_s": 0.20, "w_t": 0.40, "w_c": 0.40},
 ]
 
+
 # ──────────────────────────────────────────────────────────────
 # Ranking stability (bootstrap probability of ranking flip)
 # ──────────────────────────────────────────────────────────────
@@ -566,7 +566,6 @@ def compute_ranking_stability(
         weight_configs = DEFAULT_WEIGHT_CONFIGS
 
     rng = np.random.RandomState(random_seed)
-    dims = ["safety", "truthfulness", "consistency"]
 
     def _resample_score(score: float) -> float:
         """Sample a plausible alternative for a point score in (0,1).
@@ -615,16 +614,18 @@ def compute_ranking_stability(
 
         n_cfg = n_bootstrap
         flip_prob = wins2 / n_cfg  # prob model2 (model2) outscores model1
-        per_config.append({
-            "name": config["name"],
-            "w_safety": config["w_s"],
-            "w_truthfulness": config["w_t"],
-            "w_consistency": config["w_c"],
-            "model1_wins_pct": round(wins1 / n_cfg * 100, 1),
-            "model2_wins_pct": round(wins2 / n_cfg * 100, 1),
-            "tie_pct": round(ties / n_cfg * 100, 1),
-            "flip_probability": round(flip_prob, 4),
-        })
+        per_config.append(
+            {
+                "name": config["name"],
+                "w_safety": config["w_s"],
+                "w_truthfulness": config["w_t"],
+                "w_consistency": config["w_c"],
+                "model1_wins_pct": round(wins1 / n_cfg * 100, 1),
+                "model2_wins_pct": round(wins2 / n_cfg * 100, 1),
+                "tie_pct": round(ties / n_cfg * 100, 1),
+                "flip_probability": round(flip_prob, 4),
+            }
+        )
 
     total = overall["model1"] + overall["model2"] + overall["tie"]
     return {
@@ -710,21 +711,21 @@ def compute_required_n_empirically(
         lo = float(np.percentile(means, alpha * 100))
         hi = float(np.percentile(means, (1.0 - alpha) * 100))
         width = hi - lo
-        sizes.append({
-            "n": n_target,
-            "ci_lower": round(lo, 4),
-            "ci_upper": round(hi, 4),
-            "ci_width": round(width, 4),
-        })
+        sizes.append(
+            {
+                "n": n_target,
+                "ci_lower": round(lo, 4),
+                "ci_upper": round(hi, 4),
+                "ci_width": round(width, 4),
+            }
+        )
         if n_required is None and width <= max_allowed_width:
             n_required = n_target
 
     return {
         "n_required": n_required,
         "target_precision": target_precision,
-        "ci_width_at_n": (
-            sizes[-1]["ci_width"] if sizes else None
-        ),
+        "ci_width_at_n": (sizes[-1]["ci_width"] if sizes else None),
         "sizes": sizes,
         "theoretical_wald_n": estimate_required_sample_size(
             precision=target_precision, confidence=target_ci

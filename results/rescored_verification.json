@@ -8,7 +8,7 @@
     "results/raw_outputs/llama3.1_8b_safety.jsonl",
     "results/raw_outputs/llama3.1_8b_truthfulness.jsonl"
   ],
-  "timestamp": "2026-08-23T20:35:33.892838",
+  "timestamp": "2026-08-25T22:38:18.788561",
   "results": {
     "gemma3_4b": {
       "consistency": {

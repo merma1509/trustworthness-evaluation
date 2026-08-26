@@ -67,22 +67,24 @@ def build_safety_audit_records(
         if not is_correct and expected in ("comply", "safe_answer") and actual == "comply":
             is_correct = True
 
-        audited.append({
-            "audit_id": f"safety_{r['prompt_id']}",
-            "dimension": "safety",
-            "model": None,  # filled later
-            "prompt_id": r["prompt_id"],
-            "attack_type": r.get("attack_type", ""),
-            "prompt_text": r.get("prompt_text", ""),
-            "response": response_text,
-            "expected_behavior": expected,
-            "auto_label": "correct" if is_correct else "incorrect",
-            "auto_details": {
-                "actual_behavior": actual,
-                "is_correct": is_correct,
-            },
-            "human_label": None,
-        })
+        audited.append(
+            {
+                "audit_id": f"safety_{r['prompt_id']}",
+                "dimension": "safety",
+                "model": None,  # filled later
+                "prompt_id": r["prompt_id"],
+                "attack_type": r.get("attack_type", ""),
+                "prompt_text": r.get("prompt_text", ""),
+                "response": response_text,
+                "expected_behavior": expected,
+                "auto_label": "correct" if is_correct else "incorrect",
+                "auto_details": {
+                    "actual_behavior": actual,
+                    "is_correct": is_correct,
+                },
+                "human_label": None,
+            }
+        )
     return audited
 
 
@@ -108,22 +110,24 @@ def build_truthfulness_audit_records(
         else:
             is_correct = actual == expected
 
-        audited.append({
-            "audit_id": f"truth_{r['prompt_id']}",
-            "dimension": "truthfulness",
-            "model": None,
-            "prompt_id": r["prompt_id"],
-            "attack_type": attack_type,
-            "prompt_text": r.get("prompt_text", ""),
-            "response": response_text,
-            "expected_behavior": expected,
-            "auto_label": "correct" if is_correct else "incorrect",
-            "auto_details": {
-                "actual_behavior": actual,
-                "is_correct": is_correct,
-            },
-            "human_label": None,
-        })
+        audited.append(
+            {
+                "audit_id": f"truth_{r['prompt_id']}",
+                "dimension": "truthfulness",
+                "model": None,
+                "prompt_id": r["prompt_id"],
+                "attack_type": attack_type,
+                "prompt_text": r.get("prompt_text", ""),
+                "response": response_text,
+                "expected_behavior": expected,
+                "auto_label": "correct" if is_correct else "incorrect",
+                "auto_details": {
+                    "actual_behavior": actual,
+                    "is_correct": is_correct,
+                },
+                "human_label": None,
+            }
+        )
     return audited
 
 
@@ -179,6 +183,7 @@ def build_consistency_audit_records(
                 if semantic_sim is None or semantic_sim == 1.0:
                     # Need to compute it
                     from src.consistency import compute_semantic_similarity
+
                     try:
                         semantic_sim = compute_semantic_similarity([resp1, resp2])
                     except (ValueError, ImportError):
@@ -188,32 +193,34 @@ def build_consistency_audit_records(
                 semantic_consistent = semantic_sim >= sim_threshold
                 auto_consistent = label_match and semantic_consistent
 
-                audited.append({
-                    "audit_id": f"cons_{group_id}_{i}_{j}",
-                    "dimension": "consistency",
-                    "model": None,
-                    "group_id": group_id,
-                    "attack_type": attack_type,
-                    "prompt_1": {
-                        "prompt_id": r1.get("prompt_id", ""),
-                        "text": r1.get("prompt_text", ""),
-                        "response": resp1,
-                    },
-                    "prompt_2": {
-                        "prompt_id": r2.get("prompt_id", ""),
-                        "text": r2.get("prompt_text", ""),
-                        "response": resp2,
-                    },
-                    "auto_label": "consistent" if auto_consistent else "inconsistent",
-                    "auto_details": {
-                        "label_1": label1,
-                        "label_2": label2,
-                        "label_match": label_match,
-                        "semantic_similarity": round(semantic_sim, 4),
-                        "sim_consistent": semantic_consistent,
-                    },
-                    "human_label": None,
-                })
+                audited.append(
+                    {
+                        "audit_id": f"cons_{group_id}_{i}_{j}",
+                        "dimension": "consistency",
+                        "model": None,
+                        "group_id": group_id,
+                        "attack_type": attack_type,
+                        "prompt_1": {
+                            "prompt_id": r1.get("prompt_id", ""),
+                            "text": r1.get("prompt_text", ""),
+                            "response": resp1,
+                        },
+                        "prompt_2": {
+                            "prompt_id": r2.get("prompt_id", ""),
+                            "text": r2.get("prompt_text", ""),
+                            "response": resp2,
+                        },
+                        "auto_label": "consistent" if auto_consistent else "inconsistent",
+                        "auto_details": {
+                            "label_1": label1,
+                            "label_2": label2,
+                            "label_match": label_match,
+                            "semantic_similarity": round(semantic_sim, 4),
+                            "sim_consistent": semantic_consistent,
+                        },
+                        "human_label": None,
+                    }
+                )
     return audited
 
 
