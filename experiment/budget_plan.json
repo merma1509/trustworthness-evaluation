@@ -1,5 +1,5 @@
 {
-  "source": "experiment/held_out_agreement_report.json",
+  "source": "held_out_agreement_report.json",
   "gates": {
     "trust": 0.7,
     "unverified": 0.4
@@ -9,14 +9,14 @@
   "by_dimension": [
     {
       "dimension": "safety",
-      "kappa": 0.593,
+      "kappa": 0.4184,
       "band": "caveated",
       "annotations_needed": 5,
       "recommendation": "Auto-scorer usable but caveated. Spot-check ~10% of records; widen CIs and re-check periodically."
     },
     {
       "dimension": "truthfulness",
-      "kappa": 0.2773,
+      "kappa": 0.0,
       "band": "unverified",
       "annotations_needed": 46,
       "recommendation": "Auto-scorer unreliable here (κ < gate). Route full dimension to human annotation."

@@ -1,7 +1,7 @@
 .PHONY: help setup run clean clean-all lint format audit dashboard eval offlinescore test \
 	generate-audit experiment-audit experiment-prepare experiment-heldout-prepare \
-	experiment-heldout-report experiment-blinded-verify \
-	experiment-budget budget-figure error-heatmap pipeline-figure
+	experiment-heldout-report experiment-blinded-verify experiment-budget \
+	backfill-audit human-timing budget-figure error-heatmap pipeline-figure
 
 SHELL := /bin/bash
 RESULTS := results
@@ -36,6 +36,8 @@ help:
 	@echo "  make experiment-prepare               Build anonymised calibration/held-out + secret ground truth"
 	@echo "  make experiment-heldout-prepare       Emit blank annotator templates (ANNOTATORS=\"ann1 ann2\")"
 	@echo "  make experiment-heldout-report        Final held-out report (ANNOTATIONS=\"<2+ filled files>\")"
+	@echo "  make backfill-audit                   Backfill human labels into all_audit_full.jsonl"
+	@echo "                                          (run after experiment-heldout-report)"
 	@echo "                                          (also auto-built by 'make run' when templates are filled)"
 	@echo "  make experiment-blinded-verify        Verify no auto_label/model/prompt_id leaked"
 	@echo "  make experiment-budget REPORT=<json>  Trust-budget plan (κ-gated human allocation)"
@@ -101,14 +103,21 @@ clean:
 #     filled by humans, listed in .gitignore) -> explicit rm -rf.
 # Committed files are always preserved; nothing is lost irrecoverably.
 clean-all:
-	@echo "Removing generated / untracked / ignored artifacts under $(RESULTS)/ and experiment/..."
-	@echo "  (git-tracked files are preserved)"
-	git clean -fd -- "$(RESULTS)/" experiment/
-	@echo "  Removing ignored annotation work dirs..."
-	rm -rf "$(RESULTS)/blinded_work" "$(RESULTS)/blinded_heldout_work" "experiment/held_out_work"
+	@echo "Removing generated / untracked / ignored artifacts..."
+	@echo "  (git-tracked files are preserved; calibration_work/ is kept as evidence)"
+	@echo "  Removing experiment/audit/ (duplicate of paradigm_report.json)..."
+	rm -rf experiment/audit/
+	@echo "  Removing results/ untracked..."
+	git clean -fd -- "$(RESULTS)/"
+	@echo "  Removing results/ ignored work dirs..."
+	rm -rf "$(RESULTS)/blinded_work" "$(RESULTS)/blinded_heldout_work"
+	@echo "  Removing experiment/ held-out work (per-annotator files, gitignored)..."
+	rm -rf experiment/held_out_work
 	@echo "  Removing empty leftover directories..."
 	@find "$(RESULTS)" -type d -empty -delete 2>/dev/null || true
 	@find "experiment" -type d -empty -delete 2>/dev/null || true
+	@echo "  Note: experiment/calibration_work/ and experiment/paradigm_report.json are kept."
+	@echo "  (untracked but important: show how calibration ties were resolved)"
 	@echo "Full clean complete"
 
 lint:
@@ -185,6 +194,21 @@ experiment-heldout-report:
 		--ground-truth experiment/blinded/ground_truth_blinded.json \
 		--output experiment/held_out_agreement_report.json
 	@echo "  -> Held-out report written to experiment/held_out_agreement_report.json"
+
+# Backfill human gold labels into all_audit_full.jsonl from experiment reports
+# and calibration annotations. After this, paradigm_report.py can read human
+# labels directly from the audit file.
+# Run this AFTER experiment-heldout-report (and after filling calibration ties).
+backfill-audit:
+	@echo "Backfilling human labels into experiment/all_audit_full.jsonl..."
+	$(PY) scripts/backfill_audit.py \
+		--audit experiment/all_audit_full.jsonl \
+		--ground-truth experiment/blinded/ground_truth_blinded.json \
+		--experiment-report experiment/held_out_agreement_report.json \
+		--calibration-ann experiment/calibration_work/ann1_calibration.jsonl \
+		--calibration-ann experiment/calibration_work/ann2_calibration.jsonl \
+		--output experiment/all_audit_full.jsonl
+	@echo "  -> experiment/all_audit_full.jsonl updated"
 
 # Verify the blinded files leak nothing (auto_label/model/prompt_id/attack_type).
 experiment-blinded-verify:

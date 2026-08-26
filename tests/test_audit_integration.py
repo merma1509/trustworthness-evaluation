@@ -53,7 +53,10 @@ def test_consistency_groups_per_model():
 
 
 # ── Blinded annotation schema ────────────────────────
-BLINDED_DIR = PROJECT_ROOT / "results" / "audit" / "blinded"
+# Canonical location used by the Makefile (`make experiment-prepare`) and
+# `scripts/generate_blinded_annotation.py`. Kept in sync here so the blinded
+# leakage / consistency-group regression tests actually run instead of skipping.
+BLINDED_DIR = PROJECT_ROOT / "experiment" / "blinded"
 GROUND_TRUTH_PATH = BLINDED_DIR / "ground_truth_blinded.json"
 
 LEAKED_KEYS = ("auto_label", "similarity", "human_label", "expected_behavior")

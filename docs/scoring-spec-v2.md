@@ -162,6 +162,13 @@ Inter-annotator agreement is computed _before_ comparing to the auto-scorer.
 | Expected κ safety/truth/cons     | ≈ 0.615 / 0.737 / 0.000 |
 | Consistency groups per model     |    11 (multi-prompt)    |
 
----
+> ⚠️ The two "Expected κ" rows above are **planned/spec predictions** written when
+> the spec was drafted. They are **not** the measured result. The **measured**
+> calibration agreement (n=30) is overall κ ≈ **0.757**, 86.7% agreement
+> (safety κ=0.615, truthfulness κ=0.000, consistency κ=0.000 — see
+> `results/validation_report.json` → `rq1_agreement`); the stronger **blinded
+> held-out** estimate (n=114 auto-comparison) is overall gold-vs-auto κ ≈ **0.690**,
+> 84.2% agreement (see `experiment/held_out_agreement_report.json`). Always cite the
+> reports for any reliability figure.
 
-_End of spec v2.0._
+---

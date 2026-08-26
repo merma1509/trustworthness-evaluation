@@ -46,15 +46,21 @@ experiment/blinded/ground_truth_blinded.json
 # a human actually fills them; commit filled files explicitly (git add -f).
 experiment/held_out_work/ann*.jsonl
 
+# Calibration WORK templates (filled to resolve the 4 calibration ties). These
+# are part of the reproducibility evidence, so unlike held_out_work helper
+# files they are not swept by `make clean-all`.
+experiment/calibration_work/manifest.json
+
 .pytest_cache
-feedback-plan.md
 
 # Internal planning documents (not part of the repository deliverable)
 plan_part1_correctness_fixes.md
 plan_part2_blinded_experiment.md
 plan_part3_paper_direction.md
+feedback-plan.md
+
 
 # Pre-publication draft (not for public release)
-docs/pre-publication-report.md
-docs/paper-part3-draft.md
+docs/pre-publication-*
+docs/paper-part3-*
 

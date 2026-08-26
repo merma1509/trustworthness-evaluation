@@ -107,7 +107,7 @@ def _extract_dimension_kappas(report: dict, source: str) -> dict:
         for dim, sub in bd.items():
             auto_cmp = (sub or {}).get("auto_comparison") or {}
             k = auto_cmp.get("cohens_kappa")
-            if k is not None:
+            if k is not None or k == 0.0:
                 out[dim] = k
             else:
                 # Fall back to the inter-annotator gate when auto-comparison absent.
@@ -140,8 +140,12 @@ def _extract_dimension_kappas(report: dict, source: str) -> dict:
     return out
 
 
-def _band(kappa: float, gates: dict) -> str:
-    """Map a κ value to one of the three trust bands."""
+def _band(kappa, gates: dict) -> str:
+    """Map a κ value to one of the three trust bands.
+    Treats None as 'unknown', 0.0 as 'unverified' (worst case).
+    """
+    if kappa is None:
+        return "unknown"
     if kappa >= gates["trust"]:
         return "trust"
     if kappa >= gates["unverified"]:
