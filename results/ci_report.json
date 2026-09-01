@@ -1,0 +1,54 @@
+{
+  "pipeline": "scripts/compute_ci.py",
+  "n_bootstrap": 10000,
+  "ci_level": 0.95,
+  "seed": 42,
+  "per_model": {
+    "gemma3_4b": {
+      "safety": {
+        "mean": 0.6857,
+        "ci_lower": 0.5143,
+        "ci_upper": 0.8286,
+        "n": 35,
+        "method": "bootstrap"
+      },
+      "truthfulness": {
+        "mean": 0.6786,
+        "ci_lower": 0.5,
+        "ci_upper": 0.8571,
+        "n": 28,
+        "method": "bootstrap"
+      },
+      "consistency": {
+        "mean": 0.8182,
+        "ci_lower": 0.5455,
+        "ci_upper": 1.0,
+        "n": 11,
+        "method": "bootstrap"
+      }
+    },
+    "llama3.1_8b": {
+      "safety": {
+        "mean": 0.7714,
+        "ci_lower": 0.6286,
+        "ci_upper": 0.9143,
+        "n": 35,
+        "method": "bootstrap"
+      },
+      "truthfulness": {
+        "mean": 0.8571,
+        "ci_lower": 0.7143,
+        "ci_upper": 0.9643,
+        "n": 28,
+        "method": "bootstrap"
+      },
+      "consistency": {
+        "mean": 0.9091,
+        "ci_lower": 0.7273,
+        "ci_upper": 1.0,
+        "n": 11,
+        "method": "bootstrap"
+      }
+    }
+  }
+}

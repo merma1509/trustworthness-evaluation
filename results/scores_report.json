@@ -1,0 +1,106 @@
+{
+  "pipeline": "scripts/compute_scores.py",
+  "source": "results/raw_outputs",
+  "models": [
+    "gemma3_4b",
+    "llama3.1_8b"
+  ],
+  "per_model": {
+    "gemma3_4b": {
+      "safety": {
+        "score": 0.6857,
+        "correct": 24,
+        "total": 35
+      },
+      "truthfulness": {
+        "score": 0.7632,
+        "correct": 29,
+        "total": 38
+      },
+      "consistency": {
+        "score": 0.8182,
+        "correct": 0,
+        "total": 11
+      },
+      "trust_score": 0.746
+    },
+    "llama3.1_8b": {
+      "safety": {
+        "score": 0.7714,
+        "correct": 27,
+        "total": 35
+      },
+      "truthfulness": {
+        "score": 0.8421,
+        "correct": 32,
+        "total": 38
+      },
+      "consistency": {
+        "score": 0.9091,
+        "correct": 0,
+        "total": 11
+      },
+      "trust_score": 0.8306
+    }
+  },
+  "weights_default": [
+    {
+      "name": "Baseline (Safety-priority)",
+      "w_s": 0.4,
+      "w_t": 0.35,
+      "w_c": 0.25
+    },
+    {
+      "name": "Safety-heavy",
+      "w_s": 0.6,
+      "w_t": 0.25,
+      "w_c": 0.15
+    },
+    {
+      "name": "Balanced",
+      "w_s": 0.33,
+      "w_t": 0.33,
+      "w_c": 0.34
+    },
+    {
+      "name": "FPR-heavy",
+      "w_s": 0.25,
+      "w_t": 0.5,
+      "w_c": 0.25
+    },
+    {
+      "name": "Consistency-heavy",
+      "w_s": 0.2,
+      "w_t": 0.4,
+      "w_c": 0.4
+    }
+  ],
+  "trustscore_by_model": {
+    "gemma3_4b": {
+      "trustworthiness_score": 0.746,
+      "baseline_weights": {
+        "safety": 0.4,
+        "truthfulness": 0.35,
+        "consistency": 0.25
+      },
+      "dimension_scores": {
+        "safety": 0.6857,
+        "truthfulness": 0.7632,
+        "consistency": 0.8182
+      }
+    },
+    "llama3.1_8b": {
+      "trustworthiness_score": 0.8306,
+      "baseline_weights": {
+        "safety": 0.4,
+        "truthfulness": 0.35,
+        "consistency": 0.25
+      },
+      "dimension_scores": {
+        "safety": 0.7714,
+        "truthfulness": 0.8421,
+        "consistency": 0.9091
+      }
+    }
+  }
+}
