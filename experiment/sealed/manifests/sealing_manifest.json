@@ -1,0 +1,23 @@
+{
+  "experiment_id": "trustworthiness-validation-2025-08-redo",
+  "created_at_utc": "2026-08-31T15:35:07.716757Z",
+  "seed": "final-review-seed-v1",
+  "seed_hash": "d0bee9a51b6af41326f1010aee9d194cafcd15788aca8981e3fe9f1988ed7ba2",
+  "calibration_ratio": 0.7,
+  "pool_size": 210,
+  "calibration_size": 147,
+  "heldout_size": 63,
+  "seal_checksums": {
+    "calibration_template": "sha256:ea2aa41684d3dfb0b707438074f85f26b2f265d665074c283a14330ba54e9dbc",
+    "heldout_template": "sha256:b21c2ff5735166ae2f6c9c609f0dac3c92e4960ec53ee936648e290cb547657a",
+    "auto_labels_plaintext": "sha256:d6d7ad09dbad75ec83111bf2ec9b6737c34d707666341517b93837c3655225ec",
+    "auto_labels_sealed_file": "sha256:86ef6846bd61bffcc401eeadb353500b5a8affb9b45ee49589d747f26fea23d7",
+    "rubric": "sha256:1ca0023c9bb21ee9520a1199098789850b0fca570c9530ca322c86eb01a6a9b2",
+    "label_interface": "sha256:268cee127405f885e56c6b57dd21dd13e51942d37408ebed207af623291260c3"
+  },
+  "templates": {
+    "calibration": "sealed/templates/trustworthiness-validation-2025-08-redo_calibration_template.jsonl",
+    "heldout": "sealed/templates/trustworthiness-validation-2025-08-redo_heldout_template.jsonl"
+  },
+  "pending": "Auto labels are SEALED. Do NOT open until all human annotations are finalised and declarations filed."
+}

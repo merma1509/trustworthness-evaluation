@@ -1,0 +1,15 @@
+{
+  "pipeline": "clean-redo reproducibility",
+  "generator": "scripts/generate_final_manifest.py",
+  "n_artifacts": 8,
+  "checksums": {
+    "experiment/sealed/manifests/sealing_manifest.json": "sha256:fa68be90d5dc6dcb",
+    "experiment/sealed/labels/sealed_auto_labels.jsonl.enc": "sha256:86ef6846bd61bffc",
+    "experiment/reports/part1_agreement_report.json": "sha256:4b057efe49b7bd88",
+    "results/scores_report.json": "sha256:5a5908839d554498",
+    "results/ci_report.json": "sha256:8ccd2f1bf09e4f0b",
+    "results/trustscore_report.json": "sha256:619983928c7ac0b3",
+    "results/ranking_stability.json": "sha256:70f75b7d3ca7ce8c",
+    "results/cost_tracker.json": "sha256:d9c9dfddbc802953"
+  }
+}

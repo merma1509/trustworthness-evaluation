@@ -54,13 +54,26 @@ experiment/calibration_work/manifest.json
 .pytest_cache
 
 # Internal planning documents (not part of the repository deliverable)
-plan_part1_correctness_fixes.md
-plan_part2_blinded_experiment.md
-plan_part3_paper_direction.md
-feedback-plan.md
+plan*.md
 
 
 # Pre-publication draft (not for public release)
 docs/pre-publication-*
 docs/paper-part3-*
 
+
+# Sealed keeper passphrase (access control — never commit private key material)
+experiment/.sealed_keeper.*
+sealed_keeper.*
+# Sealed experiment artifacts (templates, encrypted labels, annotations)
+experiment/.sealed_work/
+
+# Sealed-randomization BUILD artifacts (regenerate via `make experiment-*`)
+experiment/sealed/templates/
+experiment/sealed/labels/
+experiment/annotations/
+experiment/rater_declarations/
+experiment/agreements/
+experiment/gold/
+experiment/reports/
+experiment/manifests/annotation_manifest.json
