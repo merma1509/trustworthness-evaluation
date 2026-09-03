@@ -32,6 +32,7 @@ from typing import Dict, List
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from src.audit_log import log_action
 from src.labels import (
     is_valid_label,
 )
@@ -116,7 +117,7 @@ def validate_annotation_record(rec: dict) -> Dict:
 
 def ingest_file(path: Path) -> Dict:
     """Validate every record in one annotation file; return a stats summary."""
-    records = [json.loads(l) for l in path.open() if l.strip()]
+    records = [json.loads(line) for line in path.open() if line.strip()]
     results = [validate_annotation_record(r) for r in records]
 
     n_valid = sum(1 for r in results if r["valid"])
@@ -188,8 +189,36 @@ def main() -> int:
     if not all_valid:
         print("  One or more annotation files have schema violations.")
         print("    Fix them (labels MUST be from the constrained set) before proceeding.")
+        log_action(
+            log_path=Path("experiment/logs/annotation_log.jsonl"),
+            action="ingest_annotations",
+            script="scripts/ingest_annotations.py",
+            args={"--annotations": args.annotations, "--manifest": args.manifest},
+            input_paths={"annotations": files},
+            outcome="failed",
+            status=2,
+            extra={"all_valid": False},
+        )
         return 2
     print("  All annotations are schema-valid.")
+
+    # Audit trail: filing annotations is immutable and
+    # timestamped; log the accepted files and their per-file validity counts.
+    log_action(
+        log_path=Path("experiment/logs/annotation_log.jsonl"),
+        action="ingest_annotations",
+        script="scripts/ingest_annotations.py",
+        args={"--annotations": args.annotations, "--manifest": args.manifest},
+        input_paths={"annotations": files},
+        output_paths={"annotation_manifest": out_path},
+        extra={"all_valid": True,
+               "file_summary": [
+                   {"file": r.get("file"),
+                    "n_records": r.get("n_records"), "n_valid": r.get("n_valid"),
+                    "n_invalid": r.get("n_invalid")}
+                   for r in reports
+               ]},
+    )
     return 0
 
 

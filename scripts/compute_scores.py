@@ -26,6 +26,7 @@ from typing import Dict, List
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from src.audit_log import log_action  # noqa: E402
 from src.stats import DEFAULT_WEIGHT_CONFIGS  # noqa: E402
 
 
@@ -155,7 +156,19 @@ def main() -> int:
     if not raw_dir.exists():
         print(f"  Raw outputs dir not found: {raw_dir}")
         return 1
-    compute_scores(raw_dir, Path(args.output))
+    output_path = Path(args.output)
+    compute_scores(raw_dir, output_path)
+
+    # Audit trail to record this computation with input/output
+    # hashes and the invocation arguments
+    log_action(
+        log_path=Path("experiment/logs/processing_log.jsonl"),
+        action="compute_scores",
+        script="scripts/compute_scores.py",
+        args={"--raw": args.raw, "--output": args.output},
+        input_paths={"raw_dir": raw_dir},
+        output_paths={"output": output_path},
+    )
     return 0
 
 

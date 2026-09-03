@@ -26,6 +26,9 @@ import sys
 from pathlib import Path
 from typing import Dict, List
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from src.audit_log import log_action  # noqa: E402
+
 DEFAULT_WEIGHTS = {"w_s": 0.4, "w_t": 0.35, "w_c": 0.25}
 
 
@@ -123,6 +126,16 @@ def main() -> int:
     print(f"  models: {expected['models']}")
     print("  ranking winners:", {c['config']: c['winner']
                                    for c in expected['ranking']['configurations']})
+
+    # Audit trail
+    log_action(
+        log_path=Path("experiment/logs/processing_log.jsonl"),
+        action="generate_expected_results",
+        script="scripts/generate_expected_results.py",
+        args={"--results": args.results, "--output": args.output},
+        input_paths={"results_dir": results},
+        output_paths={"expected": out},
+    )
     return 0
 
 

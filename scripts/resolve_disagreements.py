@@ -38,6 +38,8 @@ from typing import Dict, List, Optional, Tuple
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from src.audit_log import log_action  # noqa: E402
+
 
 # ──────── Loading helpers ─────────────────────────────────────
 def label_of(rec: dict) -> Optional[str]:
@@ -257,6 +259,26 @@ def main() -> int:
           f"excluded_invalid={report['n_excluded_response_invalid']}")
     print(f"  outcomes: {report['outcome_counts']}")
     print(f"  -> {out_path}")
+
+    # Audit trail: disagreement resolution must be
+    # timestamped and every exclusion reason surfaced (never implicit)
+    log_action(
+        log_path=Path("experiment/logs/annotation_log.jsonl"),
+        action="resolve_disagreements",
+        script="scripts/resolve_disagreements.py",
+        args={"--split": args.split, "--experiment-id": args.experiment_id,
+              "--out": args.out},
+        input_paths={"rater_a": a_files, "rater_b": b_files,
+                     "adjudicator": c_files},
+        output_paths={"resolutions": out_path},
+        extra={
+            "n_recorded": report.get("n_recorded"),
+            "n_scored": report.get("n_scored"),
+            "n_unresolvable": report.get("n_unresolvable"),
+            "n_excluded_response_invalid": report.get("n_excluded_response_invalid"),
+            "outcome_counts": report.get("outcome_counts"),
+        },
+    )
     return 0
 
 

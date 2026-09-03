@@ -27,7 +27,8 @@ from typing import Dict, List
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.sealing import decrypt_json_file
+from src.audit_log import log_action
+from src.sealing import decrypt_json_file, sha256_file
 
 
 def main() -> int:
@@ -110,6 +111,26 @@ def main() -> int:
     print(f"  Gold records written: {len(gold_records)} "
           f"(with gold label: {n_gold}, with auto label: {n_auto})")
     print(f"  -> {out_path}")
+
+    # Audit trail ("log decryption_hash"): record the
+    # gold generation together with the sealed-file hash that was opened
+    sealed_for_log = Path(args.sealed_labels) if args.sealed_labels else None
+    log_action(
+        log_path=Path("experiment/logs/annotation_log.jsonl"),
+        action="generate_gold_labels",
+        script="scripts/generate_gold_labels.py",
+        args={"--resolutions": args.resolutions, "--out": args.out},
+        input_paths={"resolutions": res_path,
+                     "sealed_labels": sealed_for_log},
+        output_paths={"gold": out_path},
+        extra={
+            "n_records": len(gold_records),
+            "n_gold": n_gold,
+            "n_auto": n_auto,
+            "decryption_hash": sha256_file(sealed_for_log)
+            if sealed_for_log and sealed_for_log.exists() else None,
+        },
+    )
     return 0
 
 

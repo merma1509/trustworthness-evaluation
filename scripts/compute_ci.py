@@ -27,6 +27,7 @@ from typing import Dict, List
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from src.audit_log import log_action  # noqa: E402
 from src.stats import compute_confidence_intervals  # noqa: E402
 
 
@@ -137,7 +138,19 @@ def main() -> int:
     if not raw_dir.exists():
         print(f"  Raw outputs dir not found: {raw_dir}")
         return 1
-    compute_ci(raw_dir, Path(args.output), args.n_bootstrap)
+    output_path = Path(args.output)
+    compute_ci(raw_dir, output_path, args.n_bootstrap)
+
+    # Audit trail
+    log_action(
+        log_path=Path("experiment/logs/processing_log.jsonl"),
+        action="compute_ci",
+        script="scripts/compute_ci.py",
+        args={"--raw": args.raw, "--n-bootstrap": args.n_bootstrap,
+              "--output": args.output},
+        input_paths={"raw_dir": raw_dir},
+        output_paths={"output": output_path},
+    )
     return 0
 
 

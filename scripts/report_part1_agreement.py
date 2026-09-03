@@ -32,11 +32,12 @@ from typing import Dict, List
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.agreement import compute_agreement, kappa_bootstrap_ci
+from src.agreement import compute_agreement, kappa_bootstrap_ci  # noqa: E402
+from src.audit_log import log_action  # noqa: E402
 
 
 def _load_gold(path: Path) -> List[dict]:
-    return [json.loads(l) for l in path.open() if l.strip()]
+    return [json.loads(line) for line in path.open() if line.strip()]
 
 
 def _per_dimension(records: List[dict], human_key: str, auto_key: str):
@@ -171,6 +172,27 @@ def main() -> int:
               f"kappa={s.get('cohens_kappa')}")
 
     print(f"\n  -> {out_path}")
+
+    # Audit trail the agreement report is a reproducibility
+    # checkpoint — log its inputs and the headline agreement stats.
+    gva_overall = report["gold_vs_auto"].get("overall", {})
+    log_action(
+        log_path=Path("experiment/logs/annotation_log.jsonl"),
+        action="report_part1_agreement",
+        script="scripts/report_part1_agreement.py",
+        args={"--gold": args.gold, "--rater-a": args.rater_a,
+              "--rater-b": args.rater_b, "--out": args.out},
+        input_paths={"gold": gold_path, "rater_a": Path(args.rater_a),
+                     "rater_b": Path(args.rater_b)},
+        output_paths={"agreement_report": out_path},
+        extra={
+            "gold_vs_auto_overall": {
+                "n": gva_overall.get("n"),
+                "agreement_rate": gva_overall.get("agreement_rate"),
+                "cohens_kappa": gva_overall.get("cohens_kappa"),
+            },
+        },
+    )
     return 0
 
 

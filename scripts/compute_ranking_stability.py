@@ -35,6 +35,7 @@ from typing import Dict
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from src.audit_log import log_action  # noqa: E402
 from src.stats import (  # noqa: E402
     DEFAULT_WEIGHT_CONFIGS,
     compute_ranking_stability,
@@ -156,6 +157,17 @@ def main() -> int:
           f"model2 wins {flip['model_wins']['model2_pct']}%")
     for cfg in flip["per_config"]:
         print(f"      {cfg['name']}: flip_prob={cfg['flip_probability']}")
+
+    # Audit trail
+    log_action(
+        log_path=Path("experiment/logs/processing_log.jsonl"),
+        action="compute_ranking_stability",
+        script="scripts/compute_ranking_stability.py",
+        args={"--scores": args.scores, "--n-bootstrap": args.n_bootstrap,
+              "--seed": args.seed, "--output": args.output},
+        input_paths={"scores": scores_path},
+        output_paths={"output": out_path},
+    )
     return 0
 
 

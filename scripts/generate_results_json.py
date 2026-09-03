@@ -23,6 +23,9 @@ import json
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from src.audit_log import log_action  # noqa: E402
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -51,6 +54,16 @@ def main() -> int:
     with trust_path.open("w") as f:
         json.dump(trust_report, f, indent=2, ensure_ascii=False)
     print(f"  TrustScore report written to {trust_path}")
+
+    # Audit trail
+    log_action(
+        log_path=Path("experiment/logs/processing_log.jsonl"),
+        action="generate_results_json",
+        script="scripts/generate_results_json.py",
+        args={"--scores": args.scores, "--output-results": args.output_results},
+        input_paths={"scores": scores_path},
+        output_paths={"trustscore_report": trust_path},
+    )
 
     return 0
 

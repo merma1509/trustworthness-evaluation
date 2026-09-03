@@ -48,6 +48,7 @@ from typing import Dict, List
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from src.audit_log import log_action
 from src.labels import RUBRIC_VERSION, TEMPLATE_VERSION
 from src.sealing import (
     encrypt_json_to_file,
@@ -415,6 +416,27 @@ def main() -> int:
     print(f"  sealing manifest     -> {manifest_path}")
     print("\n  NEXT: hand each rater their template + LABEL_INTERFACE + rubric.")
     print("  DO NOT open sealed labels until all annotations are final")
+
+    # Audit trail: record the seal with all produced
+    # template/label hashes so provenance is traceable from the very first step.
+    log_action(
+        log_path=Path("experiment/logs/sealing_log.jsonl"),
+        action="seal_experiment",
+        script="scripts/seal_experiment.py",
+        args={"--experiment-id": experiment_id, "--seed": args.seed,
+              "--calibration-ratio": CALIBRATION_RATIO},
+        output_paths={
+            "calibration_template": cal_path,
+            "heldout_template": hold_path,
+            "sealed_auto_labels": auto_path,
+            "sealing_manifest": manifest_path,
+        },
+        extra={
+            "pool_size": len(pool),
+            "calibration_size": len(calibration_set),
+            "heldout_size": len(heldout_set),
+        },
+    )
     return 0
 
 

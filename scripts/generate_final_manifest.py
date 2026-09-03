@@ -10,7 +10,7 @@ confirm nothing drifted.
 Usage:
     python3 scripts/generate_final_manifest.py \
         --output results/manifest.json \
-        --base-dir .
+        --base-dir
 """
 
 from __future__ import annotations
@@ -23,6 +23,7 @@ from typing import Dict, List
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from src.audit_log import log_action  # noqa: E402
 from src.sealing import sha256_file  # noqa: E402
 
 
@@ -94,6 +95,17 @@ def main() -> int:
     print(f"  {len(checksums)} artifact checksums recorded:")
     for rel in sorted(checksums):
         print(f"    {checksums[rel]}  {rel}")
+
+    # Audit trail of the manifest generation process: log the write so manifest provenance
+    # is itself on the audit trail.
+    log_action(
+        log_path=Path("experiment/logs/processing_log.jsonl"),
+        action="generate_final_manifest",
+        script="scripts/generate_final_manifest.py",
+        args={"--output": args.output, "--base-dir": args.base_dir,
+              "--artifact": args.artifact or DEFAULT_ARTIFACTS},
+        output_paths={"manifest": out_path},
+    )
     return 0
 
 
