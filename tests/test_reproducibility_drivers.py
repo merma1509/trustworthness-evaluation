@@ -177,3 +177,87 @@ def test_verify_results_flags_bad_agreement(tmp_path):
     assert any("Count mismatch" in e for e in errors), errors
 
 
+def test_verify_results_recovers_agree_from_confusion_matrix(tmp_path):
+    """agree is derived from the confusion-matrix diagonal when counts are absent,
+    and the agree estimate must not exceed the sample size."""
+    from scripts import verify_results
+
+    for name in ("scores_report.json", "trustscore_report.json",
+                 "ci_report.json", "ranking_stability.json"):
+        src = RESULTS_DIR / name
+        if src.exists():
+            (tmp_path / name).write_text(src.read_text(), encoding="utf-8")
+
+    # Matrix diagonal = 3 (agree); n = 4 -> disagree = 1, so counts are consistent.
+    (tmp_path / "part1_agreement_report.json").write_text(json.dumps({
+        "gold_vs_auto": {
+            "overall": {
+                "n": 4,
+                "cohens_kappa": 0.5,
+                "agreement_rate": 0.75,
+                "confusion_matrix": {
+                    "REFUSE": {"REFUSE": 2, "COMPLY": 1},
+                    "COMPLY": {"REFUSE": 0, "COMPLY": 1},
+                },
+            },
+        },
+    }), encoding="utf-8")
+
+    errors = verify_results.verify_results(tmp_path)
+    assert errors == [], f"consistent matrix should pass, got: {errors}"
+
+    # Break the counts: the confusion diagonal implies 3 agrees but n = 2, so
+    # agreement cannot exceed the sample size -> invariant violation.
+    (tmp_path / "part1_agreement_report.json").write_text(json.dumps({
+        "gold_vs_auto": {
+            "overall": {
+                "n": 2,
+                "cohens_kappa": 0.5,
+                "agreement_rate": 0.75,
+                "confusion_matrix": {
+                    "REFUSE": {"REFUSE": 2, "COMPLY": 1},
+                    "COMPLY": {"REFUSE": 0, "COMPLY": 1},
+                },
+            },
+        },
+    }), encoding="utf-8")
+
+    errors = verify_results.verify_results(tmp_path)
+    assert any("exceeds n" in e for e in errors), errors
+
+
+
+
+def test_audit_log_append_only_and_hashes_files(tmp_path):
+    """audit-log entries are append-only JSONL with input/output file hashes."""
+    from src.audit_log import log_action, load_log, file_sha256
+
+    log = tmp_path / "processing_log.jsonl"
+    indata = tmp_path / "input.json"
+    indata.write_text('{"a": 1}', encoding="utf-8")
+    outdata = tmp_path / "output.json"
+    outdata.write_text('{"b": 2}', encoding="utf-8")
+
+    log_action(
+        log_path=log, action="compute_scores", script="scripts/foo.py",
+        args={"--raw": "results/raw"},
+        input_paths={"input": indata},
+        output_paths={"output": outdata},
+    )
+
+    entries = load_log(log)
+    assert len(entries) == 1
+    e = entries[0]
+    assert e["action"] == "compute_scores"
+    assert e["status"] == 0 and e["outcome"] == "ok"
+    # Directory/path-only inputs hash; single files hash to their sha256 prefix.
+    assert e["output_hashes"]["output"] == file_sha256(outdata)
+    assert "timestamp" in e and e["timestamp"]
+
+    # Second entry appends, never rewrites the first.
+    log_action(log_path=log, action="compute_ci", script="scripts/ci.py",
+               args={}, input_paths={}, output_paths={})
+    entries = load_log(log)
+    assert len(entries) == 2
+    assert entries[0]["action"] == "compute_scores"
+    assert entries[1]["action"] == "compute_ci"
