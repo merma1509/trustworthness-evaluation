@@ -25,6 +25,9 @@ import sys
 from pathlib import Path
 from typing import List, Optional
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from src.audit_log import log_action  # noqa: E402
+
 
 def _load(p: Path):
     if not p.exists():
@@ -175,35 +178,88 @@ def verify_results(results_dir: Path, expected_path: Optional[Path] = None) -> L
                     )
 
     # 2. Agreement-report invariants (κ bounds, agreement bounds, agree+disagree==n).
+    #
+    # The agreement report may expose agree/disagree counts directly, or only a
+    # confusion matrix (auto_label -> {human_label: count}). When the counts are
+    # not present we derive them from the matrix: the diagonal sums to `agree`,
+    # and `disagree = n - agree`. This realises ("Agreement +
+    # disagreement counts sum to total") on every report shape.
     if agreement:
-        gold_vs_auto = agreement.get("gold_vs_auto") or agreement.get("agreement", {})
-        per_dim = gold_vs_auto.get("per_dimension") if isinstance(gold_vs_auto, dict) else None
-        buckets = {}
-        if per_dim:
-            buckets.update(per_dim)
-        if isinstance(gold_vs_auto, dict) and "overall" in gold_vs_auto:
-            buckets["overall"] = gold_vs_auto["overall"]
-        for dim, stats in buckets.items():
-            if not isinstance(stats, dict):
-                continue
+        def _matrix_agree(stats: dict) -> Optional[int]:
+            """Sum the confusion-matrix diagonal as the agree count."""
+
+            mat = stats.get("confusion_matrix")
+            if not isinstance(mat, dict):
+                return None
+            total = 0
+            for auto_label, humans in mat.items():
+                if isinstance(humans, dict):
+                    total += humans.get(auto_label, 0)
+            return total
+
+        # Flatten every section into a list of (label, stats) pairs so each
+        # downstream invariant check stays uniform.
+        sections: List[tuple] = []
+
+        # gold_vs_auto: {overall: {...}, per_dimension: {dim: {...}}}
+        gva = agreement.get("gold_vs_auto")
+        if isinstance(gva, dict):
+            if isinstance(gva.get("overall"), dict):
+                sections.append(("gold_vs_auto/overall", gva["overall"]))
+            for dim, s in (gva.get("per_dimension") or {}).items():
+                if isinstance(s, dict):
+                    sections.append((f"gold_vs_auto/{dim}", s))
+
+        # inter_rater_A_vs_B: {dim: {...}} (flat per-dimension map)
+        inter = agreement.get("inter_rater_A_vs_B")
+        if isinstance(inter, dict):
+            for dim, s in inter.items():
+                if isinstance(s, dict):
+                    sections.append((f"inter_rater/{dim}", s))
+
+        # generic 'agreement' fallback
+        gae = agreement.get("agreement")
+        if isinstance(gae, dict) and not sections:
+            if isinstance(gae.get("overall"), dict):
+                sections.append(("agreement/overall", gae["overall"]))
+            for dim, s in (gae.get("per_dimension") or {}).items():
+                if isinstance(s, dict):
+                    sections.append((f"agreement/{dim}", s))
+
+        for label, stats in sections:
             k = stats.get("cohens_kappa")
             if k is not None and not (-1 <= k <= 1):
-                errors.append(f"κ out of bounds for {dim}: {k}")
+                errors.append(f"κ out of bounds for {label}: {k}")
             ag = stats.get("agreement_rate")
             if ag is not None and not (0 <= ag <= 1):
-                errors.append(f"Agreement out of bounds for {dim}: {ag}")
-            # agree + disagree == n
+                errors.append(f"Agreement out of bounds for {label}: {ag}")
+            n = stats.get("n")
             agree = stats.get("agree")
             disagree = stats.get("disagree")
-            n = stats.get("n")
+            matrix_agree = _matrix_agree(stats)
+
+            # Explicit counts, when present, must partition n
             if agree is not None and disagree is not None and n is not None:
                 if agree + disagree != n:
                     errors.append(
-                        f"Count mismatch for {dim}: agree({agree}) + disagree({disagree}) "
-                        f"≠ n({n})"
+                        f"Count mismatch for {label}: agree({agree}) + "
+                        f"disagree({disagree}) ≠ n({n})"
                     )
 
-    # 3. CI sanity.
+            # A confusion matrix provides an independent agree estimate; it must
+            # not contradict an explicitly reported agree or the sample size
+            if matrix_agree is not None:
+                if agree is not None and matrix_agree != agree:
+                    errors.append(
+                        f"agree mismatch for {label}: confusion-diagonal "
+                        f"({matrix_agree}) ≠ reported agree ({agree})"
+                    )
+                if n is not None and matrix_agree > n:
+                    errors.append(
+                        f"agree({matrix_agree}) exceeds n({n}) for {label}"
+                    )
+
+    # 3. CI sanity
     if ci:
         for model, dims in ci.get("per_model", {}).items():
             for dim, c in dims.items():
@@ -257,8 +313,7 @@ def main() -> int:
                         help="Directory of generated results reports.")
     parser.add_argument("--expected", default=None,
                         help="Optional path to results/expected_results.json to "
-                             "verify regenerated reports against committed values "
-                             "(PLAN PART2 §2.6.2).")
+                             "verify regenerated reports against committed values ")
     args = parser.parse_args()
 
     errors = verify_results(Path(args.results),
@@ -267,8 +322,28 @@ def main() -> int:
         print("  VERIFICATION FAILED:")
         for e in errors:
             print(f"    [FAIL]{e}")
+        log_action(
+            log_path=Path("experiment/logs/processing_log.jsonl"),
+            action="verify_results",
+            script="scripts/verify_results.py",
+            args={"--results": args.results, "--expected": args.expected},
+            input_paths={"results_dir": Path(args.results)},
+            outcome="failed",
+            status=1,
+            extra={"errors": errors},
+        )
         return 1
     print("  Results verification passed (all invariants hold).")
+
+    log_action(
+        log_path=Path("experiment/logs/processing_log.jsonl"),
+        action="verify_results",
+        script="scripts/verify_results.py",
+        args={"--results": args.results, "--expected": args.expected},
+        input_paths={"results_dir": Path(args.results)},
+        outcome="ok",
+        status=0,
+    )
     return 0
 
 
