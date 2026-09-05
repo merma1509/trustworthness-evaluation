@@ -2,6 +2,7 @@
 	generate-audit experiment-audit experiment-prepare experiment-heldout-prepare \
 	experiment-heldout-report experiment-blinded-verify experiment-budget \
 	backfill-audit human-timing budget-figure error-heatmap pipeline-figure \
+	cost-report cost-frontier \
 	experiment-seal experiment-annotate experiment-ingest experiment-resolve \
 	experiment-gold experiment-agreement experiment-seal-verify experiment-reproduce \
 	verify-artifacts compute-scores compute-ci compute-ranking generate-results-json \
@@ -57,6 +58,8 @@ help:
 	@echo "  make experiment-budget REPORT=<json>          Trust-budget plan (κ-gated human allocation)"
 	@echo "  make human-timing DIMENSION=safety SAMPLE=8   MEASURED human timing study (interactive)"
 	@echo "  make budget-figure KAPPAS=...                 Budget-vs-reliability figure"
+	@echo "  make cost-report DISAGREEMENT=0.1             Cost breakdown (MEASURED/ASSUMED/MODEL)"
+	@echo "  make cost-frontier KAPPAS=...                 Cost-reliability frontier (MODEL estimate)"
 	@echo "  make error-heatmap                            Auto×Human error heatmap"
 	@echo "  make pipeline-figure                          Measurement-validation loop diagram"
 	@echo ""
@@ -474,6 +477,24 @@ budget-figure:
 	if [ -n "$(KAPPAS)" ]; then KAPPA_ARG="--kappas $(KAPPAS)"; fi; \
 	$(PY) scripts/budget_reliability_curve.py $$REPORT_ARG $$KAPPA_ARG --output results/budget_reliability_curve.png
 	@echo "  -> Figure written to results/budget_reliability_curve.png"
+
+# Cost breakdown with explicit MEASURED/ASSUMED/MODEL labels
+# Reads measured timings from cost_tracker.json / human_timing_measurement.json.
+# Optional DISAGREEMENT=0.1 adds a MODEL adjudication cost (ASSUMED s/case).
+cost-report:
+	$(PY) scripts/compute_cost.py $(if $(DISAGREEMENT),--disagreement $(DISAGREEMENT)) --output results/cost_breakdown.json
+	@echo "  -> results/cost_breakdown.json written (MEASURED/ASSUMED/MODEL breakdown)"
+
+# Cost-reliability frontier per dimension — a MODEL ESTIMATE, never a measured
+# result. Optionally pass REPORT=<json> (measured κ) or inline
+# KAPPAS="safety=0.593 truthfulness=0.277 consistency=0.0"
+cost-frontier:
+	@REPORT_ARG=""; \
+	if [ -n "$(REPORT)" ] && [ -f "$(REPORT)" ]; then REPORT_ARG="--report $(REPORT)"; fi; \
+	KAPPA_ARG=""; \
+	if [ -n "$(KAPPAS)" ]; then KAPPA_ARG="--kappas $(KAPPAS)"; fi; \
+	$(PY) scripts/cost_reliability_frontier.py $$REPORT_ARG $$KAPPA_ARG --output results/cost_reliability_frontier.json
+	@echo "  -> results/cost_reliability_frontier.json written (MODEL estimate)"
 
 # Auto × Human error heatmap from the agreement/validation reports
 error-heatmap:
