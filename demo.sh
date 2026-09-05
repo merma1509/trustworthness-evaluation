@@ -332,6 +332,17 @@ if [ -f "${RESULTS_DIR}/validation_report.json" ]; then
       --report "${RESULTS_DIR}/validation_report.json" \
       --output "${RESULTS_DIR}/budget_plan.json" \
       || echo "  (skip budget plan)"
+  # Cost breakdown with explicit MEASURED/ASSUMED/MODEL labels — always runs:
+  # it reads measured timings when present and falls back to explicit defaults.
+  $PYTHON scripts/compute_cost.py \
+      --output "${RESULTS_DIR}/cost_breakdown.json" \
+      || echo "  (skip cost breakdown)"
+  # Cost-reliability frontier — a MODEL ESTIMATE sourced from the measured κ in
+  # the validation report. Never treated as a measured result.
+  $PYTHON scripts/cost_reliability_frontier.py \
+      --report "${RESULTS_DIR}/validation_report.json" \
+      --output "${RESULTS_DIR}/cost_reliability_frontier.json" \
+      || echo "  (skip cost-reliability frontier)"
 fi
 if [ -f "${RESULTS_DIR}/audit/agreement_report.json" ]; then
   $PYTHON scripts/error_heatmap.py \
@@ -343,7 +354,7 @@ if [ -f "${RESULTS_DIR}/audit/agreement_report.json" ]; then
       --output "${RESULTS_DIR}/pipeline_loop.png" \
       || echo "  (skip pipeline-loop diagram)"
 fi
-echo "  -> Artifacts: budget_plan.json, budget_reliability_curve.png, error_heatmap.png, pipeline_loop.png"
+echo "  -> Artifacts: budget_plan.json, budget_reliability_curve.png, cost_breakdown.json, cost_reliability_frontier.json, error_heatmap.png, pipeline_loop.png"
 
 echo "[11c/12] Experiment flow: fresh blinded audit + splits ready..."
 # The blinded full-dataset experiment (≥2 independent, blinded annotators) is the
