@@ -40,6 +40,22 @@ def _load_validation():
         return json.loads(f.read())
 
 
+def _load_cost_breakdown():
+    path = Path("results/cost_breakdown.json")
+    if not path.exists():
+        return {}
+    with open(path) as f:
+        return json.loads(f.read())
+
+
+def _load_cost_frontier():
+    path = Path("results/cost_reliability_frontier.json")
+    if not path.exists():
+        return {}
+    with open(path) as f:
+        return json.loads(f.read())
+
+
 def render(available, gemma_scores, llama_scores, gemma_cis, llama_cis, all_scores, all_cis):
     # ── Load data ──────────────────────────────────────────
     report = _load_validation()
@@ -288,42 +304,105 @@ def render(available, gemma_scores, llama_scores, gemma_cis, llama_cis, all_scor
     # ── 8. Cost-Benefit ────────────────────────────────────
     st.markdown("### Cost-Benefit")
     with st.container(border=True):
-        if rq4:
+        cost = _load_cost_breakdown()
+        if cost:
+            auto = cost.get("auto", {})
+            human = cost.get("human", {})
+            hybrid = cost.get("hybrid_50pct_audit", {})
+            comp = cost.get("comparison", {})
+            assumed = cost.get("ASSUMED", {})
+
+            # Per-labels from the explicitly-labelled breakdown.  Auto uses 0
+            # labour-hours; the "× cheaper" ratio is a nominal, apples-to-oranges
+            # comparison that must not be read as a universally-valid claim.
+            auto_hours = auto.get("labour_hours", 0)
+            human_hours = human.get("hours", 0)
+            human_labour = human.get("labour_cost_usd", 0)
+            ratio = comp.get("nominal_ratio_x")
+
+            cost_rows = [
+                {
+                    "Method": "Fully auto",
+                    "Labour time": f"{auto_hours:.2f} h",
+                    "Cost": f"${auto.get('compute_cost_usd', 0):.2f}",
+                    "Basis": "MEASURED classifier time; 0 labour hours",
+                    "Quality": f"{overall_agree:.0%} agree, κ={overall_kappa:.2f}",
+                },
+                {
+                    "Method": "Fully human",
+                    "Labour time": f"{human_hours:.2f} h",
+                    "Cost": f"${human_labour:.2f} (+ setup ${human.get('setup_cost_usd', 0):.2f} ASSUMED)",
+                    "Basis": f"MEASURED {human.get('adjudication_label', '')}",
+                    "Quality": "100% ground truth",
+                },
+                {
+                    "Method": "Hybrid (50% audit)",
+                    "Labour time": "half",
+                    "Cost": f"${hybrid.get('cost_usd', 0):.2f}",
+                    "Basis": "auto 100% + human 50%",
+                    "Quality": "Validated auto + human",
+                },
+            ]
+            st.dataframe(pd.DataFrame(cost_rows), width="stretch", hide_index=True)
+            if ratio is not None:
+                st.warning(
+                    f"The **nominal ratio is ~{ratio:.0f}×**, but this is an "
+                    f"**apples-to-oranges** comparison: it divides scarce paid "
+                    f"*labour* against ≈free local *compute*. {comp.get('caveat', '')}"
+                )
+            st.caption(
+                "Labels: "
+                + ", ".join(
+                    f"{k}=**{v}**"
+                    for k, v in {
+                        "human time/label": cost.get("MEASURED", {}).get(
+                            "human_seconds_per_label", "?"
+                        ),
+                        "hourly wage": f"${assumed.get('human_hr_rate', '?')} (ASSUMED)",
+                        "setup": f"{assumed.get('setup_hours', '?')} h (ASSUMED)",
+                        "adjudication": human.get("adjudication_label", "?"),
+                    }.items()
+                )
+            )
+        elif rq4:
+            # Fallback to the legacy inline RQ4 block (no cost_breakdown.json yet).
             auto = rq4.get("fully_automatic", {})
             human = rq4.get("fully_human", {})
             hybrid = rq4.get("hybrid_50pct_audit", {})
             auto_cost = auto.get("cost", 0.29)
             human_cost = human.get("cost", 35.0)
             ratio = human_cost / auto_cost if auto_cost > 0 else 0
-
             cost_rows = [
                 {
                     "Method": "Fully auto",
-                    "Time": f"{auto.get('time_hours', 0.6):.1f}h",
+                    "Labour time": f"{auto.get('time_hours', 0.6):.1f}h",
                     "Cost": f"${auto_cost:.2f}",
+                    "Basis": "MEASURED classifier time",
                     "Quality": f"{overall_agree:.0%} agree, κ={overall_kappa:.2f}",
                 },
                 {
                     "Method": "Fully human",
-                    "Time": f"{human.get('time_hours', 1.8):.1f}h",
+                    "Labour time": f"{human.get('time_hours', 1.8):.1f}h",
                     "Cost": f"${human_cost:.2f}",
+                    "Basis": "MEASURED per-label time × $/hr",
                     "Quality": "100% ground truth",
                 },
                 {
                     "Method": "Hybrid (50% audit)",
-                    "Time": f"{hybrid.get('time_hours', 1.5):.1f}h",
+                    "Labour time": f"{hybrid.get('time_hours', 1.5):.1f}h",
                     "Cost": f"${hybrid.get('cost', 17.79):.2f}",
+                    "Basis": "auto 100% + human 50%",
                     "Quality": "Validated auto + human",
                 },
             ]
             st.dataframe(pd.DataFrame(cost_rows), width="stretch", hide_index=True)
-            st.info(
-                f"Auto evaluation is **{ratio:.0f}x cheaper** than human evaluation. "
-                f"A hybrid approach with 50% validation provides measurement "
-                f"validation at half the human cost."
+            st.warning(
+                f"Auto uses 0 labour-hours; the **{ratio:.0f}×** figure is a "
+                f"nominal, apples-to-oranges ratio (labour vs ≈free local compute), "
+                f"not a universally-valid '× cheaper' claim."
             )
         else:
-            st.info("Cost data not available.")
+            st.info("Cost data not available (run `make cost-report`).")
 
     # ── Budget Optimization (κ-gated) ─────────────────
     st.markdown("### Budget Optimization (κ-gated)")
@@ -388,6 +467,34 @@ def render(available, gemma_scores, llama_scores, gemma_cis, llama_cis, all_scor
             )
         else:
             st.caption("Tip: `make error-heatmap` produces the Auto×Human error heatmap.")
+
+        # Cost-Reliability Frontier (MODEL ESTIMATE), if generated.
+        frontier = _load_cost_frontier()
+        if frontier:
+            st.markdown("#### Cost-Reliability Frontier (allocation decision-support)")
+            fr_rows = []
+            for dim, f in frontier.get("frontiers", {}).items():
+                for p in f.get("points", []):
+                    fr_rows.append(
+                        {
+                            "Dimension": dim.capitalize(),
+                            "Human fraction": f"{p['frac_human'] * 100:.0f}%",
+                            "Human labels": p["human_labels"],
+                            "Cost": f"${p['cost_usd']:.2f}",
+                            "Eff. agreement (model)": f"{p['effective_agreement_model']:.3f}",
+                        }
+                    )
+            st.dataframe(pd.DataFrame(fr_rows), width="stretch", hide_index=True)
+            st.warning(
+                "⚠️ **MODEL ESTIMATE — not a measured result.** Human accuracy "
+                f"(assumed ≈{frontier.get('human_accuracy_assumed', '?')}) and the "
+                "effective-agreement curve are modelling choices, not observations. "
+                "Use only as decision-support for how to spend human annotation."
+            )
+        else:
+            st.caption(
+                "Tip: `make cost-frontier` produces the Cost-Reliability frontier (MODEL estimate)."
+            )
 
     # ── 9. When to Trust ────────────────────────────────────
     st.markdown("### When to Trust It")
