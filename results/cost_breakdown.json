@@ -1,0 +1,50 @@
+{
+  "parameters": {
+    "n_responses": 210,
+    "auto_seconds_per_prompt": 4.504,
+    "human_seconds_per_label": 12.2,
+    "disagreement_rate": null
+  },
+  "MEASURED": {
+    "auto_seconds_per_prompt": 4.504,
+    "human_seconds_per_label": 12.2
+  },
+  "ASSUMED": {
+    "human_hr_rate": 20.0,
+    "setup_hours": 1.0,
+    "setup_note": "Assumed rater onboarding/training; per-label times exclude it.",
+    "auto_compute_rate_per_hr": 0.0,
+    "adjudication_seconds_per_case": null
+  },
+  "MODEL": {
+    "adjudication": "OMITTED (no measured disagreement rate)"
+  },
+  "auto": {
+    "hours": 0.263,
+    "compute_cost_usd": 0.0,
+    "labour_hours": 0.0,
+    "note": "Local inference ≈ $0 compute; 0 labour hours."
+  },
+  "human": {
+    "hours": 0.712,
+    "labour_cost_usd": 14.23,
+    "setup_hours": 1.0,
+    "setup_cost_usd": 20.0,
+    "adjudication_cost_usd": 0.0,
+    "adjudication_label": "OMITTED (no measured disagreement rate)",
+    "total_cost_usd": 34.23
+  },
+  "hybrid_50pct_audit": {
+    "audit_responses": 105,
+    "auto_responses": 210,
+    "cost_usd": 7.12,
+    "note": "Run auto on all, human on 50% for validation."
+  },
+  "comparison": {
+    "human_labour_hours": 0.712,
+    "auto_labour_hours": 0.0,
+    "labour_savings_hours": 0.712,
+    "nominal_ratio_x": null,
+    "caveat": "Apples-to-oranges: the nominal ratio divides paid labour by ≈free local compute. It is NOT a single universally-valid '× cheaper' claim — auto is preferable only where its κ is adequate for the dimension."
+  }
+}
