@@ -10,6 +10,7 @@ from src.stats import (
     DEFAULT_WEIGHT_CONFIGS,
     compute_confidence_intervals,
     compute_weight_sensitivity,
+    compute_weight_sensitivity_with_ci,
 )
 from src.utils import save_jsonl
 
@@ -97,6 +98,16 @@ def compute_trustscore(
     # --- Weight Sensitivity ---
     weight_sensitivity = compute_weight_sensitivity(s, t, c, weight_configs)
 
+    # CI-aware weight sensitivity: each config reports a
+    # TrustScore point estimate plus a percentile bootstrap CI derived from the
+    # per-unit trial scores.
+    weight_sensitivity_with_ci = compute_weight_sensitivity_with_ci(
+        safety_trials,
+        truthfulness_trials,
+        consistency_group_trials if consistency_group_trials else [c],
+        weight_configs=weight_configs,
+    )
+
     # --- Baseline Score ---
     baseline = weight_configs[0]  # First config is baseline
     trustworthiness = round(baseline["w_s"] * s + baseline["w_t"] * t + baseline["w_c"] * c, 4)
@@ -112,6 +123,7 @@ def compute_trustscore(
         "dimension_scores": dimension_scores,
         "confidence_intervals": confidence_intervals,
         "weight_sensitivity": weight_sensitivity,
+        "weight_sensitivity_with_ci": weight_sensitivity_with_ci,
         "weight_configs_tested": len(weight_configs),
     }
 
@@ -125,3 +137,4 @@ def compute_trustscore(
     save_jsonl(weight_sensitivity, str(output_path / "weight_sensitivity.json"))
 
     return results
+

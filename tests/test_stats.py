@@ -1,5 +1,6 @@
 """Unit tests for src/stats.py invariants (Task 9)."""
 import numpy as np
+import pytest
 
 from src.stats import (
     DEFAULT_WEIGHT_CONFIGS,
@@ -138,9 +139,148 @@ def test_empirical_n_returns_estimate():
         scores, target_precision=0.05, n_bootstrap=100
     )
     assert "n_required" in res
-    assert "theoretical_wald_n" in res
-    assert res["theoretical_wald_n"] > 0
+    assert "theoretical_n" in res
+    assert res["theoretical_n"] > 0
     assert len(res["sizes"]) > 0
+
+
+# ── Wilson sample-size estimator ────────────────
+def test_wilson_and_wald_reference_values():
+    """Wilson must be <= Wald at p=0.5, and match known reference values."""
+    from src.stats import estimate_required_sample_size
+
+    wilson_05 = estimate_required_sample_size(precision=0.05, method="wilson")["n_required"]
+    wald_05 = estimate_required_sample_size(precision=0.05, method="wald")["n_required"]
+    wilson_10 = estimate_required_sample_size(precision=0.10, method="wilson")["n_required"]
+
+    # Reference: Wilson 5% = 381, Wald 5% = 385, Wilson 10% = 93
+    assert wilson_05 == 381
+    assert wald_05 == 385
+    assert wilson_10 == 93
+    assert wilson_05 <= wald_05  # Wilson is slightly sharper than Wald
+
+
+def test_estimate_required_sample_size_default_is_wilson():
+    from src.stats import estimate_required_sample_size
+    assert estimate_required_sample_size(precision=0.05)["method"] == "wilson"
+
+
+def test_estimate_required_sample_size_rejects_bad_method():
+    from src.stats import estimate_required_sample_size
+    try:
+        estimate_required_sample_size(method="exact")
+        raised = False
+    except ValueError:
+        raised = True
+    assert raised
+
+
+# ── Efron percentile bootstrap CIs ─────────────
+def test_confidence_intervals_efron_percentile_method_and_seed():
+    """Standard path must report method/seed/n_bootstrap for traceability."""
+    ci = compute_confidence_intervals([0, 1, 1, 0, 1, 1, 0, 1], n_bootstrap=500)
+    assert ci["method"] == "efron_percentile"
+    assert ci["n_bootstrap"] == 500
+    assert ci["seed"] == 42
+
+
+def test_confidence_intervals_deterministic_seed():
+    """Same seed must give identical CIs (reproducibility)."""
+    a = compute_confidence_intervals([0, 1, 1, 0, 1, 1, 0, 1], n_bootstrap=500, seed=42)
+    b = compute_confidence_intervals([0, 1, 1, 0, 1, 1, 0, 1], n_bootstrap=500, seed=42)
+    assert a["ci_lower"] == b["ci_lower"]
+    assert a["ci_upper"] == b["ci_upper"]
+
+
+# ── weight sensitivity with CIs ────────────────
+def test_weight_sensitivity_with_ci_shape():
+    from src.stats import compute_weight_sensitivity_with_ci
+    res = compute_weight_sensitivity_with_ci(
+        safety_trials=[1, 0, 1, 1, 0, 1],
+        truthfulness_trials=[1, 1, 0, 1, 1],
+        consistency_trials=[1, 0, 1],
+        n_bootstrap=200,
+    )
+    assert len(res) == len(DEFAULT_WEIGHT_CONFIGS)
+    for cfg in res:
+        assert cfg["method"] == "efron_percentile"
+        assert cfg["n_bootstrap"] == 200
+        assert cfg["seed"] == 42
+        assert cfg["ci_lower"] <= cfg["trustscore"] <= cfg["ci_upper"]
+        # Half-width must match the CI width (tolerance for rounding).
+        assert abs(cfg["ci_half_width"] - (cfg["ci_upper"] - cfg["ci_lower"]) / 2) <= 0.001
+
+
+def test_weight_sensitivity_with_ci_point_matches_point_only():
+    """Baseline point score must equal the non-CI sensitivity score."""
+    from src.stats import compute_weight_sensitivity, compute_weight_sensitivity_with_ci
+    safety = [1, 0, 1, 1, 0, 1, 0, 1]
+    truth = [1, 1, 0, 1, 1, 1]
+    cons = [1, 0, 1]
+    ci_res = compute_weight_sensitivity_with_ci(
+        safety, truth, cons, n_bootstrap=200
+    )
+    point_res = compute_weight_sensitivity(
+        float(np.mean(safety)), float(np.mean(truth)), float(np.mean(cons)),
+        DEFAULT_WEIGHT_CONFIGS,
+    )
+    by_name = {cfg["config"]: cfg for cfg in ci_res}
+    for r in point_res:
+        assert by_name[r["name"]]["trustscore"] == r["score"]
+
+
+# ── model win probability / ranking stability ──
+def test_model_win_probability_shape_and_stable_flag():
+    from src.stats import compute_model_win_probability
+    trials1 = {"safety": [1, 1, 1], "truthfulness": [1, 1, 1], "consistency": [1, 1, 1]}
+    trials2 = {"safety": [0, 0, 0], "truthfulness": [0, 0, 0], "consistency": [0, 0, 0]}
+    res = compute_model_win_probability(trials1, trials2, n_bootstrap=500)
+    assert len(res["per_config"]) == len(DEFAULT_WEIGHT_CONFIGS)
+    assert res["n_bootstrap"] == 500
+    assert res["seed"] == 42
+    for cfg in res["per_config"]:
+        assert cfg["P_model1_wins"] >= 0.95  # model1 dominates model2
+        assert cfg["stable_win"] is True
+
+
+def test_model_win_probability_tie_sum():
+    from src.stats import compute_model_win_probability
+    trials1 = {"safety": [1, 0, 1], "truthfulness": [1, 0, 1], "consistency": [1, 0, 1]}
+    res = compute_model_win_probability(trials1, trials1, n_bootstrap=500)
+    for cfg in res["per_config"]:
+        assert round(cfg["P_model1_wins"] + cfg["P_model2_wins"] + cfg["tie_pct"] / 100, 2) == pytest.approx(1.0, abs=0.01)
+
+
+# ── paired bootstrap hypothesis test ───────────
+def test_paired_bootstrap_test_identical_means():
+    from src.stats import paired_bootstrap_test
+    res = paired_bootstrap_test([1, 1, 0, 1, 0], [1, 1, 0, 1, 0], n_bootstrap=500)
+    assert res["observed_difference"] == 0.0
+    assert "null_hypothesis" in res
+    assert res["n_pairs"] == 5
+    assert res["n_bootstrap"] == 500
+    assert res["seed"] == 42
+    # Identical data under H0: p-value should be large (not significant).
+    assert res["p_value"] > 0.05
+
+
+def test_paired_bootstrap_test_requires_equal_length():
+    from src.stats import paired_bootstrap_test
+    try:
+        paired_bootstrap_test([1, 0], [1])
+        raised = False
+    except ValueError:
+        raised = True
+    assert raised
+
+
+def test_interpret_p_buckets():
+    from src.stats import interpret_p
+    assert interpret_p(0.0001) == "very strong evidence against H0"
+    assert interpret_p(0.005) == "strong evidence against H0"
+    assert interpret_p(0.03) == "moderate evidence against H0"
+    assert interpret_p(0.07) == "weak evidence against H0"
+    assert interpret_p(0.5) == "no evidence against H0"
 
 
 
