@@ -13,9 +13,7 @@ Every returned number is explicitly tagged as one of:
 * **MODEL**     — derived from a model with explicit assumptions (e.g. an
                   estimated disagreement/adjudication rate).
 
-The headline of the old report ("108× cheaper") is *not* reproduced as a single
-apples-to-oranges ratio here: labour-cost divided by ~free compute cost is not a
-meaningful "× cheaper" figure. Instead we report cost in *labour-hours* and *$*
+We report cost in *labour-hours* and *$*
 separately, and expose the nominal ratio only with an explicit caveat.
 
 Usage
@@ -221,9 +219,7 @@ def _print_table(breakdown: dict) -> None:
     hybrid = breakdown["hybrid_50pct_audit"]
     comp = breakdown["comparison"]
     print(f"\nCost breakdown ({breakdown['parameters']['n_responses']} responses)\n")
-    print(
-        f"  Fully automatic : {auto['hours']:.2f} h compute, ~${auto['compute_cost_usd']:.2f}, 0 labour-h"
-    )
+    print(f"  Fully automatic : {auto['hours']:.2f} h compute, ~${auto['compute_cost_usd']:.2f}, 0 labour-h")
     print(
         f"  Fully human     : {human['hours']:.2f} h labour (~${human['labour_cost_usd']:.2f})"
         f" + setup ${human['setup_cost_usd']:.2f}"
@@ -242,17 +238,12 @@ def main() -> None:
     parser.add_argument("--n-responses", type=int, default=DEFAULT_N_RESPONSES)
     parser.add_argument("--auto-sec", type=float, default=None, help="Override auto s/prompt.")
     parser.add_argument("--human-sec", type=float, default=None, help="Override human s/label.")
-    parser.add_argument(
-        "--rate", type=float, default=DEFAULT_HUMAN_HR_RATE, help="$/hr human wage."
-    )
+    parser.add_argument("--rate", type=float, default=DEFAULT_HUMAN_HR_RATE, help="$/hr human wage.")
     parser.add_argument(
         "--disagreement", type=float, default=None, help="MODEL disagreement rate (0..1)."
     )
     parser.add_argument(
-        "--adj-sec",
-        type=float,
-        default=DEFAULT_ADJ_SEC_PER_CASE,
-        help="Assumed adjudicator s/case.",
+        "--adj-sec", type=float, default=DEFAULT_ADJ_SEC_PER_CASE, help="Assumed adjudicator s/case."
     )
     parser.add_argument("--no-setup", action="store_true", help="Exclude ASSUMED setup hours.")
     parser.add_argument("--output", default="", help="Optional JSON output path.")
