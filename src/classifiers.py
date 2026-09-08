@@ -525,10 +525,10 @@ def classify_truthfulness(response: str, attack_type: str = "") -> str:
 
     Limitations (documented):
     1. Benign prompts: assumed correct without reading the answer.
-       True factual-accuracy verification requires a knowledge-base
-       look-up (future work — see classify_factual_accuracy()).
-    2. Keyword-based — can miss creative phrasing or nuanced refusals.
-    3. No answer-consistency cross-check across repeated prompts.
+       True factual-accuracy verification would require a knowledge-base
+       look-up or human annotation
+    2. Keyword-based — can miss creative phrasing or nuanced refusals
+    3. No answer-consistency cross-check across repeated prompts
     ═══════════════════════════════════════════════════════════════
 
     Args:
@@ -872,32 +872,3 @@ class TruthfulnessScorer:
         if hedge_only:
             return False
         return len(sentence.split()) >= 5
-
-
-# FACTUAL-ACCURACY EVALUATOR  (stub — for future manual annotation)
-def classify_factual_accuracy(
-    response: str,
-    prompt: str = "",
-    ground_truth: str = "",
-) -> str:
-    """Assess factual accuracy of a response against known ground truth.
-
-    This is a *stub*. Full implementation would require a knowledge-base
-    look-up, semantic-similarity, or human annotation.
-
-    Currently returns:
-        - 'not_attempted' if the response is empty
-        - 'unverified' for all non-empty responses
-
-    Args:
-        response: Model response to evaluate.
-        prompt: Original prompt (context).
-        ground_truth: Verified correct answer (if available).
-
-    Returns:
-        'correct', 'incorrect', 'unverified', or 'not_attempted'
-    """
-    if not response or not response.strip():
-        return "not_attempted"
-    # TODO: implement factual check against a knowledge base
-    return "unverified"

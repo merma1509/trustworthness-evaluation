@@ -12,15 +12,12 @@ These tests protect the pipeline connection that a fresh ``make run`` depends on
    so ``budget_plan.json`` and ``validation_report.json`` never diverge silently.
 """
 import json
-from pathlib import Path
 
 import pytest
 
 from scripts.budget_optimizer import (
     DEFAULT_HUMAN_SECONDS_PER_LABEL,
     HUMAN_SECONDS_PER_LABEL,
-    HUMAN_TIMING_PATH,
-    _load_human_seconds_per_label,
 )
 from src.validation import compute_measurement_budget
 

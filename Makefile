@@ -1,8 +1,6 @@
 .PHONY: help setup run clean clean-all lint format audit dashboard eval offlinescore test \
-	generate-audit experiment-audit experiment-prepare experiment-heldout-prepare \
-	experiment-heldout-report experiment-blinded-verify experiment-budget \
-	backfill-audit human-timing budget-figure error-heatmap pipeline-figure \
-	cost-report cost-frontier \
+	generate-audit experiment-audit experiment-budget \
+	human-timing budget-figure error-heatmap pipeline-figure cost-report cost-frontier \
 	experiment-seal experiment-annotate experiment-ingest experiment-resolve \
 	experiment-gold experiment-agreement experiment-seal-verify experiment-reproduce \
 	verify-artifacts compute-scores compute-ci compute-ranking generate-results-json \
@@ -21,7 +19,7 @@ endif
 
 
 # ── Shared recipe: build an audit dataset (single source of truth) ──
-# Used by both `generate-audit` (small sample) and `experiment-audit` (full
+# Used by `generate-audit` (small sample) and `experiment-audit` (full
 # sample). Each caller sets the target-specific variables below:
 #   AUDIT_OUTPUT       output jsonl path
 #   AUDIT_N_SAFETY     # samples per-dimension (safety)
@@ -42,7 +40,7 @@ help:
 	@echo "  make setup                    Install dependencies via uv"
 	@echo "  make run                      Run full evaluation pipeline + dashboard"
 	@echo "                                (fresh audit + paper-analysis figures; interactive"
-	@echo "                                gates; auto-builds held-out report if templates filled)"
+	@echo "                                gates; reports sealed-experiment status honestly)"
 	@echo "  make eval                     Run evaluation only (no dashboard)"
 	@echo "  make dashboard                Launch Streamlit dashboard only"
 	@echo "  make offlinescore             Run offline rescoring"
@@ -63,17 +61,8 @@ help:
 	@echo "  make error-heatmap                            Auto×Human error heatmap"
 	@echo "  make pipeline-figure                          Measurement-validation loop diagram"
 	@echo ""
-	@echo "LEGACY blinded 2-rater experiment (full-dataset, anonymised):"
-	@echo "  NOTE: superseded by CLEAN-REDO below (3 raters, sealed, label-constrained)"
-	@echo "  Kept only while README / committed reports still cite its held-out κ figures"
-	@echo "  make experiment-audit                 Regenerate FULL audit dataset for the experiment"
-	@echo "  make experiment-prepare               Build anonymised calibration/held-out + ground truth"
-	@echo "  make experiment-heldout-prepare       Emit blank annotator templates (ANNOTATORS=\"ann1 ann2\")"
-	@echo "  make experiment-heldout-report        Final held-out report (ANNOTATIONS=\"<2+ filled files>\")"
-	@echo "  make backfill-audit                   Backfill human labels into all_audit_full.jsonl"
-	@echo "  make experiment-blinded-verify        Verify no auto_label/model/prompt_id leaked"
-	@echo ""
-	@echo "CLEAN-REDO (sealed-randomization protocol) - CANONICAL:"
+	@echo "CLEAN-REDO (sealed-randomization protocol) - CANONICAL methodology:"
+	@echo "  make experiment-audit                  Regenerate FULL audit dataset (experiment/all_audit_full.jsonl)"
 	@echo "  make experiment-seal                   Seal a NEW experiment (templates + encrypted labels)"
 	@echo "                                           SEED=... EXPERIMENT_ID=... [PASSPHRASE=...]"
 	@echo "  make experiment-annotate               Emit blank rater templates + declaration forms"
@@ -86,6 +75,7 @@ help:
 	@echo "  make experiment-reproduce              ONE command: regenerate EVERY reported number"
 	@echo "                                           (scores, CI, ranking, cost, κ) from immutable inputs"
 	@echo "                                           then verify internal consistency + artifact checksums"
+	@echo "                                           FAILS CLOSED unless real rater annotations are READY"
 	@echo ""
 	@echo "REPRODUCIBILITY DRIVERS (used by experiment-reproduce; run individually too):"
 	@echo "  make compute-scores                    Per-model/per-dimension scores + TrustScore (results/scores_report.json)"
@@ -148,31 +138,28 @@ clean:
 # ========= Full clean: ==========
 # remove every GENERATED / UNTRACKED / IGNORED artifact under
 # results/, WITHOUT touching git-tracked files (committed reference data such
-# as all_audit.jsonl, annotation CSV/JSONL, blinded templates, manual audit,
+# as all_audit.jsonl, annotation CSV/JSONL, sealed templates, manual audit,
 # human_annotation_30.csv are preserved). This is a safe "reset to a fresh,
 # reproducible state"
 #
 # Two sources of junk are swept:
 #   * untracked files  -> `git clean -fd` (git never touches committed files),
-#   * ignored work dirs (experiment/held_out_work/ — per-annotator templates
-#     filled by humans, listed in .gitignore) -> explicit rm -rf
+#   * ignored work dirs (experiment/annotations/ — per-rater templates filled
+#     by humans, listed in .gitignore) -> explicit rm -rf
 # Committed files are always preserved; nothing is lost irrecoverably
 clean-all:
 	@echo "Removing generated / untracked / ignored artifacts..."
-	@echo "  (git-tracked files are preserved; calibration_work/ is kept as evidence)"
+	@echo "  (git-tracked files are preserved; sealed reference data is kept)"
 	@echo "  Removing experiment/audit/ (duplicate of paradigm_report.json)..."
 	rm -rf experiment/audit/
 	@echo "  Removing results/ untracked..."
 	git clean -fd -- "$(RESULTS)/"
-	@echo "  Removing results/ ignored work dirs..."
-	rm -rf "$(RESULTS)/blinded_work" "$(RESULTS)/blinded_heldout_work"
-	@echo "  Removing experiment/ held-out work (per-annotator files, gitignored)..."
-	rm -rf experiment/held_out_work
+	@echo "  Removing experiment/ annotations (per-rater filled files, gitignored)..."
+	rm -rf experiment/annotations
 	@echo "  Removing empty leftover directories..."
 	@find "$(RESULTS)" -type d -empty -delete 2>/dev/null || true
 	@find "experiment" -type d -empty -delete 2>/dev/null || true
-	@echo "  Note: experiment/calibration_work/ and experiment/paradigm_report.json are kept."
-	@echo "  (untracked but important: show how calibration ties were resolved)"
+	@echo "  Note: experiment/paradigm_report.json is kept (calibration-ties evidence)."
 	@echo "Full clean complete"
 
 lint:
@@ -199,33 +186,17 @@ test:
 	$(PY) -m pytest -q
 
 
-# ── blinded held-out EXPERIMENT (full-dataset, anonymised flow) ──
-# The experiment flow is the single blinded-annotation flow. It runs on the
-# FULL audit dataset with strict anonymisation: Model A/B + sequential anon ids,
-# dimension kept (needed for the label rubric) but auto_label/attack_type/
-# prompt_id/model hidden. The analyst-only ground truth lets the report
-# re-attach auto labels afterwards
-
-# Regenerate the full audit dataset (all prompts/groups) used by the experiment
+# ── Full audit dataset (single source of truth for the sealed experiment) ──
+# experiment-audit regenerates the FULL audit dataset used by the sealed
+# CLEAN-REDO experiment (all prompts/groups, no per-dimension cap).
 experiment-audit: AUDIT_OUTPUT := experiment/all_audit_full.jsonl
 experiment-audit: AUDIT_N_SAFETY := 100
 experiment-audit: AUDIT_N_TRUTHFULNESS := 100
 experiment-audit: AUDIT_N_CONSISTENCY := 100
 experiment-audit:
-	@echo "Regenerating FULL audit dataset for the blinded experiment..."
+	@echo "Regenerating FULL audit dataset for the sealed experiment..."
 	$(AUDIT_SAMPLES)
 	@echo "  -> $(AUDIT_OUTPUT)"
-
-# Build the anonymised calibration/held-out blinded files + secret ground truth.
-experiment-prepare:
-	@echo "Building anonymised blinded calibration/held-out datasets (seed=42)..."
-	$(PY) scripts/generate_blinded_annotation.py \
-		--audit experiment/all_audit_full.jsonl \
-		--raw "$(RESULTS)/raw_outputs" \
-		--output experiment/blinded \
-		--calibration-ratio 0.3 --seed 42
-	@echo "  -> experiment/blinded/{blinded_annotation_calibration,blinded_annotation_heldout}.jsonl"
-	@echo "  -> experiment/blinded/ground_truth_blinded.json (ANALYST-ONLY, git-ignored)"
 
 
 # ==== CLEAN-REDO: sealed-randomization protocol ====
@@ -241,7 +212,9 @@ experiment-prepare:
 #    experiment-gold          build gold_labels.jsonl (gold + sealed auto join)
 #    experiment-agreement     held-out agreement figures (gold-vs-auto, inter-rater)
 #    experiment-seal-verify   check a sealed experiment is intact & fully blinded
-#    experiment-reproduce     run the FULL pipeline end-to-end with simulated raters
+#    experiment-reproduce     regenerate EVERY reported number from immutable inputs,
+#                             FAILING CLOSED unless real rater annotations are READY
+#                             (never fabricates agreement κ from simulated raters)
 #
 # Most steps need variables; run `make help` or see each script's --help
 
@@ -313,10 +286,45 @@ experiment-seal-verify:
 # EVERY reported number (scores, CI, ranking stability, cost) from immutable
 # raw outputs + sealed artifacts, then verifies internal consistency and
 # checks artifact checksums. Deterministic (fixed seeds)
+#
+# HONESTY GATE (methodological fix): the annotation-derived κ figures
+# (gold-vs-auto, inter-rater) are ONLY regenerated from the REAL sealed rater
+# annotations. If any rater file is empty/invalid (STATUS != READY), the
+# reproduce step FAILS CLOSED instead of fabricating agreement numbers from
+# simulated raters
+#
+# EXPERIMENT_ID / SEAL_PASSPHRASE are read from the environment when the
+# annotations are READY so the held-out gold can be rebuilt in-place.
 experiment-reproduce: verify-artifacts
 	@echo "=== Reproducing all reported numbers ==="
-	@echo "--- 1/7 sealed-randomization end-to-end (simulated raters) ---"
-	$(PY) scripts/demo_e2e.py
+	@echo "--- 0/7 annotation honesty gate (fail-closed) ---"
+	@STATUS=$$($(PY) scripts/experiment_status.py --annotations-dir experiment/annotations --experiment-id "$(EXPERIMENT_ID)" --status-only); \
+	echo "  Experiment annotation STATUS: $$STATUS"; \
+	if [ "$$STATUS" != "READY" ]; then \
+		echo "  ✗ Annotations not complete — refusing to fabricate agreement κ from simulated/short data."; \
+		echo "    Fill the sealed rater templates (calibration + heldout) with REAL independent"; \
+		echo "    raters, then re-run (see PART 1: experiment-annotate / experiment-ingest / experiment-resolve)."; \
+		exit 1; \
+	fi
+	@echo "--- 1/7 rater agreements -> gold labels -> held-out agreement κ ---"
+	@EXPERIMENT_ID="$(EXPERIMENT_ID)"; \
+	if [ -f "experiment/agreements/$${EXPERIMENT_ID}_heldout_disagreements.json" ]; then \
+		$(PY) scripts/generate_gold_labels.py \
+			--resolutions "experiment/agreements/$${EXPERIMENT_ID}_heldout_disagreements.json" \
+			--sealed-labels experiment/sealed/labels/sealed_auto_labels.jsonl.enc \
+			--passphrase "$(SEAL_PASSPHRASE)" \
+			--out experiment/gold/gold_labels.jsonl; \
+		$(PY) scripts/report_part1_agreement.py \
+			--gold experiment/gold/gold_labels.jsonl \
+			--rater-a "experiment/annotations/$${EXPERIMENT_ID}_RATER_A_heldout.jsonl" \
+			--rater-b "experiment/annotations/$${EXPERIMENT_ID}_RATER_B_heldout.jsonl" \
+			--out experiment/reports/part1_agreement_report.json \
+			--with-ci; \
+	else \
+		echo "  note: no held-out disagreement-resolution file found; held-out κ not regenerated."; \
+		echo "    Run experiment-annotate / experiment-ingest / experiment-resolve with the filled"; \
+		echo "    rater files to produce the gold + held-out κ (gold-vs-auto, inter-rater)."; \
+	fi
 	@echo "--- 2/7 dimension scores + TrustScore ---"
 	$(PY) scripts/compute_scores.py --raw "$(RESULTS)/raw_outputs" --output "$(RESULTS)/scores_report.json"
 	$(PY) scripts/generate_results_json.py --scores "$(RESULTS)/scores_report.json" --output-results "$(RESULTS)"
@@ -380,58 +388,6 @@ generate-expected:
 verify-immutable:
 	$(PY) scripts/verify_immutable.py --manifest "$(RESULTS)/manifest.json" --base-dir .
 
-experiment-heldout-prepare:
-	@test -n "$(ANNOTATORS)" || (echo "Set ANNOTATORS=\"ann1 ann2\""; exit 1)
-	@echo "Preparing held-out annotation templates (anonymised)..."
-	$(PY) scripts/run_blinded_annotation.py prepare \
-		--input experiment/blinded/blinded_annotation_heldout.jsonl \
-		--output experiment/held_out_work \
-		--annotators $(ANNOTATORS)
-	@echo "  -> Edit experiment/held_out_work/<annotator>.jsonl, then run 'make experiment-heldout-report'"
-
-# Final once-only held-out report (aggregates all dimensions). Set ANNOTATIONS to
-# the FILLED template paths, e.g.,
-# ANNOTATIONS="experiment/held_out_work/ann1.jsonl experiment/held_out_work/ann2.jsonl"
-experiment-heldout-report:
-	@test -n "$(ANNOTATIONS)" || (echo "Set ANNOTATIONS to the filled template paths"; exit 1)
-	@echo "Computing held-out inter-annotator + gold + auto agreement..."
-	$(PY) scripts/run_blinded_annotation.py report \
-		--annotations $(ANNOTATIONS) \
-		--dimension all \
-		--audit experiment/all_audit_full.jsonl \
-		--ground-truth experiment/blinded/ground_truth_blinded.json \
-		--output experiment/held_out_agreement_report.json
-	@echo "  -> Held-out report written to experiment/held_out_agreement_report.json"
-
-
-# Backfill human gold labels into all_audit_full.jsonl from experiment reports
-# and calibration annotations. After this, paradigm_report.py can read human
-# labels directly from the audit file
-# Run this AFTER experiment-heldout-report (and after filling calibration ties)
-backfill-audit:
-	@echo "Backfilling human labels into experiment/all_audit_full.jsonl..."
-	$(PY) scripts/backfill_audit.py \
-		--audit experiment/all_audit_full.jsonl \
-		--ground-truth experiment/blinded/ground_truth_blinded.json \
-		--experiment-report experiment/held_out_agreement_report.json \
-		--calibration-ann experiment/calibration_work/ann1_calibration.jsonl \
-		--calibration-ann experiment/calibration_work/ann2_calibration.jsonl \
-		--output experiment/all_audit_full.jsonl
-	@echo "  -> experiment/all_audit_full.jsonl updated"
-
-# Verify the blinded files leak nothing (auto_label/model/prompt_id/attack_type)
-experiment-blinded-verify:
-	@echo "Verifying anonymisation of experiment/blinded..."
-	$(PY) -c "import json,glob; \
-LEAKED=['auto_label','similarity','human_label','expected_behavior','attack_type','prompt_id','group_id','scorer_label']; \
-mods=['gemma3_4b','llama3.1_8b']; \
-probs=[]; \
-[probs.append((p,k)) for p in glob.glob('experiment/blinded/blinded_annotation_*.jsonl') for l in open(p) if l.strip() for k in LEAKED if k in json.loads(l)]; \
-[probs.append((p,m)) for p in glob.glob('experiment/blinded/blinded_annotation_*.jsonl') for l in open(p) if l.strip() for m in mods if m in str(json.loads(l))]; \
-print('leaks:', len(probs), probs[:10]); \
-raise SystemExit(1 if probs else 0)"
-	@echo "  -> OK: no leaked fields in experiment/blinded"
-
 
 # Single source of truth for the budget/cost ratio: MEASURED per-label human
 # annotation time via the live interactive timing study. A human annotator
@@ -450,14 +406,14 @@ human-timing:
 	@echo "  -> MEASURED human timing study written to results/human_timing_measurement.json"
 
 # Trust-budget plan: turn the held-out gold-vs-auto κ into a human-allocation
-# policy. REPORT defaults to the experiment report once produced.
+# policy. REPORT defaults to the sealed experiment report once produced.
 # Optional gates: GATE_TRUST / GATE_UNVERIFIED override the 0.7 / 0.4 defaults
 experiment-budget:
-	@test -n "$(REPORT)" || REPORT=experiment/held_out_agreement_report.json; \
+	@test -n "$(REPORT)" || REPORT=experiment/reports/part1_agreement_report.json; \
 	budget=results/budget_plan.json; \
 	if [ ! -f "$$REPORT" ]; then \
 		echo "✗ Report not found: $$REPORT"; \
-		echo "  Produce it with 'make experiment-heldout-report' first."; \
+		echo "  Produce it with 'make experiment-agreement' first."; \
 		exit 1; \
 	fi; \
 	$(PY) scripts/budget_optimizer.py \

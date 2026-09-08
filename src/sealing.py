@@ -23,7 +23,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
-from typing import Any, List
+from typing import Any, List, Optional
 
 # PBKDF2 parameters — fixed for reproducibility (iteration count is explicit)
 _ITERATIONS = 390_000
@@ -43,11 +43,6 @@ def _fernet_key_from_passphrase(passphrase: str, salt: bytes) -> bytes:
 def sha256_bytes(data: bytes) -> str:
     """Return the hex SHA-256 of raw bytes"""
     return hashlib.sha256(data).hexdigest()
-
-
-def sha256_text(text: str) -> str:
-    """Return the hex SHA-256 of a UTF-8 string."""
-    return sha256_bytes(text.encode("utf-8"))
 
 
 def sha256_file(path: Path) -> str:
@@ -71,11 +66,6 @@ def sha256_jsonl(records: List[dict]) -> str:
         h.update(line)
         h.update(b"\n")
     return h.hexdigest()
-
-
-def sha256_file_hex16(path: Path) -> str:
-    """Return the 16-char shortened hash prefix used in manifests."""
-    return sha256_file(path)[:16]
 
 
 def encrypt_payload(payload: bytes, passphrase: str) -> bytes:

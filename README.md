@@ -444,11 +444,12 @@ Every evaluation run is locked to an exact environment:
 | v2.1 (fresh run)             | branch `v2.0-fixes` @ `7756014`              | `2026-08-19` | gemma3:4b, llama3.1:8b | `aeb40c92...`             |
 | v2.2 (current reference run) | branch `part1-correctness-fixes` @ `6afbc22` | `2026-08-25` | gemma3:4b, llama3.1:8b | `aeb40c92...`             |
 
-> Results in this README (and the blinded held-out report at
-> `experiment/held_out_agreement_report.json`) reflect the **2026-08-25 reference
-> run** (branch `part1-correctness-fixes`, commit `6afbc22`) after the peer-review
-> corrections. `docs/appendix.md` documents the same reference run's calibration /
-> measurement-validation methodology and is kept in sync with `results/validation_report.json`.
+> Results in this README (and the sealed multi-rater re-annotation report at
+> `experiment/reports/part1_agreement_report.json`) reflect the **2026-08-25
+> reference run** (branch `part1-correctness-fixes`, commit `6afbc22`) after the
+> peer-review corrections. `docs/appendix.md` documents the same reference run's
+> calibration / measurement-validation methodology and is kept in sync with
+> `results/validation_report.json`.
 
 To tag the current run:
 
@@ -466,24 +467,24 @@ git push origin "v2.0-results-$(date +%F)"
 
 The pipeline executes these steps automatically:
 
-| Step | Script                        | Output                                                                        |
-| ---- | ----------------------------- | ----------------------------------------------------------------------------- |
-| 1    | `run_evaluation.py`           | `results/raw_outputs/*.jsonl`, `results/*/scores.json`,`results/manifest.txt` |
-| 2    | `manual_audit_consistency.py` | `results/manual_audit_consistency.jsonl`                                      |
-| 3    | `analysis.py`                 | `results/analysis_summary.txt`, CI + ranking PNGs                             |
-| 4    | `score_saved_outputs.py`      | `results/rescored_verification.json`                                          |
-| 5    | `paradigm_report.py`          | `results/validation_report.json` + `audit/agreement_report.json`              |
-| 6    | Part-3 figures                | `budget_plan.json`, `budget_reliability_curve.png`, `error_heatmap.png`       |
-| 7    | Experiment status gate        | prints the Part-2/3 blinded experiment flow status + next commands            |
-| 8    | `streamlit run dashboard.py`  | Interactive dashboard at `http://localhost:8501`                              |
+| Step | Script                        | Output                                                                             |
+| ---- | ----------------------------- | ---------------------------------------------------------------------------------- |
+| 1    | `run_evaluation.py`           | `results/raw_outputs/*.jsonl`, `results/*/scores.json`,`results/manifest.txt`      |
+| 2    | `manual_audit_consistency.py` | `results/manual_audit_consistency.jsonl`                                           |
+| 3    | `analysis.py`                 | `results/analysis_summary.txt`, CI + ranking PNGs                                  |
+| 4    | `score_saved_outputs.py`      | `results/rescored_verification.json`                                               |
+| 5    | `paradigm_report.py`          | `results/validation_report.json` + `audit/agreement_report.json`                   |
+| 6    | Part-3 figures                | `budget_plan.json`, `budget_reliability_curve.png`, `error_heatmap.png`            |
+| 7    | Experiment status gate        | prints the sealed CLEAN-REDO experiment status + next `make experiment-*` commands |
+| 8    | `streamlit run dashboard.py`  | Interactive dashboard at `http://localhost:8501`                                   |
 
 > **Note (steps 6–7):** the Part-3 figures are generated only if the
 > agreement/validation reports exist (i.e. after human labels are filled at the
-> annotation gates). The experiment status gate **does not execute** the blinded
+> annotation gates). The experiment status gate **does not execute** the sealed
 > full-dataset experiment — it only reports where that separate strict-protocol
-> flow is and which `make experiment-*` commands to run next (`experiment-audit`,
-> `experiment-prepare`, `experiment-blinded-verify`,
-> `experiment-heldout-report`, `experiment-budget`).
+> flow is and which `make experiment-*` commands to run next (`experiment-seal`,
+> `experiment-annotate`, `experiment-ingest`, `experiment-resolve`,
+> `experiment-gold`, `experiment-agreement`, `experiment-reproduce`).
 
 ### Step-by-Step (for debugging)
 
@@ -588,7 +589,7 @@ instrument it must be validated before use.
 > ⚠️ **Status:** the claims below rest on two supporting estimates —
 > (1) a small, non-blinded calibration sample (30 records, κ=0.757 / 86.7%),
 > and (2) a **blinded, held-out** multi-rater re-annotation (114 records, overall
-> gold-vs-auto κ=0.690 / 84.2% agreement) at `experiment/held_out_agreement_report.json`.
+> gold-vs-auto κ=0.690 / 84.2% agreement) at `experiment/reports/part1_agreement_report.json`.
 > The held-out estimate is the more faithful signal of true agreement: raters saw
 > only prompt + response and could not leak `auto_label`, model identity, or
 > prompt ids.
@@ -619,8 +620,8 @@ instrument it must be validated before use.
 
 > The calibration sample is small **and unblinded**, so its κ is a noisy upper-bound
 > estimate, not a decisive validation. The conservative estimate comes from the
-> **blinded held-out** set below (`experiment/held_out_agreement_report.json`), where
-> raters could not see `auto_label`/model/prompt-id.
+> **blinded held-out** set below (`experiment/reports/part1_agreement_report.json`),
+> where raters could not see `auto_label`/model/prompt-id.
 
 ### Empirical Evidence — blinded held-out (2 raters)
 
@@ -663,7 +664,7 @@ instrument it must be validated before use.
 | **Ranking advantage is NOT stable at p<0.05**    | Llama outscores Gemma in only ~77% of ranking bootstrap draws (flip prob 0.74–0.79); paired p≈0.86–1.0 — report as within measurement error (see `ranking_stability.json`, `paired_comparison.json`)                                                                                                                                                 |
 | **No over-refusal for either model**             | 0 benign prompts refused for both Gemma and Llama in the current run                                                                                                                                                                                                                                                                                 |
 | **Auto-human agreement (calibration)**           | κ=0.757, 86.7% agreement on the 30-sample calibration set (see `results/validation_report.json`)                                                                                                                                                                                                                                                     |
-| **Auto-human agreement (held-out)**              | Blinded 2-rater held-out: overall gold-vs-auto κ=0.690, 84.2% agreement (114 records); safety κ=0.593, truthfulness κ=0.277, consistency κ=0.0 (prevalence artifact; 89.5% agreement). See `experiment/held_out_agreement_report.json`                                                                                                               |
+| **Auto-human agreement (held-out)**              | Sealed multi-rater held-out: overall gold-vs-auto κ=0.690, 84.2% agreement (114 records); safety κ=0.593, truthfulness κ=0.277, consistency κ=0.0 (prevalence artifact; 89.5% agreement). See `experiment/reports/part1_agreement_report.json`                                                                                                       |
 | **Stability (jackknife)**                        | All dimensions **stable** on the _independent-unit_ scale (safety σ≈1.4%, truthfulness σ≈1.1%, consistency σ≈2.9% leave-1-out on groups)                                                                                                                                                                                                             |
 | **Future N (defensible)**                        | To reach ±10% CI @95% need ≈83 (safety), ≈70 (truthfulness), ≈32 groups (consistency); ±5% Wald needs ≈332 / ≈278 / ≈127 — with **empirical bootstrap** (±5%) ≈234 / ≈235 / ≈92 — computed on **independent units**, not raw records                                                                                                                 |
 | **Cost**                                         | Auto uses **0 labour-hours**; fully-human needs ≈0.71 h labour (~$14 at ASSUMED $20/hr, MEASURED 12.2 s/label). The nominal ratio (~108×) is an **apples-to-oranges** comparison (paid labour vs ≈free local compute) and is **not** a universally-valid "× cheaper" claim. See `validation_report.json` → `rq4_cost` and `scripts/compute_cost.py`. |

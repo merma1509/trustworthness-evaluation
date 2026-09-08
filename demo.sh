@@ -117,62 +117,6 @@ wait_for_annotation() {
     echo ""
 }
 
-# Args: $1..$n = annotation template files (e.g. experiment/held_out_work/ann1.jsonl
-# experiment/held_out_work/ann2.jsonl). Interactive gate for the blinded
-# multi-rater re-validation: waits until the human has filled EVERY supplied
-# template, then returns so the pipeline can auto-build the held-out report.
-# Runs only when stdin is a TTY (see is_interactive); otherwise skipped.
-wait_for_blinded_annotations() {
-    if ! is_interactive; then
-        echo "  [non-interactive] skipping blinded-annotation gate."
-        return 0
-    fi
-    local files=("$@")
-    echo ""
-    echo "  =================================================="
-    echo "  ⏸  BLINDED MULTI-RATER RE-VALIDATION (step 11c)"
-    echo "  --------------------------------------------------"
-    echo "  ≥2 independent, blinded annotators must fill these templates:"
-    for f in "${files[@]}"; do
-        echo "    - ${f}"
-    done
-    echo ""
-    echo "  Each template carries NO auto_label / model / prompt_id, so each"
-    echo "  annotator is fully independent of the auto-scorer. Fill"
-    echo "  'human_label' (correct/incorrect, or consistent/inconsistent),"
-    echo "  'confidence' (0-1) and 'notes' (optional)."
-    echo ""
-    while true; do
-        local all_filled=1
-        for f in "${files[@]}"; do
-            if [ ! -f "$f" ]; then
-                echo "  [gate] file not found: ${f}"
-                all_filled=0
-                continue
-            fi
-            local counts filled total
-            counts=$(count_labelled "$f" "human_label")
-            filled=${counts%/*}
-            total=${counts#*/}
-            echo "  ${f}: ${filled} / ${total} labelled"
-            if [ -n "$total" ] && [ "$total" -gt 0 ] && [ "$filled" -lt "$total" ]; then
-                all_filled=0
-            fi
-        done
-        if [ "$all_filled" = "1" ]; then
-            echo "  ✓ All blinded templates labelled. Continuing."
-            break
-        fi
-        echo ""
-        read -r -p "  When done annotating, press [Enter] to continue (type 'skip' to bypass): " ans
-        if [ "$ans" = "skip" ]; then
-            echo "   Gate skipped — held-out report will be incomplete."
-            break
-        fi
-    done
-    echo ""
-}
-
 # ─── Check device ───────────────────────────────────────────
 check_device() {
     DEVICE=$($PYTHON -c "
@@ -231,24 +175,20 @@ echo "  Evaluation complete in ${DURATION}s"
 
 echo "[5a/12] Regenerating audit dataset from fresh raw outputs..."
 # Rebuild results/audit/all_audit.jsonl FROM the current run so the dashboard
-# and blinded annotation never show stale / hand-labelled data from an older
-# evaluation. Human labels start NULL (ready to annotate).
+# never shows stale / hand-labelled data from an older evaluation. Human labels
+# start NULL (ready to annotate).
 $PYTHON scripts/generate_audit_samples.py \
     --raw "${RESULTS_DIR}/raw_outputs" \
     --output "${RESULTS_DIR}/audit/all_audit.jsonl" \
     --n-safety 10 --n-truthfulness 10 --n-consistency 10 --seed 42
-# Regenerate the FULL-dataset blinded experiment audit (experiment/all_audit_full.jsonl)
-# and rebuild the anonymised calibration/held-out splits (experiment/blinded/) from the
-# same fresh raw outputs. This is the single blinded-annotation flow the pipeline uses.
+# Regenerate the FULL-dataset audit (experiment/all_audit_full.jsonl) from the
+# same fresh raw outputs. This feeds the sealed CLEAN-REDO experiment
+# (experiment-seal via Makefile), which is the canonical methodology applied
+# when running a NEW sealed experiment.
 $PYTHON scripts/generate_audit_samples.py \
     --raw "${RESULTS_DIR}/raw_outputs" \
     --output experiment/all_audit_full.jsonl \
     --n-safety 100 --n-truthfulness 100 --n-consistency 100 --seed 42
-$PYTHON scripts/generate_blinded_annotation.py \
-    --audit experiment/all_audit_full.jsonl \
-    --raw "${RESULTS_DIR}/raw_outputs" \
-    --output experiment/blinded 2>/dev/null \
-    || echo "  (skip blinded split generation — optional, manual audit still works)"
 
 echo "[5b/12] Regenerating human-timing study (MEASURED, interactive step)..."
 # Results cost/budget analysis reads results/human_timing_measurement.json as the
@@ -356,119 +296,33 @@ if [ -f "${RESULTS_DIR}/audit/agreement_report.json" ]; then
 fi
 echo "  -> Artifacts: budget_plan.json, budget_reliability_curve.png, cost_breakdown.json, cost_reliability_frontier.json, error_heatmap.png, pipeline_loop.png"
 
-echo "[11c/12] Experiment flow: fresh blinded audit + splits ready..."
-# The blinded full-dataset experiment (≥2 independent, blinded annotators) is the
-# single blinded-annotation flow. Step 5a freshly rebuilt experiment/all_audit_full.jsonl
-# and experiment/blinded (with NEW anon_ids). This block:
-#   1) If the held-out templates are NOT yet filled -> re-emit FRESH templates so
-#      their anon_ids always match the freshly-rebuilt split, then (interactively)
-#      PAUSE so the annotators can fill them now; once filled, build the report.
-#   2) If the templates ARE fully filled -> do NOT overwrite the annotators' work;
-#      instead build the fresh held-out agreement report + budget right here.
-build_heldout_report() {
-    # Build the held-out agreement report from the (filled) annotator templates.
-    # Falls back gracefully if the report can't be produced (e.g. anon_id drift
-    # after a non-deterministic re-split). Returns 0 on success, 1 on failure so
-    # the caller can fall back to re-emitting fresh templates.
-    echo "  -> Building held-out agreement report from the filled templates..."
-    rm -f experiment/held_out_agreement_report.json
-    if ! $PYTHON scripts/run_blinded_annotation.py report \
-        --annotations "$@" \
-        --dimension all \
-        --audit experiment/all_audit_full.jsonl \
-        --ground-truth experiment/blinded/ground_truth_blinded.json \
-        --output experiment/held_out_agreement_report.json; then
-        echo "  (held-out report FAILED — annotator files likely out of sync with the fresh split)"
-        rm -f experiment/held_out_agreement_report.json
-        return 1
-    fi
-    if [ ! -f "experiment/held_out_agreement_report.json" ]; then
-        echo "  (held-out report produced no output — out of sync)"
-        return 1
-    fi
-    echo "  -> held_out_agreement_report.json written. Building trust-budget plan..."
-    $PYTHON scripts/budget_optimizer.py \
-        --report experiment/held_out_agreement_report.json \
-        --output results/budget_plan.json \
-        || echo "  (skip experiment budget plan)"
-    return 0
-}
+echo "[11c/12] Sealed multi-rater re-validation flow (CLEAN-REDO)..."
+# The sealed CLEAN-REDO protocol (seal → onboard → ingest → resolve → gold →
+# agreement) is the canonical methodology for the human-validation experiment.
+# demo.sh does NOT run it end-to-end automatically: it requires real independent
+# raters and a sealed passphrase. This block reports the current status honestly
+# and prints the exact `make` commands to run, WITHOUT fabricating agreement κ.
+# The manual-audit + paradigm report from steps 9–11 already give a calibration
+# estimate; running a fresh sealed experiment is an explicit, gated step.
 
-# Re-emit FRESH blinded templates matching the current split, then (interactively)
-# pause so the annotators can fill them. Returns 0 if they got filled, else 1.
-reemit_blinded_templates_and_gate() {
-    echo "  -> Re-emitting FRESH held-out templates from the newly-rebuilt split..."
-    rm -f experiment/held_out_work/*.jsonl experiment/held_out_work/manifest.json
-    $PYTHON scripts/run_blinded_annotation.py prepare \
-        --input experiment/blinded/blinded_annotation_heldout.jsonl \
-        --output experiment/held_out_work \
-        --annotators ann1 ann2 \
-        || echo "  (held-out template preparation skipped)"
-    echo "  -> ≥2 independent annotators must fill experiment/held_out_work/*.jsonl"
-    echo "    (blinded: no auto_label / model / prompt_id)."
-    echo "    After you fill them, this gate lets the pipeline continue automatically."
-
-    # Interactive gate: pause until both templates are filled, then continue.
-    wait_for_blinded_annotations experiment/held_out_work/ann1.jsonl experiment/held_out_work/ann2.jsonl
-
-    # Re-scan after the gate: if the annotator filled them, build the report now.
-    TEMPLATES=(); FILLED=0; TOTAL=0
-    for f in experiment/held_out_work/*.jsonl; do
-      [ -f "$f" ] || continue
-      TEMPLATES+=("$f")
-      c=$(count_labelled "$f" "human_label")
-      filled=${c%/*}; total=${c#*/}
-      TOTAL=$((TOTAL + total)); FILLED=$((FILLED + filled))
-    done
-    if [ "${#TEMPLATES[@]}" -ge 2 ] && [ "$TOTAL" -gt 0 ] && [ "$FILLED" -ge "$TOTAL" ]; then
-      if build_heldout_report "${TEMPLATES[@]}"; then
-        return 0
-      fi
-    fi
-    echo "  -> Held-out templates not complete; report deferred to a later 'make run'."
-    echo "  -> Run manually:"
-    echo "      make experiment-heldout-report \\"
-    echo "           ANNOTATIONS=\"experiment/held_out_work/ann1.jsonl experiment/held_out_work/ann2.jsonl\""
-    return 1
-}
-
-if [ -f "experiment/all_audit_full.jsonl" ] && [ -d "experiment/blinded" ]; then
-  echo "  -> Experiment audit + anonymised splits are ready (experiment/all_audit_full.jsonl)."
-  echo "  -> Verify anonymity first with: make experiment-blinded-verify"
-
-  # How many held-out annotation templates exist and how filled are they?
-  TEMPLATES=()
-  FILLED=0
-  TOTAL=0
-  for f in experiment/held_out_work/*.jsonl; do
-    [ -f "$f" ] || continue
-    TEMPLATES+=("$f")
-    c=$(count_labelled "$f" "human_label")
-    filled=${c%/*}; total=${c#*/}
-    TOTAL=$((TOTAL + total)); FILLED=$((FILLED + filled))
-  done
-  N_TEMPLATES=${#TEMPLATES[@]}
-
-  if [ "$N_TEMPLATES" -ge 2 ] && [ "$TOTAL" -gt 0 ] && [ "$FILLED" -ge "$TOTAL" ]; then
-    # ── Fully filled: keep the annotators' work, build the fresh report now. ──
-    echo "  -> Held-out templates fully filled (${FILLED}/${TOTAL} across ${N_TEMPLATES} annotators)."
-    if ! build_heldout_report "${TEMPLATES[@]}"; then
-      # The filled annotator files are out of sync with the fresh split (anon_id
-      # drift). Do NOT silently drop them — re-emit fresh templates and gate.
-      echo "  -> Annotator files out of sync; re-emitting fresh templates."
-      reemit_blinded_templates_and_gate || true
-    fi
-  else
-    # ── Not (fully) filled: re-emit FRESH templates matching this run's split,
-    #    then interactively PAUSE so the annotators can fill them now. ──
-    echo "  -> Held-out templates not fully filled yet (${FILLED}/${TOTAL})."
-    reemit_blinded_templates_and_gate || true
-  fi
+echo "  -> Full-dataset audit for the sealed experiment is ready (experiment/all_audit_full.jsonl)."
+echo "  -> Sealed protocol is the CANONICAL methodology for NEW experiments."
+if $PYTHON scripts/experiment_status.py --annotations-dir experiment/annotations \
+        --experiment-id "${EXPERIMENT_ID:-trustworthiness-validation-2025-08-redo}" \
+        --status-only 2>/dev/null | grep -q READY; then
+    echo "  -> Sealed rater annotations are READY. Run the full reproduction end-to-end:"
+    echo "      EXPERIMENT_ID=... SEAL_PASSPHRASE=... make experiment-reproduce"
 else
-  echo "  -> Experiment flow not started. To enable full-dataset blinded validation:"
-  echo "      make experiment-audit"
-  echo "      make experiment-prepare"
-  echo "      make experiment-blinded-verify"
+    echo "  -> Sealed rater annotations NOT complete yet (or no sealed experiment exists)."
+    echo "     To run a NEW sealed experiment:"
+    echo "      make experiment-audit"
+    echo "      make experiment-seal SEED=... EXPERIMENT_ID=..."
+    echo "      make experiment-annotate RATERS=\"raterA raterB\""
+    echo "      # ... independent raters fill experiment/annotations/*.jsonl ..."
+    echo "      make experiment-ingest ANNOTATIONS=..."
+    echo "      make experiment-resolve / experiment-gold / experiment-agreement"
+    echo "     Until then, held-out κ is NOT fabricated — only the calibration"
+    echo "     estimate from the validation report (step 11a) is shown."
 fi
 
 echo "[12/12] Starting Streamlit dashboard..."
