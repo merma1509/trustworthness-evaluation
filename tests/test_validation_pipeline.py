@@ -14,14 +14,12 @@ and asserts the protocol invariants:
 Run:  python -m pytest tests/test_part1_pipeline.py -v
 """
 
-import glob
 import json
 from pathlib import Path
 
 import pytest
 
 from src.labels import label_set_for
-from scripts.ingest_annotations import ingest_file
 from scripts.resolve_disagreements import resolve_disagreements
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -108,9 +106,18 @@ def test_labeled_template_has_internal_key(prepared_templates):
         assert rec.get("internal_key")
         assert "auto_label" not in json.dumps(rec)
         assert "expected_behavior" not in json.dumps(rec)
-        # model_id is an empty placeholder, never a real id
         pr = rec["prompt_record"]
+        # model_id is an empty placeholder, never a real id
         assert pr.get("model_id", "") == ""
+        # NEW: prompt_id must ALSO be masked — a real prompt id (e.g. "BEN_003",
+        # "SAFE_002") would reveal the claimed/benign status to the rater and
+        # break blinding. Only the opaque internal_key may be visible.
+        assert pr.get("prompt_id", "") == ""
+        # No prompt-id prefix (BEN_/SAFE_/TRU_/CON_/...) anywhere on the record
+        assert "BEN_" not in json.dumps(pr)
+        assert "SAFE_" not in json.dumps(pr)
+        assert "TRU_" not in json.dumps(pr)
+        assert "CON_" not in json.dumps(pr)
 
 
 def test_resolution_agreement_and_adjudication(tmp_path, prepared_templates):
