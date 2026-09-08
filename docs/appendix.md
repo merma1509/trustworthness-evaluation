@@ -8,15 +8,15 @@
 
 ## A.1 Summary
 
-| Metric                    | Value                             |
-| ------------------------- | --------------------------------- |
-| Total annotated samples   | 30 (10 per dimension)             |
-| Overall agreement rate    | 86.7% (26/30)                     |
-| Cohen's Kappa (overall)   | 0.757 — **Substantial**           |
-| Auto precision            | 100% (25/25)                      |
-| Auto recall               | 86.2% (25/29)                     |
-| Auto specificity          | 100% (1/1)                        |
-| Cost ratio (auto / human) | **108x** (MEASURED, 12.2 s/label) |
+| Metric                    | Value                                                             |
+| ------------------------- | ----------------------------------------------------------------- |
+| Total annotated samples   | 30 (10 per dimension)                                             |
+| Overall agreement rate    | 86.7% (26/30)                                                     |
+| Cohen's Kappa (overall)   | 0.757 — **Substantial**                                           |
+| Auto precision            | 100% (25/25)                                                      |
+| Auto recall               | 86.2% (25/29)                                                     |
+| Auto specificity          | 100% (1/1)                                                        |
+| Cost ratio (auto / human) | **~108x** (MEASURED timings) — see §A.6 caveat; apples-to-oranges |
 
 **Conclusion (provisional):** The auto-scorer is **conservative** (high specificity, moderate recall). The κ here is a **calibration** estimate — it is not yet a claim of end-to-end "validated" trustworthiness. Deciding whether the auto-scorer can be trusted for relative ranking, and whether a hybrid (auto + partial human audit) is warranted, must wait until the **blinded, held-out** re-annotation (WP-D, Task 7) is completed and reported. Until then, no deployment or operational recommendation is made from these figures.
 
@@ -143,13 +143,18 @@ Parameters: 210 total responses (105 prompts x 2 models). Human rate: $20/hr. GP
 | Fully human        | 0.7h | $14.23 | All labels by annotator  |
 | Hybrid (50% audit) | 0.6h | $7.25  | Auto 100% + human 50%    |
 
-**Auto is MEASURED ~108x cheaper** than full human evaluation — now based on a
-**measured** interactive per-label human timing study (`make human-timing`,
-Task 1.5) that replaces the earlier 30 s placeholder (which gave a misleading
-264x/120x), and the older 8.0 s estimate (which overstated the ratio). A hybrid
-approach provides validation at roughly half the human cost. Rerun
-`scripts/measure_human_annotation_time.py` to refresh the timing if annotation
-behaviour changes.
+**Auto uses 0 labour-hours; fully-human needs ≈0.71 h labour (~$14.23 at ASSUMED
+$20/hr)** — based on a **measured** interactive per-label human timing study
+(`make human-timing`, Task 1.5) that replaces the earlier 30 s placeholder (which
+gave a misleading 264x/120x), and the older 8.0 s estimate (which overstated the
+ratio). The headline **~108× is an apples-to-oranges nominal ratio**: it divides
+scarce paid _labour_ against ≈free local _compute_, so it is **not** a single
+universally-valid "× cheaper" figure — auto is preferable only where its κ is
+adequate. A hybrid approach provides validation at roughly half the human cost.
+Rerun `scripts/measure_human_annotation_time.py` to refresh the timing if
+annotation behaviour changes. For a fully-labelled MEASURED/ASSUMED/MODEL
+breakdown (including setup/training and adjudication overhead), see
+`scripts/compute_cost.py` (`make cost-report`).
 
 ---
 

@@ -292,37 +292,3 @@ def compute_agreement(
         )
 
     return out
-
-
-def compute_per_dimension_agreement(
-    records: List[dict],
-    human_field: str = "human_label",
-    auto_field: str = "auto_label",
-    dimension_field: str = "dimension",
-) -> Dict[str, Dict]:
-    """Compute agreement stats separately for each dimension.
-
-    Args:
-        records: List of audit record dicts.
-        human_field: Key for human label.
-        auto_field: Key for auto label.
-        dimension_field: Key for dimension name.
-
-    Returns:
-        Dict mapping dimension -> agreement stats dict.
-    """
-    by_dim: Dict[str, List[Tuple[str, str]]] = defaultdict(list)
-    for r in records:
-        dim = r.get(dimension_field, "unknown")
-        h = r.get(human_field)
-        a = r.get(auto_field)
-        if h is not None and a is not None:
-            by_dim[dim].append((h, a))
-
-    results = {}
-    for dim in sorted(by_dim):
-        human_labels = [p[0] for p in by_dim[dim]]
-        auto_labels = [p[1] for p in by_dim[dim]]
-        results[dim] = compute_agreement(human_labels, auto_labels)
-
-    return results

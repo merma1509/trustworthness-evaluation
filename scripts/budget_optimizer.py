@@ -7,11 +7,13 @@ where the auto-scorer is least reliable.
 
 Input
 -----
-Per-dimension auto–human Cohen's κ, read from either:
+Per-dimension auto–human Cohen's κ, read from a report in ONE of two schemas:
 
-* the **blinded experiment report** produced by
-  ``scripts/run_blinded_annotation.py report``
-  (``experiment/held_out_agreement_report.json`` — preferred, anonymised flow), or
+* the **sealed CLEAN-REDO experiment report** produced by
+  ``scripts/report_part1_agreement.py``
+  (``experiment/reports/part1_agreement_report.json`` — canonical, preferred),
+  whose ``gold_vs_auto.per_dimension[dim].cohens_kappa`` is the gold vs auto κ;
+
 * the **validation report** (``results/validation_report.json``, RQ1
   ``by_dimension`` — the calibration estimate).
 
@@ -25,14 +27,13 @@ A budget plan (``budget_plan.json`` by default) mapping each dimension to a
 
 Usage
 -----
-    # Use the blinded experiment report (after it exists):
+    # Use the sealed experiment report (after it exists):
     python3 scripts/budget_optimizer.py \
-        --report experiment/held_out_agreement_report.json \
+        --report experiment/reports/part1_agreement_report.json \
         --output results/budget_plan.json
 
     # Use the calibration validation report:
-    python3 scripts/budget_optimizer.py \
-        --report results/validation_report.json
+    python3 scripts/budget_optimizer.py --report results/validation_report.json
 
     # Override the κ gates:
     python3 scripts/budget_optimizer.py --gate-trust 0.7 --gate-unverified 0.4
@@ -58,6 +59,9 @@ HUMAN_HOURLY_COST = 20.0
 # validation report uses). A genuine study overrides this when available.
 DEFAULT_HUMAN_SECONDS_PER_LABEL = 30.0
 HUMAN_TIMING_PATH = Path("results/human_timing_measurement.json")
+
+# Canonical dimension set shared with the rest of the pipeline.
+DIMENSIONS = ("safety", "truthfulness", "consistency")
 
 
 def _load_human_seconds_per_label() -> float:
@@ -93,27 +97,23 @@ def _load_report(path: Path) -> dict:
 
 
 def _extract_dimension_kappas(report: dict, source: str) -> dict:
-    """Return ``{dimension: kappa}`` from a report, tolerant of two formats.
+    """Return ``{dimension: kappa}`` from a report, tolerant of two schemas.
 
     Supports:
-      * experiment (``run_blinded_annotation``): ``by_dimension[dim].auto_comparison.cohens_kappa``
+      * sealed experiment (``report_part1_agreement``):
+        ``gold_vs_auto.per_dimension[dim].cohens_kappa``
       * validation (``paradigm_report``): ``rq1_agreement.by_dimension[dim].cohens_kappa``
     """
     out: dict = {}
 
-    # Blinded experiment report: auto-comparison is the gold-vs-auto headline κ.
-    bd = report.get("by_dimension")
-    if isinstance(bd, dict) and bd:
-        for dim, sub in bd.items():
-            auto_cmp = (sub or {}).get("auto_comparison") or {}
-            k = auto_cmp.get("cohens_kappa")
-            if k is not None or k == 0.0:
+    # Sealed experiment report: gold vs auto is the headline κ per dimension.
+    gva = report.get("gold_vs_auto") or {}
+    per_dim = gva.get("per_dimension")
+    if isinstance(per_dim, dict) and per_dim:
+        for dim, sub in per_dim.items():
+            k = (sub or {}).get("cohens_kappa")
+            if k is not None:
                 out[dim] = k
-            else:
-                # Fall back to the inter-annotator gate when auto-comparison absent.
-                ia = (sub or {}).get("inter_annotator") or {}
-                if ia.get("mean_kappa") is not None:
-                    out[dim] = ia["mean_kappa"]
         if out:
             return out
 
@@ -129,13 +129,10 @@ def _extract_dimension_kappas(report: dict, source: str) -> dict:
             return out
 
     # Overall fallback — single global κ applied to all dimensions.
-    overall = report.get("overall") or rq1.get("overall") or {}
-    auto_cmp = overall.get("auto_comparison") or {}
-    k_global = auto_cmp.get("cohens_kappa")
-    if k_global is None and "cohens_kappa" in overall:
-        k_global = overall["cohens_kappa"]
+    overall = (gva.get("overall") or rq1.get("overall") or {})
+    k_global = overall.get("cohens_kappa")
     if k_global is not None:
-        for dim in ("safety", "truthfulness", "consistency"):
+        for dim in DIMENSIONS:
             out[dim] = k_global
     return out
 
@@ -155,14 +152,17 @@ def _band(kappa, gates: dict) -> str:
 
 def _records_per_dimension(report: dict, dim: str) -> int:
     """Best-effort count of annotatable records for a dimension."""
-    # Experiment report: adjudicated n for the dimension, else overall.
-    bd = report.get("by_dimension") or {}
-    sub = bd.get(dim) or {}
-    adj = (sub or {}).get("adjudicated") or {}
-    n = adj.get("n_total")
+    # Sealed report: gold-vs-auto n for the dimension (or overall).
+    gva = report.get("gold_vs_auto") or {}
+    per_dim = gva.get("per_dimension") or {}
+    sub = per_dim.get(dim) or {}
+    n = sub.get("n") or sub.get("n_valid_pairs")
     if n:
         return int(n)
-    # Validation report RQ1 overall n.
+    overall_n = (gva.get("overall") or {}).get("n")
+    if overall_n:
+        return int(overall_n)
+    # Validation report RQ1 by_dimension n.
     rq1 = report.get("rq1_agreement") or {}
     bd2 = rq1.get("by_dimension") or {}
     n2 = (bd2.get(dim) or {}).get("n")
@@ -175,7 +175,7 @@ def build_plan(report: dict, gates: dict, source: str) -> dict:
     """Compute the budget plan from a report dict.
 
     Args:
-        report: Loaded JSON report (experiment or validation).
+        report: Loaded JSON report (sealed experiment or validation).
         gates: ``{"trust": float, "unverified": float}``.
         source: Label describing the report source (for the ``note`` field).
 
@@ -185,7 +185,7 @@ def build_plan(report: dict, gates: dict, source: str) -> dict:
     kappas = _extract_dimension_kappas(report, source)
     plan_records = []
     total_labels = 0
-    for dim in ("safety", "truthfulness", "consistency"):
+    for dim in DIMENSIONS:
         k = kappas.get(dim)
         n = _records_per_dimension(report, dim)
         if k is None:
@@ -258,7 +258,7 @@ def build_plan(report: dict, gates: dict, source: str) -> dict:
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--report", required=True, help="Path to experiment or validation report JSON."
+        "--report", required=True, help="Path to sealed-experiment or validation report JSON."
     )
     parser.add_argument(
         "--output", default="results/budget_plan.json", help="Where to write the plan."

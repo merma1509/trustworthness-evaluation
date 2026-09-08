@@ -1,31 +1,35 @@
-"""Reusable renderer for the blinded multi-rater re-annotation results.
+"""Reusable renderer for the sealed multi-rater re-annotation results.
 
 This module does NOT own a top-level Streamlit tab. It exposes
-``render_blinded_block(st)`` which renders the *content* of the blinded
-re-validation — inter-annotator agreement, adjudication, and gold-vs-auto κ —
-so that it can be embedded inside the "Human Annotation" tab.
+``render_blinded_block(st)`` which renders the *content* of the sealed
+re-validation — inter-rater agreement (RATER_A vs RATER_B) and the gold-vs-auto
+κ — so that it can be embedded inside the "Human Annotation" tab.
 
-It reads ``experiment/held_out_agreement_report.json`` (the output of
-``scripts/run_blinded_annotation.py report`` on the full-dataset, anonymised
-experiment flow). When that file does not exist (no ≥2 human annotators have
-run yet), it degrades gracefully to a clear "pending re-annotation" notice
-rather than silently showing nothing.
+It reads ``experiment/reports/part1_agreement_report.json`` (the output of
+``scripts/report_part1_agreement.py`` on the sealed CLEAN-REDO experiment flow).
+When that file does not exist (no sealed annotations have been produced yet), it
+degrades gracefully to a clear "pending re-annotation" notice rather than
+silently showing nothing.
 """
 
+import json
 from pathlib import Path
 
 import pandas as pd
 
-from src.annotator import VALID_LABELS
+from src.labels import VALID_LABELS
 
-# Full-dataset blinded experiment report (anonymised anon_id flow) — the single
-# blinded-annotation report consumed by the dashboard.
-EXPERIMENT_REPORT_PATH = Path("experiment/held_out_agreement_report.json")
+# Sealed CLEAN-REDO experiment report (the single agreement report consumed by
+# the dashboard). Produced by scripts/report_part1_agreement.py.
+SEALED_REPORT_PATH = Path("experiment/reports/part1_agreement_report.json")
+
+# Canonical dimension order used when pooling (matches src/labels.DIMENSIONS).
+DIMENSIONS = ("safety", "truthfulness", "consistency")
 
 
 def _pick_report_path() -> Path | None:
-    """Return the experiment report path if it exists, else None."""
-    return EXPERIMENT_REPORT_PATH if EXPERIMENT_REPORT_PATH.exists() else None
+    """Return the sealed report path if it exists, else None."""
+    return SEALED_REPORT_PATH if SEALED_REPORT_PATH.exists() else None
 
 
 def _kappa_badge(k: float) -> str:
@@ -43,197 +47,168 @@ def _kappa_badge(k: float) -> str:
     return "Poor (worse than random)"
 
 
+def _render_rater_block(st, by_dim: dict, title: str) -> None:
+    """Render the inter-rater (RATER_A vs RATER_B) agreement per dimension.
+
+    Args:
+        st: The Streamlit module (injected for testability).
+        by_dim: The ``inter_rater_A_vs_B`` dict from the sealed report.
+        title: Section heading.
+    """
+    st.markdown(f"#### {title}")
+    if not by_dim:
+        st.info("No inter-rater data present.")
+        return
+
+    # Pool the available dimensions so the headline gate is shown up-front.
+    rows = []
+    for dim in DIMENSIONS:
+        s = by_dim.get(dim) or {}
+        if not s:
+            continue
+        rows.append(
+            {
+                "Dimension": dim,
+                "n": s.get("n", 0),
+                "Cohens κ": s.get("cohens_kappa", 0.0),
+                "Agreement": s.get("agreement_rate", 0.0),
+            }
+        )
+
+    if rows:
+        c1, c2 = st.columns(2)
+        mean_k = sum(r["Cohens κ"] for r in rows) / len(rows)
+        best_k = max(r["Cohens κ"] for r in rows)
+        with c1:
+            st.metric("Mean dimension κ", f"{mean_k:.3f}", help=_kappa_badge(mean_k))
+        with c2:
+            st.metric("Best dimension κ", f"{best_k:.3f}", help=_kappa_badge(best_k))
+        st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
+
+    st.caption(
+        "RATER_A vs RATER_B inter-rater agreement — the independent-rater gate "
+        "measured *before* any comparison to the auto-scorer."
+    )
+
+
+def _render_gold_vs_auto_block(st, gva: dict, title: str) -> None:
+    """Render the gold (adjudicated human) vs auto-scorer agreement.
+
+    Args:
+        st: The Streamlit module (injected for testability).
+        gva: The ``gold_vs_auto`` dict from the sealed report.
+        title: Section heading.
+    """
+    st.markdown(f"#### {title}")
+
+    overall = (gva or {}).get("overall") or {}
+    per_dim = (gva or {}).get("per_dimension") or {}
+
+    if overall:
+        n = overall.get("n", 0) or overall.get("n_valid_pairs", 0)
+        k = overall.get("cohens_kappa", 0.0)
+        ag = overall.get("agreement_rate", 0.0)
+        w = overall.get("weighted_kappa", 0.0)
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            st.metric("n", n)
+        with c2:
+            st.metric("Cohen's κ", f"{k:.3f}", help=_kappa_badge(k))
+        with c3:
+            st.metric("Agreement", f"{ag:.0%}")
+        with c4:
+            st.metric("Weighted κ", f"{w:.3f}")
+        ci = overall.get("kappa_ci")
+        if ci:
+            st.caption(
+                f"95% CI on κ: [{ci.get('ci_lower', 0):.3f}, {ci.get('ci_upper', 0):.3f}] "
+                f"(n_bootstrap={ci.get('n_bootstrap', '—')})"
+            )
+    else:
+        st.info("No overall gold-vs-auto data present.")
+
+    # Per-dimension table (gold vs auto) — the headline κ per dimension.
+    if per_dim:
+        st.markdown("#### Per-Dimension Gold vs Auto Scorer")
+        rows = []
+        for dim in DIMENSIONS:
+            s = per_dim.get(dim) or {}
+            if not s:
+                continue
+            ci = s.get("kappa_ci") or {}
+            rows.append(
+                {
+                    "Dimension": dim,
+                    "n": s.get("n", 0) or s.get("n_valid_pairs", 0),
+                    "Cohen's κ": s.get("cohens_kappa", 0.0),
+                    "Agreement": s.get("agreement_rate", 0.0),
+                    "κ CI": (
+                        f"[{ci.get('ci_lower', 0):.2f}, {ci.get('ci_upper', 0):.2f}]"
+                        if ci
+                        else "—"
+                    ),
+                }
+            )
+        st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
+
+
 def render_blinded_block(st) -> None:
-    """Render the blinded multi-rater re-validation content into a Streamlit app.
+    """Render the sealed multi-rater re-validation content into a Streamlit app.
 
     Args:
         st: The Streamlit module (injected for testability).
     """
-    st.markdown("### Blinded Multi-Rater Re-Validation (recommended)")
+    st.markdown("### Sealed Multi-Rater Re-Validation (CLEAN-REDO)")
     st.markdown(
-        "*≥2 independent **blinded** annotators; inter-rater κ is measured "
-        "**before** any comparison to the auto-scorer.*"
+        "*Independent raters annotate sealed templates with a constrained label "
+        "vocabulary; inter-rater κ (RATER_A vs RATER_B) is measured **before** any "
+        "comparison to the sealed auto-scorer.*"
     )
 
-    if not EXPERIMENT_REPORT_PATH.exists():
+    if not SEALED_REPORT_PATH.exists():
         st.warning(
-            "**No multi-rater re-annotation yet.**\n\n"
-            "Requires ≥2 independent human annotators to label the blinded "
-            "held-out set. This section will populate once the run has happened."
+            "**No sealed multi-rater re-annotation yet.**\n\n"
+            "Requires independent raters to fill the sealed templates and the "
+            "agreement report to be produced. This section will populate once the "
+            "run has happened."
         )
         st.code(
-            'make experiment-heldout-prepare ANNOTATORS="ann1 ann2"  # emit blinded templates\n'
-            "# ... annotators fill human_label / confidence / notes in experiment/held_out_work/ ...\n"
-            'make experiment-heldout-report ANNOTATIONS="ann1.jsonl ann2.jsonl"',
+            'make experiment-seal SEED=... EXPERIMENT_ID=...  # seal a NEW experiment\n'
+            'make experiment-annotate RATERS="raterA raterB"  # emit blank rater templates\n'
+            "# ... raters fill experiment/annotations/*.jsonl (label-constrained) ...\n"
+            'make experiment-gold SEAL_PASSPHRASE=...         # build gold labels\n'
+            "make experiment-agreement                         # held-out agreement κ\n"
+            "make experiment-reproduce                         # full reproduction (honesty gate)",
             language="bash",
         )
         st.info(
-            "Working setup: the blinded templates carry **no** `auto_label` / similarity "
-            "fields, so each annotator is independent of the auto-scorer."
+            "Sealed templates carry only the prompt + dimension (no auto label / "
+            "model identity), so each rater is independent of the auto-scorer."
         )
         return
 
     report_path = _pick_report_path()
     with report_path.open() as f:
-        report = __import__("json").load(f)
+        report = json.load(f)
     st.caption(
-        "Source: full-dataset blinded experiment "
-        "(`experiment/held_out_agreement_report.json`) — anonymised `anon_id` flow."
+        "Source: sealed CLEAN-REDO experiment "
+        "(`experiment/reports/part1_agreement_report.json`)."
     )
 
-    # The report may be the new aggregated format (``by_dimension`` + ``overall``)
-    # produced by the updated script, or the legacy single-dimension format.
-    # Detect which one we have and render accordingly.
-    by_dimension = report.get("by_dimension")
-    is_aggregated = isinstance(by_dimension, dict) and len(by_dimension) > 0
+    gva = report.get("gold_vs_auto") or {}
+    inter_rater = report.get("inter_rater_A_vs_B") or {}
 
-    def _render_ia_block(ia: dict, title: str) -> None:
-        st.markdown(f"#### {title}")
-        if not ia:
-            st.info("No inter-annotator data present.")
-            return
-        n_ann = ia.get("n_annotators", 0)
-        mean_k = ia.get("mean_kappa", 0.0)
-        mean_ag = ia.get("mean_agreement_rate", 0.0)
-        annotator_names = ia.get("annotators", [])
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            st.metric("Annotators", n_ann)
-        with c2:
-            st.metric("Mean pairwise κ", f"{mean_k:.3f}", help=_kappa_badge(mean_k))
-        with c3:
-            st.metric("Mean agreement", f"{mean_ag:.0%}")
-        pairwise = ia.get("pairwise", {})
-        if pairwise:
-            rows = []
-            for pair, stats in pairwise.items():
-                rows.append(
-                    {
-                        "Annotator pair": pair.replace("__vs__", " ↔ "),
-                        "n": stats.get("n", 0),
-                        "Cohens κ": stats.get("cohens_kappa", 0.0),
-                        "Agreement": stats.get("agreement_rate", 0.0),
-                        "κ CI": (
-                            f"[{stats.get('kappa_ci', {}).get('ci_lower', 0):.2f}, "
-                            f"{stats.get('kappa_ci', {}).get('ci_upper', 0):.2f}]"
-                            if stats.get("kappa_ci")
-                            else "—"
-                        ),
-                    }
-                )
-            st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
-        if annotator_names:
-            st.caption("Annotators: " + ", ".join(annotator_names))
-        st.caption(
-            "Quality gate: only trust the auto comparison below once inter-annotator "
-            "κ is acceptable (e.g. ≥ 0.6 'Substantial')."
-        )
+    # Inter-rater gate first — independent agreement before gold-vs-auto.
+    _render_rater_block(st, inter_rater, "Inter-Rater Agreement (RATER_A vs RATER_B)")
 
-    def _render_auto_block(auto_cmp: dict, title: str) -> None:
-        st.markdown(f"#### {title}")
-        if auto_cmp and auto_cmp.get("n_valid_pairs", 0):
-            k = auto_cmp.get("cohens_kappa", 0.0)
-            ag = auto_cmp.get("agreement_rate", 0.0)
-            w = auto_cmp.get("weighted_kappa", 0.0)
-            n = auto_cmp.get("n_valid_pairs", 0)
-            c1, c2, c3, c4 = st.columns(4)
-            with c1:
-                st.metric("n", n)
-            with c2:
-                st.metric("Cohen's κ", f"{k:.3f}", help=_kappa_badge(k))
-            with c3:
-                st.metric("Agreement", f"{ag:.0%}")
-            with c4:
-                st.metric("Weighted κ", f"{w:.3f}")
-            ci = auto_cmp.get("kappa_ci")
-            if ci:
-                st.caption(
-                    f"95% CI on κ: [{ci.get('ci_lower', 0):.3f}, {ci.get('ci_upper', 0):.3f}] "
-                    f"(n_bootstrap={ci.get('n_bootstrap', '—')})"
-                )
-        else:
-            st.info("No auto comparison available yet — run the report after annotators finish.")
-
-    if is_aggregated:
-        # ---- NEW aggregated format: show per-dimension summary first ----
-        st.markdown("#### Inter-Annotator Agreement by Dimension (the gate)")
-        per_dim_rows = []
-        for dim, sub in sorted(by_dimension.items()):
-            ia = sub.get("inter_annotator", {})
-            ac = sub.get("auto_comparison", {})
-            per_dim_rows.append(
-                {
-                    "Dimension": dim,
-                    "Annotators n": ia.get("n_common_annotations_total", 0),
-                    "Inter κ": ia.get("mean_kappa", 0.0),
-                    "Inter agreement": ia.get("mean_agreement_rate", 0.0),
-                    "Gold n": ac.get("n_valid_pairs", 0),
-                    "Gold vs auto κ": ac.get("cohens_kappa", 0.0),
-                    "Gold vs auto agreement": ac.get("agreement_rate", 0.0),
-                }
-            )
-        st.dataframe(pd.DataFrame(per_dim_rows), width="stretch", hide_index=True)
-
-        # Overall pooled block
-        overall = report.get("overall", {})
-        st.markdown("### Overall (pooled across dimensions)")
-        _render_ia_block(overall.get("inter_annotator", {}), "Inter-Annotator Agreement")
-        adj = overall.get("adjudicated", {})
-        recs = adj.get("records", [])
-        n_total = adj.get("n_total", len(recs))
-        n_adjudicate = adj.get("n_needs_adjudication", 0)
-        c1, c2 = st.columns(2)
-        with c1:
-            st.metric("Gold records", n_total)
-        with c2:
-            st.metric("Needs human adjudication", n_adjudicate)
-        if n_adjudicate:
-            st.warning(
-                f"{n_adjudicate} record(s) had a tie with no majority — these need "
-                "human adjudication before the auto comparison is final."
-            )
-        _render_auto_block(
-            overall.get("auto_comparison", {}), "Adjudicated Gold vs Auto-Scorer (headline κ)"
-        )
-
-        # Per-dimension auto comparison details
-        st.markdown("#### Per-Dimension Gold vs Auto Scorer")
-        for dim, sub in sorted(by_dimension.items()):
-            _render_auto_block(
-                sub.get("auto_comparison", {}),
-                f"{dim.capitalize()} — Gold vs Auto",
-            )
-    else:
-        # ---- LEGACY single-dimension format (backwards compatibility) ----
-        ia = report.get("inter_annotator", {})
-        _render_ia_block(ia, "Inter-Annotator Agreement (the gate)")
-        adjudicated = report.get("adjudicated", {})
-        st.markdown("#### Adjudication")
-        if adjudicated:
-            recs = adjudicated.get("records", [])
-            n_total = adjudicated.get("n_total", len(recs))
-            n_adjudicate = adjudicated.get("n_needs_adjudication", 0)
-            c1, c2 = st.columns(2)
-            with c1:
-                st.metric("Gold records", n_total)
-            with c2:
-                st.metric("Needs human adjudication", n_adjudicate)
-            if n_adjudicate:
-                st.warning(
-                    f"{n_adjudicate} record(s) had a tie with no majority — these need "
-                    "human adjudication before the auto comparison is final."
-                )
-        else:
-            st.info("No adjudication data present in report.")
-        _render_auto_block(
-            report.get("auto_comparison", {}), "Adjudicated Gold vs Auto-Scorer (headline κ)"
-        )
+    st.markdown("---")
+    _render_gold_vs_auto_block(st, gva, "Adjudicated Gold vs Auto-Scorer (headline κ)")
 
     # ── Rubric / labels reminder ──────────────────────────
     st.markdown("#### Expected labels (per dimension)")
     label_df = pd.DataFrame(
         [
-            {"Dimension": dim, "Allowed labels": " / ".join(v)}
+            {"Dimension": dim, "Allowed labels": " / ".join(sorted(v))}
             for dim, v in sorted(VALID_LABELS.items())
         ]
     )

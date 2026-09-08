@@ -155,10 +155,23 @@ def compute_measurement_budget(
     auto_hours = auto_seconds / 3600
     auto_cost = auto_hours * cost_per_hour_gpu
 
-    # Human
+    # Human (measured per-label time, assumed hourly wage)
     human_seconds = total_responses * human_time_per_label_seconds
     human_hours = human_seconds / 3600
     human_cost = human_hours * cost_per_hour_human
+
+    # Setup / training overhead — ASSUMED, not measured
+    # Real studies often add 30–60 min of rater onboarding that per-label times
+    # exclude; we surface it as an explicit assumption rather than hiding it.
+    setup_hours_assumed = 1.0
+    setup_cost_assumed = setup_hours_assumed * cost_per_hour_human
+    human_cost_with_setup = human_cost + setup_cost_assumed
+
+    # Adjudication overhead — ASSUMED, surfaced as an explicit caveat.  No
+    # measured disagreement rate is available, so it contributes 0 hrs here but
+    # is labelled as assumed/omitted rather than silently ignored.
+    adjudication_hours_assumed = 0.0
+    adjudication_cost_assumed = adjudication_hours_assumed * cost_per_hour_human
 
     # Hybrid (50% auto + 50% human audit)
     audit_pct = 0.5
@@ -171,6 +184,8 @@ def compute_measurement_budget(
         + hybrid_human_seconds / 3600 * cost_per_hour_human
     )
 
+    ratio = human_cost / auto_cost if auto_cost > 0 else float("inf")
+
     return {
         "parameters": {
             "num_prompts": num_prompts,
@@ -180,19 +195,36 @@ def compute_measurement_budget(
             "human_time_per_label_sec": human_time_per_label_seconds,
             "human_time_source": timing_src,
             "human_hourly_cost": cost_per_hour_human,
+            "human_hourly_cost_label": "ASSUMED (not measured; $20/hr working wage)",
             "gpu_hourly_cost": cost_per_hour_gpu,
+            "gpu_hourly_cost_label": "ASSUMED (local Ollama inference ≈ 0)",
+        },
+        "labels": {
+            "human_time_per_label": timing_src.split(" (")[0],
+            "human_hourly_cost": "ASSUMED",
+            "gpu_hourly_cost": "ASSUMED",
+            "setup_hours": "ASSUMED",
+            "setup_note": "1 hr rater onboarding/training, not measured; per-label times exclude it",
+            "adjudication": "ASSUMED/OMITTED (0 hrs) — not measured in this study",
         },
         "fully_automatic": {
             "time_hours": round(auto_hours, 2),
             "cost": round(auto_cost, 2),
             "n_responses": total_responses,
-            "scalability_note": "O(n*m) — linear in models × prompts",
+            "cost_basis": "MEASURED classifier time × ASSUMED GPU rate (local ≈ 0)",
+            "scalability_note": "O(n*m) — linear in models × prompts; 0 labour hours",
         },
         "fully_human": {
             "time_hours": round(human_hours, 2),
             "cost": round(human_cost, 2),
+            "cost_with_setup_assumed": round(human_cost_with_setup, 2),
+            "setup_hours_assumed": setup_hours_assumed,
+            "setup_cost_usd_assumed": round(setup_cost_assumed, 2),
+            "adjudication_hours_assumed": adjudication_hours_assumed,
+            "adjudication_cost_usd_assumed": round(adjudication_cost_assumed, 2),
             "n_responses": total_responses,
-            "scalability_note": "O(n*m) — same linear cost, but 60× more expensive",
+            "cost_basis": "MEASURED per-label time × ASSUMED $20/hr",
+            "scalability_note": "O(n*m) — same linear cost, but paid labour is the driver",
         },
         "hybrid_50pct_audit": {
             "time_hours": round(hybrid_total_hours, 2),
@@ -201,19 +233,36 @@ def compute_measurement_budget(
             "auto_responses": total_responses,
             "note": "Run auto on all, human on 50% for validation",
         },
+        # Reframed headline with the apples-to-oranges caveat
+        # The ratio compares LABOUR (fully human $) against COMPUTE (auto ≈ $0),
+        # so a single "× cheaper" figure is not universally valid: it holds only
+        # where the auto-scorer's κ is adequate for the dimension.
         "recommendation": (
             f"For {total_responses} responses across {num_models} models × {num_prompts} prompts, "
-            f"automatic evaluation is {'MEASURED' if measured else 'an ESTIMATED'} "
-            f"**{human_cost / auto_cost:.0f}× cheaper** "
-            f"than full human evaluation (per-label human time: {timing_src}). "
-            f"A hybrid approach (auto + 50% human audit) costs "
-            f"${hybrid_cost:.0f} and provides measurement validation."
+            f"**fully-automatic uses 0 labour-hours** while fully-human needs "
+            f"{human_hours:.2f} labour-hours (~${human_cost:.2f} at the ASSUMED "
+            f"${cost_per_hour_human:.0f}/hr, per-label time {timing_src}). "
+            f"The nominal ratio is ~{ratio:.0f}×, but this is an **apples-to-oranges** "
+            f"comparison: it sets scarce paid *labour* against *compute* (auto ≈ $0 on "
+            f"local inference). It is NOT a single universally-valid '× cheaper' figure — "
+            f"auto is preferable **only where its κ is adequate**; where auto κ is "
+            f"inadequate (e.g. truthfulness), human annotation is required regardless of cost. "
+            f"Setup/training ({setup_hours_assumed:.1f} h ASSUMED ≈ ${setup_cost_assumed:.0f}) and "
+            f"adjudication (ASSUMED/OMITTED, {adjudication_hours_assumed:.1f} h — no measured "
+            f"disagreement rate) add on top of the per-label total. "
+            f"A hybrid (auto + 50% human audit) costs ~${hybrid_cost:.0f} and provides "
+            f"measurement validation."
         ),
-        "cost_ratio_estimated_x": round(human_cost / auto_cost, 1),
+        "cost_ratio_estimated_x": round(ratio, 1) if ratio != float("inf") else None,
         "cost_is_measured": measured,
+        "cost_ratio_caveat": (
+            "Apples-to-oranges: ratio compares paid labour vs ~free local compute, "
+            "not a single valid '× cheaper' claim across all dimensions."
+        ),
         "cost_basis": (
             f"{'MEASURED' if measured else 'ESTIMATE'} — human annotation time "
-            f"({timing_src}) used directly in the ratio."
+            f"({timing_src}) used directly in the ratio; labour and compute are "
+            f"different resources (see cost_ratio_caveat)."
         ),
     }
 

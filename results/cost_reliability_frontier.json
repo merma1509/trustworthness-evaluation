@@ -1,0 +1,135 @@
+{
+  "label": "MODEL ESTIMATE — cost-reliability frontier. Human accuracy assumed, not measured. Not a validated result.",
+  "human_accuracy_assumed": 0.9,
+  "frontiers": {
+    "safety": {
+      "kappa_auto_measured": 0.615,
+      "n_responses": 70,
+      "human_accuracy_assumed": 0.9,
+      "seconds_per_label_measured": 12.2,
+      "points": [
+        {
+          "frac_human": 0.0,
+          "human_labels": 0,
+          "cost_usd": 0.0,
+          "effective_agreement_model": 0.615,
+          "label": "MODEL ESTIMATE (not measured)"
+        },
+        {
+          "frac_human": 0.25,
+          "human_labels": 18,
+          "cost_usd": 1.19,
+          "effective_agreement_model": 0.687,
+          "label": "MODEL ESTIMATE (not measured)"
+        },
+        {
+          "frac_human": 0.5,
+          "human_labels": 35,
+          "cost_usd": 2.37,
+          "effective_agreement_model": 0.758,
+          "label": "MODEL ESTIMATE (not measured)"
+        },
+        {
+          "frac_human": 0.75,
+          "human_labels": 52,
+          "cost_usd": 3.56,
+          "effective_agreement_model": 0.829,
+          "label": "MODEL ESTIMATE (not measured)"
+        },
+        {
+          "frac_human": 1.0,
+          "human_labels": 70,
+          "cost_usd": 4.74,
+          "effective_agreement_model": 0.9,
+          "label": "MODEL ESTIMATE (not measured)"
+        }
+      ]
+    },
+    "truthfulness": {
+      "kappa_auto_measured": 0.0,
+      "n_responses": 76,
+      "human_accuracy_assumed": 0.9,
+      "seconds_per_label_measured": 12.2,
+      "points": [
+        {
+          "frac_human": 0.0,
+          "human_labels": 0,
+          "cost_usd": 0.0,
+          "effective_agreement_model": 0.0,
+          "label": "MODEL ESTIMATE (not measured)"
+        },
+        {
+          "frac_human": 0.25,
+          "human_labels": 19,
+          "cost_usd": 1.29,
+          "effective_agreement_model": 0.225,
+          "label": "MODEL ESTIMATE (not measured)"
+        },
+        {
+          "frac_human": 0.5,
+          "human_labels": 38,
+          "cost_usd": 2.58,
+          "effective_agreement_model": 0.45,
+          "label": "MODEL ESTIMATE (not measured)"
+        },
+        {
+          "frac_human": 0.75,
+          "human_labels": 57,
+          "cost_usd": 3.86,
+          "effective_agreement_model": 0.675,
+          "label": "MODEL ESTIMATE (not measured)"
+        },
+        {
+          "frac_human": 1.0,
+          "human_labels": 76,
+          "cost_usd": 5.15,
+          "effective_agreement_model": 0.9,
+          "label": "MODEL ESTIMATE (not measured)"
+        }
+      ]
+    },
+    "consistency": {
+      "kappa_auto_measured": 0.0,
+      "n_responses": 64,
+      "human_accuracy_assumed": 0.9,
+      "seconds_per_label_measured": 12.2,
+      "points": [
+        {
+          "frac_human": 0.0,
+          "human_labels": 0,
+          "cost_usd": 0.0,
+          "effective_agreement_model": 0.0,
+          "label": "MODEL ESTIMATE (not measured)"
+        },
+        {
+          "frac_human": 0.25,
+          "human_labels": 16,
+          "cost_usd": 1.08,
+          "effective_agreement_model": 0.225,
+          "label": "MODEL ESTIMATE (not measured)"
+        },
+        {
+          "frac_human": 0.5,
+          "human_labels": 32,
+          "cost_usd": 2.17,
+          "effective_agreement_model": 0.45,
+          "label": "MODEL ESTIMATE (not measured)"
+        },
+        {
+          "frac_human": 0.75,
+          "human_labels": 48,
+          "cost_usd": 3.25,
+          "effective_agreement_model": 0.675,
+          "label": "MODEL ESTIMATE (not measured)"
+        },
+        {
+          "frac_human": 1.0,
+          "human_labels": 64,
+          "cost_usd": 4.34,
+          "effective_agreement_model": 0.9,
+          "label": "MODEL ESTIMATE (not measured)"
+        }
+      ]
+    }
+  }
+}

@@ -135,17 +135,6 @@ def load_log(log_path: Union[str, Path]) -> List[dict]:
         return []
     return [json.loads(line) for line in p.open() if line.strip()]
 
-
-def seal_log_paths(script: str, *paths: Union[str, Path]) -> None:
-    """Entry hook: recompute hashes from the CLI before the script runs.
-
-    Convenience for lightweight drivers; meant to be called right after
-    argument parsing so the audit entry reflects the actual inputs subsequently
-    consumed by the pipeline.
-    """
-
-    _ = script, paths  # reserved for richer drivers that pass explicit args
-
 if __name__ == "__main__":
     # Minimal self-test: emit a sample audit line to stdout-understandable path.
     import tempfile

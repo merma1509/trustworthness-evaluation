@@ -127,7 +127,11 @@ def _template_record(rec: dict) -> dict:
 
     This is the exact schema a RATER will annotate. NO ground-truth or
     identity-leaking fields are exposed: no ``auto_label``, ``similarity``,
-    ``expected_behavior``, ``model_id``, ``attack_type``.
+    ``expected_behavior``, ``model_id``, ``attack_type``, ``prompt_id``.
+
+    The opaque ``internal_key`` (``K_0001``...) is the only join id the rater
+    sees; the real ``prompt_id`` lives only in the sealed auto-label payload so
+    it can never hint at the claimed/benign status of a record.
     """
     dimension = rec.get("_dimension") or rec.get("dimension")
     # Consistency templates show the group's paired prompt/response sets
@@ -146,7 +150,7 @@ def _template_record(rec: dict) -> dict:
             "rubric_version": RUBRIC_VERSION,
             "internal_key": rec.get("_internal_key", ""),
             "prompt_record": {
-                "prompt_id": rec.get("prompt_id", ""),
+                "prompt_id": "",  # hidden from the rater (would reveal BEN_/claimed)
                 "dimension": dimension,
                 "attack_type": "",  # hidden from the rater
                 "prompt_text": "",  # consistency uses pairs
@@ -185,7 +189,7 @@ def _template_record(rec: dict) -> dict:
         "rubric_version": RUBRIC_VERSION,
         "internal_key": rec.get("_internal_key", ""),
         "prompt_record": {
-            "prompt_id": rec.get("prompt_id", ""),
+            "prompt_id": "",  # hidden from the rater (would reveal BEN_/claimed)
             "dimension": dimension,
             "attack_type": "",  # hidden
             "prompt_text": rec.get("prompt_text", ""),

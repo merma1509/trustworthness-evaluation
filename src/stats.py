@@ -203,33 +203,33 @@ def estimate_required_sample_size(
     precision: float = 0.05,
     confidence: float = 0.95,
     expected_proportion: float = 0.5,
+    method: str = "wilson",
 ) -> Dict:
     """Estimate the sample size N needed for a stated precision.
 
-    **Defensible sample-size estimator (Task 6).** Unlike the earlier
-    ``compute_dataset_size_sensitivity`` shortcut — which only resampled
-    existing scores against a fixed ``< 0.10`` threshold — this computes N to
-    reach a *stated* half-width at a *stated* confidence level.
+    **Defensible sample-size estimators.** Computes N to reach a
+    *stated* CI half-width at a *stated* confidence level, using the Wilson
+    score interval by default (per PLAN_PART3B §3B.2.3) — more accurate than the
+    Wald normal approximation for proportions.
 
     The unit of analysis is the **independent group** (a unique prompt or a
     consistency group), NOT each raw record. Duplicated prompt texts within a
     consistency group are counted once. See ``docs/scoring-spec-v2.md``.
 
-    Uses the Wald-normal approximation solved for N:
-
-        N = ceil( z^2 * p * (1 - p) / precision^2 )
-
     Args:
         precision: Desired CI half-width (e.g. 0.05 = +/-5%).
         confidence: Confidence level (0.95 -> z = 1.96).
         expected_proportion: Assumed true proportion (0.5 maximises variance).
+        method: "wilson" (default) or "wald" (normal approximation).
 
     Returns:
         Dict with keys 'n_required', 'precision', 'confidence', 'z',
-        'expected_proportion', and 'note'.
+        'expected_proportion', 'method', and 'note'.
     """
     from scipy.stats import norm
 
+    if method not in ("wilson", "wald"):
+        raise ValueError(f"method must be 'wilson' or 'wald', got {method!r}")
     if not (0 < precision < 1):
         raise ValueError("precision must be in (0, 1)")
     if not (0 < expected_proportion < 1):
@@ -237,8 +237,26 @@ def estimate_required_sample_size(
 
     alpha = 1.0 - confidence
     z = float(norm.ppf(1.0 - alpha / 2))
-    variance = expected_proportion * (1.0 - expected_proportion)
-    n_required = int(np.ceil((z**2) * variance / (precision**2)))
+
+    if method == "wald":
+        # Wald (normal approximation): N = z^2 * p(1-p) / w^2
+        variance = expected_proportion * (1.0 - expected_proportion)
+        n_required = int(np.ceil((z**2) * variance / (precision**2)))
+    else:
+        # Wilson score interval solved for n.
+        # The Wilson half-width as a function of n is:
+        #   w(n) = [ z*sqrt( p(1-p)/n + z^2/(4 n^2) ) ] / ( 1 + z^2/n )
+        # Find the smallest integer n whose w(n) <= precision by a binary search.
+        lo, hi = 1, 1
+        while _wilson_half_width(hi, z, expected_proportion) > precision:
+            hi *= 2
+        while lo < hi:
+            mid = (lo + hi) // 2
+            if _wilson_half_width(mid, z, expected_proportion) <= precision:
+                hi = mid
+            else:
+                lo = mid + 1
+        n_required = lo
 
     return {
         "n_required": n_required,
@@ -246,18 +264,30 @@ def estimate_required_sample_size(
         "confidence": confidence,
         "z": round(z, 4),
         "expected_proportion": expected_proportion,
+        "method": method,
         "note": (
             f"Independent units needed for +/-{precision:.0%} half-width at "
-            f"{confidence:.0%} confidence (p={expected_proportion}): ~{n_required}. "
+            f"{confidence:.0%} confidence (p={expected_proportion}, "
+            f"method={method}): ~{n_required}. "
             "Units are unique prompts / consistency groups, not raw records."
         ),
     }
 
 
+def _wilson_half_width(n: int, z: float, p: float) -> float:
+    """Half-width of the Wilson score interval for a given sample size n."""
+    q = 1.0 - p
+    return (z * np.sqrt(p * q / n + z**2 / (4 * n**2))) / (1 + z**2 / n)
+
+
+
 def compute_confidence_intervals(
-    scores: List[float], n_bootstrap: int = 1000, ci: float = 0.95
+    scores: List[float], n_bootstrap: int = 1000, ci: float = 0.95, seed: int = 42
 ) -> Dict:
     """Compute bootstrap confidence intervals for a list of scores.
+
+    Uses **Efron's percentile method** (PLAN_PART3B §3B.3) with an explicit
+    random seed (default 42) so results are reproducible from the same inputs.
 
     Handles degenerate (extreme) outcomes specially: when every score is the
     same (all 0 or all 1, e.g. a model that is perfect on every consistency
@@ -271,9 +301,11 @@ def compute_confidence_intervals(
         scores: List of individual trial scores (0 or 1)
         n_bootstrap: Number of bootstrap iterations
         ci: Confidence level (e.g., 0.95 for 95% CI)
+        seed: RNG seed for reproducibility (default 42)
 
     Returns:
-        Dict with keys: 'mean', 'ci_lower', 'ci_upper', 'n'
+        Dict with keys: 'mean', 'ci_lower', 'ci_upper', 'n', 'method' plus
+        'n_bootstrap' and 'seed' for the percentile-bootstrap path
     """
     if len(scores) == 0:
         return {"mean": 0.0, "ci_lower": 0.0, "ci_upper": 0.0, "n": 0}
@@ -308,8 +340,8 @@ def compute_confidence_intervals(
             ),
         }
 
-    # ── Standard bootstrap ──────────────────────────────────────────
-    rng = np.random.RandomState(42)
+    # ── Standard bootstrap: Efron's percentile method ───────────────
+    rng = np.random.RandomState(seed)
     means = []
     for _ in range(n_bootstrap):
         sample = rng.choice(scores, size=n, replace=True)
@@ -323,7 +355,9 @@ def compute_confidence_intervals(
         "ci_lower": round(float(ci_lower), 4),
         "ci_upper": round(float(ci_upper), 4),
         "n": n,
-        "method": "bootstrap",
+        "method": "efron_percentile",
+        "n_bootstrap": n_bootstrap,
+        "seed": seed,
     }
 
 
@@ -521,6 +555,166 @@ DEFAULT_WEIGHT_CONFIGS = [
 
 
 # ──────────────────────────────────────────────────────────────
+# Weight sensitivity WITH CIs
+# ──────────────────────────────────────────────────────────────
+def compute_weight_sensitivity_with_ci(
+    safety_trials: List[float],
+    truthfulness_trials: List[float],
+    consistency_trials: List[float],
+    weight_configs: List[Dict] = None,
+    n_bootstrap: int = 10000,
+    ci: float = 0.95,
+    seed: int = 42,
+) -> List[Dict]:
+    """Weight sensitivity analysis that reports a CI per configuration.
+
+    Unlike ``compute_weight_sensitivity`` (which reports only a point score),
+    this bootstraps each dimension's trial scores (Efron percentile, PLAN
+    §3B.3) and combines them under each weight config, yielding a TrustScore
+    point estimate **plus** a percentile CI that reflects the sampling
+    uncertainty of the underlying dimension scores.
+
+    Args:
+        safety_trials: 0/1 per-independent-unit scores for Safety.
+        truthfulness_trials: 0/1 per-unit scores for Truthfulness.
+        consistency_trials: 0/1 per-group scores for Consistency.
+        weight_configs: List of dicts with 'name','w_s','w_t','w_c'. Defaults to
+            DEFAULT_WEIGHT_CONFIGS.
+        n_bootstrap: Number of bootstrap resamples per config.
+        ci: Confidence level (default 0.95).
+        seed: RNG seed for reproducibility (default 42).
+
+    Returns:
+        List (one entry per config) with 'config', weights, 'trustscore',
+        'ci_lower', 'ci_upper', 'ci_half_width', 'n', and 'method'.
+    """
+    if weight_configs is None:
+        weight_configs = DEFAULT_WEIGHT_CONFIGS
+
+    dims = {
+        "safety": list(safety_trials),
+        "truthfulness": list(truthfulness_trials),
+        "consistency": list(consistency_trials),
+    }
+    # Mean point scores per dimension (0 when a dimension has no trials).
+    point = {k: (float(np.mean(v)) if v else 0.0) for k, v in dims.items()}
+
+    alpha = (1.0 - ci) / 2.0
+    rng = np.random.RandomState(seed)
+
+    out = []
+    for config in weight_configs:
+        w_s, w_t, w_c = config["w_s"], config["w_t"], config["w_c"]
+        weights = {"safety": w_s, "truthfulness": w_t, "consistency": w_c}
+
+        point_score = w_s * point["safety"] + w_t * point["truthfulness"] + w_c * point["consistency"]
+
+        # Bootstrap each dimension with replacement, combine under weights.
+        weighted = []
+        for _ in range(n_bootstrap):
+            total = 0.0
+            for key, w in weights.items():
+                trials = dims[key]
+                if trials:
+                    sample = rng.choice(trials, size=len(trials), replace=True)
+                    total += w * float(np.mean(sample))
+            weighted.append(total)
+
+        lo = float(np.percentile(weighted, alpha * 100))
+        hi = float(np.percentile(weighted, (1.0 - alpha) * 100))
+        out.append(
+            {
+                "config": config["name"],
+                "weights": {k: round(w, 3) for k, w in weights.items()},
+                "trustscore": round(point_score, 4),
+                "ci_lower": round(lo, 4),
+                "ci_upper": round(hi, 4),
+                "ci_half_width": round((hi - lo) / 2, 4),
+                "method": "efron_percentile",
+                "n_bootstrap": n_bootstrap,
+                "seed": seed,
+            }
+        )
+    return out
+
+
+def compute_model_win_probability(
+    model1_trials: Dict[str, List[float]],
+    model2_trials: Dict[str, List[float]],
+    weight_configs: List[Dict] = None,
+    n_bootstrap: int = 10000,
+    seed: int = 42,
+) -> Dict:
+    """P(model1 > model2) under each weight config, + a 'stable win' verdict.
+
+    Satisfies the reporting format: each config reports the model 1
+    win probability (``P_model1_wins``) and a ``stable_win`` flag which is true
+    only when ``P_model1_wins >= 0.95`` OR ``P_model2_wins >= 0.95``.
+
+    Args:
+        model1_trials: dict with keys 'safety','truthfulness','consistency'
+            mapping to per-unit 0/1 trial lists for model 1.
+        model2_trials: same for model 2.
+        weight_configs: defaults to DEFAULT_WEIGHT_CONFIGS.
+        n_bootstrap: bootstrap resamples per config.
+        seed: RNG seed.
+
+    Returns:
+        Dict with 'per_config' (each config has P_model1_wins, P_model2_wins,
+        tie_pct, stable_win), 'n_bootstrap', 'seed', and 'interpretation'.
+    """
+    import numpy as np
+
+    if weight_configs is None:
+        weight_configs = DEFAULT_WEIGHT_CONFIGS
+    rng = np.random.RandomState(seed)
+    dims = ("safety", "truthfulness", "consistency")
+
+    per_config = []
+    for config in weight_configs:
+        w = {"safety": config["w_s"], "truthfulness": config["w_t"], "consistency": config["w_c"]}
+        wins1 = wins2 = ties = 0
+        for _ in range(n_bootstrap):
+            s1 = s2 = 0.0
+            for key in dims:
+                t1 = model1_trials.get(key) or []
+                t2 = model2_trials.get(key) or []
+                if t1:
+                    s1 += w[key] * float(np.mean(rng.choice(t1, size=len(t1), replace=True)))
+                if t2:
+                    s2 += w[key] * float(np.mean(rng.choice(t2, size=len(t2), replace=True)))
+            if s1 > s2:
+                wins1 += 1
+            elif s2 > s1:
+                wins2 += 1
+            else:
+                ties += 1
+
+        p1 = wins1 / n_bootstrap
+        p2 = wins2 / n_bootstrap
+        stable = p1 >= 0.95 or p2 >= 0.95
+        per_config.append(
+            {
+                "config": config["name"],
+                "P_model1_wins": round(p1, 4),
+                "P_model2_wins": round(p2, 4),
+                "tie_pct": round(ties / n_bootstrap * 100, 1),
+                "stable_win": stable,
+            }
+        )
+
+    return {
+        "per_config": per_config,
+        "n_bootstrap": n_bootstrap,
+        "seed": seed,
+        "interpretation": (
+            "A 'stable win' requires P >= 0.95 for one model under that config; "
+            "otherwise the ranking under that weighting is NOT statistically stable."
+        ),
+    }
+
+
+# ──────────────────────────────────────────────────────────────
 # Ranking stability (bootstrap probability of ranking flip)
 # ──────────────────────────────────────────────────────────────
 def compute_ranking_stability(
@@ -655,10 +849,10 @@ def compute_required_n_empirically(
 ) -> Dict:
     """Empirically find the dataset size N needed for a target CI half-width.
 
-    Complements the theoretical Wald estimate (``estimate_required_sample_size``)
-    by *measuring* how the bootstrap CI half-width shrinks as dataset size
-    grows. Returns the smallest ``n`` whose bootstrap CI width is at most
-    ``2 * target_precision``.
+    Complements the theoretical estimator (``estimate_required_sample_size``,
+    Wilson score interval by default) by *measuring* how the bootstrap CI
+    half-width shrinks as dataset size grows. Returns the smallest ``n`` whose
+    bootstrap CI width is at most ``2 * target_precision``.
 
     Args:
         base_scores: List of 0/1 scores from the full dataset.
@@ -669,7 +863,7 @@ def compute_required_n_empirically(
 
     Returns:
         Dict with keys 'n_required', 'target_precision', 'ci_width_at_n',
-        'sizes' (the full size-sweep), and 'note'.
+        'sizes' (the full size-sweep), 'theoretical_n', and 'note'.
     """
     import numpy as np
 
@@ -681,20 +875,28 @@ def compute_required_n_empirically(
     alpha = (1.0 - target_ci) / 2.0
     max_allowed_width = 2 * target_precision
 
-    # Theoretical Wald N — computed up-front so the empirical sweep can be
-    # extended to (at least) cover it. Without this, a small dataset (n<=38)
-    # would never reach a tight +/-5% CI within a scan bounded at full_n*3
-    # (e.g. 105 max for n=35 << the Wald 332 target), returning None.
-    theoretical_wald_n = estimate_required_sample_size(
+    # Theoretical (Wilson) N — the defensible target the empirical sweep is
+    # expected to roughly reproduce. Reported under 'theoretical_n'.
+    theoretical_n = estimate_required_sample_size(
         precision=target_precision, confidence=target_ci
+    )["n_required"]
+
+    # Conservative sweep ceiling: use the *Wald* N for the upper scan bound.
+    # Wald overestimates N slightly (385 vs Wilson 381 @ p=0.5), so scanning up
+    # to 1.25x the Wald target guarantees the sweep also covers the Wilson
+    # target. Without this a small dataset (n<=38) would never reach a tight
+    # +/-5% CI within a naive full_n*3 bound (e.g. 105 max for n=35 < Wald 385),
+    # returning None.
+    wald_n = estimate_required_sample_size(
+        precision=target_precision, confidence=target_ci, method="wald"
     )["n_required"]
 
     # Sweep increasing dataset sizes (bootstrap WITH replacement to simulate
     # larger N beyond the observed count via the empirical scores).
     step = max(1, full_n // 12)
-    # Scan from 10 up to at least 1.25x the theoretical target, but not below
+    # Scan from 10 up to at least 1.25x the Wald ceiling, but not below
     # 3x the observed dataset (which is generous for stable-looking CIs).
-    upper = max(full_n * 3, int(theoretical_wald_n * 1.25) + 1)
+    upper = max(full_n * 3, int(wald_n * 1.25) + 1)
     n_range = list(range(10, upper + 1, step))
     if upper not in n_range:
         n_range.append(upper)
@@ -727,12 +929,114 @@ def compute_required_n_empirically(
         "target_precision": target_precision,
         "ci_width_at_n": (sizes[-1]["ci_width"] if sizes else None),
         "sizes": sizes,
-        "theoretical_wald_n": estimate_required_sample_size(
-            precision=target_precision, confidence=target_ci
-        )["n_required"],
+        "theoretical_n": theoretical_n,
         "note": (
             f"Empirically determined smallest N reaching +/-{target_precision:.0%} "
             f"CI ({target_ci:.0%}): {n_required}. "
             f"Full dataset has {full_n} units."
         ),
     }
+
+
+# ──────────────────────────────────────────────────────────────
+# Paired bootstrap hypothesis test
+# ──────────────────────────────────────────────────────────────
+def paired_bootstrap_test(
+    model1_scores: List[float],
+    model2_scores: List[float],
+    n_bootstrap: int = 10000,
+    seed: int = 42,
+) -> Dict:
+    """Paired bootstrap test for the difference in means between two models.
+
+    Tests the null hypothesis
+
+        H0: mean(model1) = mean(model2)
+
+    against the two-sided alternative H1: mean(model1) != mean(model2),
+    using a residual-recentring bootstrap (Efron & Tibshirani 1993, ch. 16):
+    the observed per-unit difference is subtracted from model 2 to centre the
+    data under H0, then paired resampling yields the null distribution.
+
+    Args:
+        model1_scores: Per-unit 0/1 scores for model 1 (same order as model 2).
+        model2_scores: Per-unit 0/1 scores for model 2 (same order as model 1).
+        n_bootstrap: Number of bootstrap resamples (default 10 000).
+        seed: RNG seed for reproducibility (default 42).
+
+    Returns:
+        Dict with 'observed_difference' (model1 - model2), 'p_value',
+        'ci_95', 'significant_at_05', 'significant_at_01', 'null_hypothesis',
+        'n_pairs', 'n_bootstrap', 'seed', and 'p_value_interpretation'.
+
+    Raises:
+        ValueError: if the score lists have different lengths.
+    """
+    if len(model1_scores) != len(model2_scores):
+        raise ValueError(
+            f"Paired scores must be the same length, "
+            f"got {len(model1_scores)} vs {len(model2_scores)}"
+        )
+
+    n = len(model1_scores)
+    if n == 0:
+        return {
+            "observed_difference": 0.0,
+            "p_value": 1.0,
+            "ci_95": [0.0, 0.0],
+            "significant_at_05": False,
+            "significant_at_01": False,
+            "null_hypothesis": "mean(model1) = mean(model2)",
+            "n_pairs": 0,
+            "n_bootstrap": n_bootstrap,
+            "seed": seed,
+            "p_value_interpretation": interpret_p(1.0),
+        }
+
+    import numpy as np
+
+    differences = [m1 - m2 for m1, m2 in zip(model1_scores, model2_scores)]
+    observed_diff = float(np.mean(differences))
+
+    # Centre model 2 under H0 (subtract the observed difference).
+    centered_model2 = [s - observed_diff for s in model2_scores]
+    centered_diffs = [m1 - s2 for m1, s2 in zip(model1_scores, centered_model2)]
+
+    rng = np.random.RandomState(seed)
+    boot_diffs = []
+    for _ in range(n_bootstrap):
+        sample = rng.choice(centered_diffs, size=n, replace=True)
+        boot_diffs.append(float(np.mean(sample)))
+
+    tail_ge = sum(1 for d in boot_diffs if d >= observed_diff) / n_bootstrap
+    tail_le = sum(1 for d in boot_diffs if d <= observed_diff) / n_bootstrap
+    p_value = min(2.0 * min(tail_ge, tail_le), 1.0)
+
+    ci_lower = float(np.percentile(boot_diffs, 2.5))
+    ci_upper = float(np.percentile(boot_diffs, 97.5))
+
+    return {
+        "observed_difference": round(observed_diff, 4),
+        "p_value": round(p_value, 4),
+        "ci_95": [round(ci_lower, 4), round(ci_upper, 4)],
+        "significant_at_05": p_value < 0.05,
+        "significant_at_01": p_value < 0.01,
+        "null_hypothesis": "mean(model1) = mean(model2)",
+        "n_pairs": n,
+        "n_bootstrap": n_bootstrap,
+        "seed": seed,
+        "p_value_interpretation": interpret_p(p_value),
+    }
+
+
+def interpret_p(p: float) -> str:
+    """Human-readable interpretation of a p-value."""
+    if p < 0.001:
+        return "very strong evidence against H0"
+    if p < 0.01:
+        return "strong evidence against H0"
+    if p < 0.05:
+        return "moderate evidence against H0"
+    if p < 0.10:
+        return "weak evidence against H0"
+    return "no evidence against H0"

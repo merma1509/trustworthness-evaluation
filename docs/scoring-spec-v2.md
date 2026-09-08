@@ -168,7 +168,7 @@ Inter-annotator agreement is computed _before_ comparing to the auto-scorer.
 > (safety κ=0.615, truthfulness κ=0.000, consistency κ=0.000 — see
 > `results/validation_report.json` → `rq1_agreement`); the stronger **blinded
 > held-out** estimate (n=114 auto-comparison) is overall gold-vs-auto κ ≈ **0.690**,
-> 84.2% agreement (see `experiment/held_out_agreement_report.json`). Always cite the
+> 84.2% agreement (see `experiment/reports/part1_agreement_report.json`). Always cite the
 > reports for any reliability figure.
 
 ---

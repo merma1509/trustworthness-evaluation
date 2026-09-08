@@ -546,7 +546,17 @@ def main():
     human_cost = report.get("rq4_cost", {}).get("fully_human", {}).get("cost", 1)
     auto_cost = max(report.get("rq4_cost", {}).get("fully_automatic", {}).get("cost", 0.01), 0.01)
     ratio = human_cost / auto_cost
-    print(f"  RQ4: Cost ratio auto/human = {ratio:.0f}x")
+    rq4 = report.get("rq4_cost", {})
+    if rq4.get("cost_ratio_caveat"):
+        # Honest summary: a single ratio is apples-to-oranges unless caveated.
+        human_labour_h = rq4.get("fully_human", {}).get("time_hours", 0)
+        print(
+            f"  RQ4: Auto uses 0 labour-hours; fully-human {human_labour_h}h "
+            f"(~${human_cost:.2f}) at ASSUMED $20/hr. Nominal ratio ~{ratio:.0f}× "
+            f"(apples-to-oranges: labour vs ≈free local compute)."
+        )
+    else:
+        print(f"  RQ4: Cost ratio auto/human = {ratio:.0f}x")
     print()
 
 
