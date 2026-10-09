@@ -27,7 +27,8 @@ import json
 import re
 import sys
 from pathlib import Path
-from typing import List, Set
+from typing import Dict, List, Set
+from collections import defaultdict
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -59,6 +60,32 @@ def _nonempty_sensitive(record: dict) -> List[str]:
             if m.group(1) != "":
                 found.append(kw)
     return found
+
+
+def _prompt_fingerprint(record: dict) -> str:
+    """Canonical fingerprint of the rater-visible prompt content.
+
+    For consistency units we digest the whole pair list (prompt + response
+    texts); for safety/truthfulness we digest the single prompt_text. This is
+    what a rater actually sees, so two records that share a fingerprint are
+    visible duplicates (e.g. the same group served for gemma and llama with
+    identical prompts *and* responses) — a model-identity leak risk.
+    """
+    if isinstance(record.get("pairs"), list):
+        pairs = []
+        for p in record["pairs"]:
+            if isinstance(p, dict):
+                pairs.append((p.get("prompt", ""), p.get("response", "")))
+        return repr(pairs)
+    return repr(record.get("prompt_record", {}).get("prompt_text", ""))
+
+
+def _duplicate_prompt_groups(records: List[dict]) -> Dict[str, List[str]]:
+    """Group template internal_keys by the rater-visible prompt fingerprint."""
+    buckets: Dict[str, List[str]] = defaultdict(list)
+    for rec in records:
+        buckets[_prompt_fingerprint(rec)].append(rec.get("internal_key", ""))
+    return {fp: keys for fp, keys in buckets.items() if len(keys) > 1}
 
 
 def main() -> int:
@@ -112,6 +139,20 @@ def main() -> int:
 
     print(f"  blinding: {len(all_keys)} template internal_keys checked, "
           f"0 non-empty sensitive values")
+
+    # ── 2b) Rater-visible duplicate prompt groups (model-identity leak risk) ─
+    # If the same prompt/response content appears twice in one split (e.g. the
+    # same consistency group served once for gemma and once for llama), a rater
+    # may notice the duplicate and infer that the two records belong to
+    # different models. This does not invalidate the seal, but the researcher
+    # should be aware before interpreting the held-out agreement.
+    for name, path in (("calibration", cal_path), ("heldout", hold_path)):
+        dupes = _duplicate_prompt_groups(_load_jsonl(path))
+        if dupes:
+            n_keys = sum(len(v) for v in dupes.values())
+            print(f"  [WARN] {name}: {len(dupes)} rater-visible prompt "
+                  f"duplicates ({n_keys} records): "
+                  f"{sorted(v[0] for v in dupes.values())[:6]} ...")
 
     # ── 3) Auto-label join integrity (optional if encrypted) ────────────────
     if args.sealed_labels:
