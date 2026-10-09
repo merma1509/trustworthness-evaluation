@@ -587,127 +587,18 @@ instrument it must be validated before use.
 ### Answer
 
 > ⚠️ **Status:** the claims below rest on two supporting estimates —
-> (1) a small, non-blinded calibration sample (30 records, κ=0.757 / 86.7%),
-> and (2) a **blinded, held-out** multi-rater re-annotation (114 records, overall
-> gold-vs-auto κ=0.690 / 84.2% agreement) at `experiment/reports/part1_agreement_report.json`.
-> The held-out estimate is the more faithful signal of true agreement: raters saw
-> only prompt + response and could not leak `auto_label`, model identity, or
-> prompt ids.
->
-> **Lean on the auto-scorer when:**
->
-> - ✅ You care about **relative rankings** (which model wins per dimension) and report them **with the bootstrap flip-probability caveat** — the margin here is within measurement error (~77% Llama, paired p>0.05)
-> - ✅ You accept **±5% margin of error** and decide significance from the paired-difference test (`results/paired_comparison.json`), not from CI-overlap eyeballing
-> - ✅ You spot-check the **weakest-κ dimensions** (truthfulness, consistency) where the budget planner routes ~66 human annotations
-> - ✅ The evaluation involves **clear-cut safety** (highest gold-vs-auto κ of the three, 0.593, 84.6% agreement in the held-out report)
->
-> **Do not rely on it for absolute scores when:**
->
-> - ❌ **Benign truthfulness** (auto has no scorer — all marked `unverified`)
-> - ❌ **Language-switching in consistency** (auto misses language changes; gold-vs-auto κ=0.0, prevalence-limited)
-> - ❌ **Nuanced role-play safety** (auto can't distinguish acting from actual compliance)
-> - ❌ **Truthfulness FPR** without human backing (held-out gold-vs-auto κ=0.277 < gate)
-> - ❌ You need **absolute scores** (bias is systematic: auto is too strict)
 
-### Empirical Evidence — calibration (30 human-annotated samples)
+> (1) a small, non-blinded calibration sample (30 records, κ=0.757 / 86.7%), and
+> (2) a **blinded, held-out** multi-rater re-annotation run. The held-out estimate
+> does **not yet exist in this repository**: the sealed experiment templates are
+> present (`experiment/sealed/templates/`), but no real human annotations have
+> been filled yet (see `experiment/annotations/`, all label fields are empty), so
+> no gold-vs-auto held-out agreement has been measured. The old values (κ=0.690)
+> that once sat in this section were **demo-E2E artifacts** from a code-path test
+> (see `git log` for removal of `held_out_agreement_report.json` / `report_part1_agreement`),
+> **not** results of the real rater run. They have been removed from this README.
 
-| Dimension        | Agreement | κ (Cohen's Kappa) | Note |
-| ---------------- | :-------: | :---------------: | :--: |
-| **Safety**       |    90%    |       0.615       | n=10 |
-| **Truthfulness** |    90%    |      0.000\*      | n=10 |
-| **Consistency**  |    80%    |      0.000\*      | n=10 |
-| **Overall**      | **86.7%** |     **0.757**     | n=30 |
-
-> The calibration sample is small **and unblinded**, so its κ is a noisy upper-bound
-> estimate, not a decisive validation. The conservative estimate comes from the
-> **blinded held-out** set below (`experiment/reports/part1_agreement_report.json`),
-> where raters could not see `auto_label`/model/prompt-id.
-
-### Empirical Evidence — blinded held-out (2 raters)
-
-| Dimension        | Inter-rater κ | Inter-rater Agreement | Gold-vs-auto κ | Gold-vs-auto Agreement |  n  |
-| ---------------- | :-----------: | :-------------------: | :------------: | :--------------------: | :-: |
-| **Safety**       |     1.000     |        100.0%         |     0.593      |         84.6%          | 52  |
-| **Truthfulness** |     0.537     |         93.5%         |     0.277      |         81.4%          | 43  |
-| **Consistency**  |    0.000\*    |         95.0%         |    0.000\*     |         89.5%          | 19  |
-| **Overall**      |   **0.926**   |       **96.6%**       |   **0.690**    |       **84.2%**        | 114 |
-
-> Gold-vs-auto `n` (right column) counts paired auto↔adjudicated comparisons;
-> the adjudicated held-out units are 52 safety / 46 truthfulness / 20 consistency
-> (118 total annotated). Auto_comparison skips benign truthfulness records, which
-> have no auto label.
-
-> \***κ = 0.000 artifact.** Consistency and truthfulness have high raw agreement but
-> κ≈0.0 because the label distribution is highly skewed (almost all labels are
-> "consistent"/"correct"). Under such prevalence, expected agreement ≈ observed
-> agreement, collapsing κ — a **known limitation of Cohen's κ** with imbalanced
-> labels, _not_ evidence of annotation disagreement. Raw agreement is the more
-> meaningful statistic; we report both.
->
-> **Gold-vs-auto κ** (headline): how often the auto-scorer's label matches the
-> blinded human gold. Overall gold-vs-auto κ = 0.690 (84.2% agreement). Safety
-> (κ=0.593) is the strongest; truthfulness (κ=0.277) and consistency (κ=0.0,
-> prevalence) are below the κ-gate and drive the budget planner's human-allocation
-> gates (`make experiment-budget`).
-> **RQ3 unit of analysis (important).** Stability and required-N are computed on the
-> **independent unit**, not on raw records: unique prompts for Safety/Truthfulness
-> (35 / 38) and **multi-prompt groups** for Consistency (11 groups). This avoids the
-> earlier flaw of double-counting paired model records (which inflated Consistency to 64) and lets us state a closed-form future-N via the Wald sample-size estimator
-> (`estimate_required_sample_size` in `src/stats.py`) instead of an unbounded resample.
-> See `tests/test_rq3_unit_of_analysis.py`.
-
-### Key Findings
-
-| Finding                                          | Detail                                                                                                                                                                                                                                                                                                                                               |
-| ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Llama 3.1 8B scores higher on all dimensions** | Safety 0.7714 vs 0.6857 (17 vs 14 malicious refused); Truthfulness 0.8421 vs 0.7632; Consistency 0.9091 vs 0.8182 (10/11 vs 9/11 groups). Margins **not significant** on the paired test                                                                                                                                                             |
-| **Ranking advantage is NOT stable at p<0.05**    | Llama outscores Gemma in only ~77% of ranking bootstrap draws (flip prob 0.74–0.79); paired p≈0.86–1.0 — report as within measurement error (see `ranking_stability.json`, `paired_comparison.json`)                                                                                                                                                 |
-| **No over-refusal for either model**             | 0 benign prompts refused for both Gemma and Llama in the current run                                                                                                                                                                                                                                                                                 |
-| **Auto-human agreement (calibration)**           | κ=0.757, 86.7% agreement on the 30-sample calibration set (see `results/validation_report.json`)                                                                                                                                                                                                                                                     |
-| **Auto-human agreement (held-out)**              | Sealed multi-rater held-out: overall gold-vs-auto κ=0.690, 84.2% agreement (114 records); safety κ=0.593, truthfulness κ=0.277, consistency κ=0.0 (prevalence artifact; 89.5% agreement). See `experiment/reports/part1_agreement_report.json`                                                                                                       |
-| **Stability (jackknife)**                        | All dimensions **stable** on the _independent-unit_ scale (safety σ≈1.4%, truthfulness σ≈1.1%, consistency σ≈2.9% leave-1-out on groups)                                                                                                                                                                                                             |
-| **Future N (defensible)**                        | To reach ±10% CI @95% need ≈83 (safety), ≈70 (truthfulness), ≈32 groups (consistency); ±5% Wald needs ≈332 / ≈278 / ≈127 — with **empirical bootstrap** (±5%) ≈234 / ≈235 / ≈92 — computed on **independent units**, not raw records                                                                                                                 |
-| **Cost**                                         | Auto uses **0 labour-hours**; fully-human needs ≈0.71 h labour (~$14 at ASSUMED $20/hr, MEASURED 12.2 s/label). The nominal ratio (~108×) is an **apples-to-oranges** comparison (paid labour vs ≈free local compute) and is **not** a universally-valid "× cheaper" claim. See `validation_report.json` → `rq4_cost` and `scripts/compute_cost.py`. |
-
----
-
-## Related Work
-
-| Framework                               | Focus                      | Difference from This Work            |
-| --------------------------------------- | -------------------------- | ------------------------------------ |
-| **HELM** (Liang et al., 2022)           | Holistic evaluation        | Requires cloud infrastructure        |
-| **DecodingTrust** (Wang et al., 2023)   | Multi-dimension trust      | Large benchmark suites               |
-| **TrustLLM** (Sun et al., 2024)         | Trustworthiness benchmark  | Requires extensive compute           |
-| **HarmBench** (Mazeika et al., 2024)    | Red-teaming                | Focused on attacks only              |
-| **TruthfulQA** (Lin et al., 2022)       | Factuality                 | Single dimension                     |
-| **SelfCheckGPT** (Manakul et al., 2023) | Hallucination detection    | Single dimension                     |
-| **This work**                           | **Lightweight validation** | **Local, transparent, reproducible** |
-
----
-
-## Future Work
-
-- Expand to more models (Mistral 7B, Qwen 2.5, DeepSeek, Llama 3.3)
-- Add multi-turn evaluation for conversational attacks
-- Add RAG-specific trustworthiness dimensions
-- Replace keyword-based truthfulness with LLM-as-a-judge
-- Add privacy, fairness, and interpretability dimensions
-- Higher temperature for measuring natural variation
-- Automated calibration of evaluation weights
-
----
-
-## Acknowledgments
-
-- [Ollama](https://ollama.com) for local LLM inference
-- [OWASP](https://owasp.org/www-project-top-10-for-llm-applications/) for LLM threat taxonomy
-- [Sentence-Transformers](https://www.sbert.net/) for semantic similarity embeddings
-- [Streamlit](https://streamlit.io) for interactive dashboard
-- [Astral](https://docs.astral.sh/uv/) for the `uv` package manager
-- Course instructor and reviewers for constructive feedback
-
----
-
-_Built for the course "Security and Interpretability of Machine Learning" at Innopolis University._
-
-**Author:** Niyonshuti Martin · [GitHub](https://github.com/merma1509/trustworthness-evaluation)
+> The only measured calibration estimate is the 30-sample κ=0.757; the definitive
+> held-out value is **pending** until `make experiment-seal`, rater annotation,
+> `experiment-ingest`, `experiment-resolve`, `experiment-gold` and
+> `experiment-agreement` are completed.

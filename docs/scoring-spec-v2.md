@@ -166,9 +166,17 @@ Inter-annotator agreement is computed _before_ comparing to the auto-scorer.
 > the spec was drafted. They are **not** the measured result. The **measured**
 > calibration agreement (n=30) is overall κ ≈ **0.757**, 86.7% agreement
 > (safety κ=0.615, truthfulness κ=0.000, consistency κ=0.000 — see
-> `results/validation_report.json` → `rq1_agreement`); the stronger **blinded
-> held-out** estimate (n=114 auto-comparison) is overall gold-vs-auto κ ≈ **0.690**,
-> 84.2% agreement (see `experiment/reports/part1_agreement_report.json`). Always cite the
-> reports for any reliability figure.
+> `results/validation_report.json` → `rq1_agreement`).
+>
+> ⚠️ **No measured blinded held-out agreement exists yet in this repository.** The
+> previous line citing "overall gold-vs-auto κ ≈ 0.690 (n=114)" was built from a
+> **demo-E2E artifact** (see `experiment/logs/annotation_log.jsonl` →
+> `demo-e2e-trust-validation`, and the removed
+> `experiment/reports/part1_agreement_report.json`), **not** from real rater labels
+> on the current sealed experiment (`experiment/annotations/*.jsonl` are all empty).
+> The held-out value is **pending** until the real annotation flow
+> (`make experiment-seal` → rater fill → `experiment-ingest` → `experiment-resolve`
+> → `experiment-gold` → `experiment-agreement`) completes. Always cite the reports
+> for any reliability figure.
 
 ---
