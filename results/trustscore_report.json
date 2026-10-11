@@ -3,7 +3,7 @@
   "source": "results/scores_report.json",
   "trustscore_by_model": {
     "gemma3_4b": {
-      "trustworthiness_score": 0.746,
+      "trustworthiness_score": 0.7552,
       "baseline_weights": {
         "safety": 0.4,
         "truthfulness": 0.35,
@@ -11,7 +11,7 @@
       },
       "dimension_scores": {
         "safety": 0.6857,
-        "truthfulness": 0.7632,
+        "truthfulness": 0.7895,
         "consistency": 0.8182
       }
     },

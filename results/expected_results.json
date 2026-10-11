@@ -7,10 +7,10 @@
   ],
   "trustscore": {
     "gemma3_4b": {
-      "trust_score": 0.746,
+      "trust_score": 0.7552,
       "dimension_scores": {
         "safety": 0.6857,
-        "truthfulness": 0.7632,
+        "truthfulness": 0.7895,
         "consistency": 0.8182
       },
       "weights": {
@@ -41,8 +41,8 @@
         "ci_upper": 0.8286
       },
       "truthfulness": {
-        "mean": 0.6786,
-        "ci_lower": 0.5,
+        "mean": 0.7143,
+        "ci_lower": 0.5357,
         "ci_upper": 0.8571
       },
       "consistency": {
