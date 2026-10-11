@@ -37,6 +37,6 @@ here. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ### Changed
 
-- Blinded 2-rater held-out protocol (see PLAN_PART1).
-- STATISTICAL_METHODS and BUDGET_COST fixes per PLAN_PART3B / PLAN_PART3C where
-  applied before this changelog was introduced.
+- Blinded 2-rater held-out protocol.
+- Statistical-methods and budget/cost fixes applied before this changelog was
+  introduced.
