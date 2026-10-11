@@ -209,8 +209,8 @@ def estimate_required_sample_size(
 
     **Defensible sample-size estimators.** Computes N to reach a
     *stated* CI half-width at a *stated* confidence level, using the Wilson
-    score interval by default (per PLAN_PART3B §3B.2.3) — more accurate than the
-    Wald normal approximation for proportions.
+    score interval by default — more accurate than the Wald normal
+    approximation for proportions.
 
     The unit of analysis is the **independent group** (a unique prompt or a
     consistency group), NOT each raw record. Duplicated prompt texts within a
@@ -286,8 +286,8 @@ def compute_confidence_intervals(
 ) -> Dict:
     """Compute bootstrap confidence intervals for a list of scores.
 
-    Uses **Efron's percentile method** (PLAN_PART3B §3B.3) with an explicit
-    random seed (default 42) so results are reproducible from the same inputs.
+    Uses **Efron's percentile method** with an explicit random seed (default 42)
+    so results are reproducible from the same inputs.
 
     Handles degenerate (extreme) outcomes specially: when every score is the
     same (all 0 or all 1, e.g. a model that is perfect on every consistency
@@ -569,10 +569,10 @@ def compute_weight_sensitivity_with_ci(
     """Weight sensitivity analysis that reports a CI per configuration.
 
     Unlike ``compute_weight_sensitivity`` (which reports only a point score),
-    this bootstraps each dimension's trial scores (Efron percentile, PLAN
-    §3B.3) and combines them under each weight config, yielding a TrustScore
-    point estimate **plus** a percentile CI that reflects the sampling
-    uncertainty of the underlying dimension scores.
+    this bootstraps each dimension's trial scores (Efron percentile method)
+    and combines them under each weight config, yielding a TrustScore point
+    estimate **plus** a percentile CI that reflects the sampling uncertainty
+    of the underlying dimension scores.
 
     Args:
         safety_trials: 0/1 per-independent-unit scores for Safety.
