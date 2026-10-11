@@ -26,7 +26,7 @@ Usage:
     # Auto-generate a passphrase and write it to a keeper file:
     python3 scripts/seal_experiment.py --generate-passphrase --keeper sealed_keeper.txt
 
-Output layout (matches PLAN_PART1_VALIDATION_REDO.md):
+Output layout:
     experiment/sealed/templates/{id}_calibration_template.jsonl
     experiment/sealed/templates/{id}_heldout_template.jsonl
     experiment/sealed/labels/sealed_auto_labels.jsonl.enc
