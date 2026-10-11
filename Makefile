@@ -150,8 +150,6 @@ clean:
 clean-all:
 	@echo "Removing generated / untracked / ignored artifacts..."
 	@echo "  (git-tracked files are preserved; sealed reference data is kept)"
-	@echo "  Removing experiment/audit/ (duplicate of paradigm_report.json)..."
-	rm -rf experiment/audit/
 	@echo "  Removing results/ untracked..."
 	git clean -fd -- "$(RESULTS)/"
 	@echo "  Removing experiment/ annotations (per-rater filled files, gitignored)..."
@@ -159,7 +157,6 @@ clean-all:
 	@echo "  Removing empty leftover directories..."
 	@find "$(RESULTS)" -type d -empty -delete 2>/dev/null || true
 	@find "experiment" -type d -empty -delete 2>/dev/null || true
-	@echo "  Note: experiment/paradigm_report.json is kept (calibration-ties evidence)."
 	@echo "Full clean complete"
 
 lint:
