@@ -97,15 +97,19 @@ def _parse_kappas(pairs_str) -> dict:
 def reliability_gain(kappa: float, labels_spent: int, total_n: int, k_sat: float = 0.25) -> float:
     """Proxy for reliability as a function of human labels spent.
 
-    Models the auto-vs-gold agreement lifting from ``kappa`` toward a cap as
-    humans label an increasing share of the dimension, with *diminishing
-    returns*: each extra label buys less than the previous one.
+    SIMULATION model — not a measurement. This is an illustrative functional
+    form, NOT empirical data: we model (assume) the auto-vs-gold agreement
+    lifting from ``kappa`` toward a cap as humans label an increasing share of
+    the dimension, with *diminishing returns*: each extra label buys less than
+    the previous one.
 
         gain(share) = kappa + headroom * share / (share + k_sat)
 
     where ``share = labels_spent / total_n`` and ``headroom = 1 - kappa``.
-    ``k_sat`` is the share at which half the headroom is captured (smaller =
-    faster to approach the cap).
+    ``k_sat`` is the assumed share at which half the headroom is captured
+    (smaller = faster to approach the cap). The curve shape is therefore driven
+    by the arbitrarily chosen ``k_sat``; it is a decision-support illustration,
+    never a claim about measured marginal returns of human labels.
 
     * Robust dimensions (high κ) have a small headroom → their curve stays
       flat (little to gain).
@@ -127,12 +131,13 @@ def reliability_gain(kappa: float, labels_spent: int, total_n: int, k_sat: float
     return kappa + headroom * share / (share + k_sat)
 
 
-def build_curves(kappas: dict, ns: dict = None) -> dict:
-    """Compute reliability curves for all dimensions.
+def build_curves(kappas: dict, ns: dict = None, k_sat: float = 0.5) -> dict:
+    """Compute simulated reliability curves for all dimensions.
 
     Args:
         kappas: ``{dimension: kappa}``.
         ns: Optional ``{dimension: total_n}`` override.
+        k_sat: Assumed saturation share (simulation parameter, not measured).
 
     Returns:
         ``{dimension: {"labels": [...], "reliability": [...], "cost": [...]}}``.
@@ -142,7 +147,7 @@ def build_curves(kappas: dict, ns: dict = None) -> dict:
     for dim, k in kappas.items():
         total_n = ns.get(dim, 50)
         labels = list(range(0, total_n + 1, max(1, total_n // 30)))
-        rel = [reliability_gain(k, lab, total_n) for lab in labels]
+        rel = [reliability_gain(k, lab, total_n, k_sat=k_sat) for lab in labels]
         cost = [
             round(lab * HUMAN_SECONDS_PER_LABEL / 3600 * HUMAN_HOURLY_COST, 2) for lab in labels
         ]
@@ -152,6 +157,7 @@ def build_curves(kappas: dict, ns: dict = None) -> dict:
             "cost": cost,
             "kappa": k,
             "total_n": total_n,
+            "k_sat": k_sat,
         }
     return curves
 
@@ -179,9 +185,13 @@ def plot_curves(curves: dict, out_path: Path) -> None:
     ax.axhline(
         0.7, color="grey", linestyle="--", linewidth=1, alpha=0.6, label="Trust gate (κ=0.7)"
     )
-    ax.set_xlabel("Human labels spent", fontsize=12)
-    ax.set_ylabel("Auto-vs-gold reliability (proxy κ)", fontsize=12)
-    ax.set_title("Budget vs Reliability: where does human effort buy the most?", fontsize=14)
+    ax.set_xlabel("Human labels spent (simulated)", fontsize=12)
+    ax.set_ylabel("Proxy reliability model (simulated κ)", fontsize=12)
+    ax.set_title(
+        "ILLUSTRATIVE model — reliability vs budget (simulated, not measured)",
+        fontsize=13,
+        wrap=True,
+    )
     ax.set_ylim(0.0, 1.05)
     ax.legend(loc="lower right")
     ax.grid(True, alpha=0.3)
@@ -203,6 +213,13 @@ def main():
         help="Inline κ overrides, e.g. safety=0.62 truthfulness=0.0",
     )
     parser.add_argument("--output", default=str(RESULTS_DIR / "budget_reliability_curve.png"))
+    parser.add_argument(
+        "--k-sat",
+        type=float,
+        default=0.5,
+        help="Assumed saturation share (simulation parameter; illustrating the "
+             "shape, not measured). Smaller = faster approach to the cap.",
+    )
     args = parser.parse_args()
 
     # Resolve per-dimension κ: inline overrides win; fall back to report; else defaults.
@@ -217,11 +234,12 @@ def main():
         d: kappas.get(d, defaults.get(d, 0.5)) for d in ("safety", "truthfulness", "consistency")
     }
 
-    curves = build_curves(kappas)
+    curves = build_curves(kappas, k_sat=args.k_sat)
     plot_curves(curves, Path(args.output))
 
     # Always print the table for text use.
-    print("\nReliability lifted by human labels (proxy κ):")
+    print("\nSIMULATED reliability lifted by human labels (illustrative model, not measured):")
+    print(f"(assumed k_sat={args.k_sat} — arbitrary shape parameter, see --help)")
     header = f"{'labels':>6}  " + "  ".join(f"{DIMENSION_LABELS[d]:>14}" for d in kappas)
     print(header)
     for idx in range(0, 21):
@@ -229,7 +247,7 @@ def main():
         row = f"{lab:>6}  "
         for d in kappas:
             c = curves[d]
-            val = reliability_gain(c["kappa"], lab, c["total_n"])
+            val = reliability_gain(c["kappa"], lab, c["total_n"], k_sat=args.k_sat)
             row += f"{val:>14.3f}"
         print(row)
     print(f"\nStarting κ: {', '.join(f'{d}={k:.3f}' for d, k in kappas.items())}")
