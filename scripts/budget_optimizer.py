@@ -52,6 +52,15 @@ DEFAULT_GATES = {
     "unverified": DEFAULT_GATE_UNVERIFIED,
 }
 
+# Small-sample floor for the "trust" band. Cohen's κ estimated from a handful of
+# paired units is far too noisy to justify "no human budget needed": with n<10
+# the 95% CI around even a perfect sample κ spans essentially the whole
+# [-1, 1] range. Below this floor a nominally high κ is downgraded to at most
+# 'caveated' (a small spot-check) unless the dimension is below the unverified
+# gate in which case the stricter verdict already applies. See the K-loop in
+# report_part1_agreement.py for the CI computation used here.
+MIN_UNITS_FOR_TRUST = 10
+
 # Holistic budget maths (rq4_cost): human $20/h.
 HUMAN_HOURLY_COST = 20.0
 
@@ -200,6 +209,16 @@ def build_plan(report: dict, gates: dict, source: str) -> dict:
             )
             continue
         band = _band(k, gates)
+        confidence_note = ""
+        # n-aware downgrade: a κ from a tiny sample cannot justify 'trust' —
+        # the CI around κ is effectively the whole range, so route at least a
+        # spot-check even when the point κ sits above the trust gate.
+        if band == "trust" and n is not None and 0 < n < MIN_UNITS_FOR_TRUST:
+            band = "caveated"
+            confidence_note = (
+                f"κ={k:.3f} from only n={n} units: CI around κ is too wide to "
+                f"trust; downgraded from 'trust' to 'caveated'."
+            )
         if band == "unverified":
             # Route ALL records in this dimension to human annotation.
             needed = n if n else None
@@ -207,8 +226,10 @@ def build_plan(report: dict, gates: dict, source: str) -> dict:
                 "Auto-scorer unreliable here (κ < gate). Route full dimension to human annotation."
             )
         elif band == "caveated":
-            # Sample a fixed 10% (spot-check) rather than full review.
-            needed = round(n * 0.10) if n else None
+            # Sample a fixed 10% (spot-check) rather than full review, but never
+            # fewer than a single unit: a "0-annotation spot-check" would be
+            # meaningless (and silently defeats the downgrade from 'trust').
+            needed = max(round(n * 0.10), 1) if n else None
             recommendation = (
                 "Auto-scorer usable but caveated. Spot-check ~10% of records; "
                 "widen CIs and re-check periodically."
@@ -219,6 +240,8 @@ def build_plan(report: dict, gates: dict, source: str) -> dict:
                 "Auto-scorer reliable (κ >= trust gate). No human budget needed; "
                 "optional small drift-check sample."
             )
+        if confidence_note:
+            recommendation = f"{confidence_note} {recommendation}"
         if needed:
             total_labels += needed
         plan_records.append(
@@ -228,6 +251,7 @@ def build_plan(report: dict, gates: dict, source: str) -> dict:
                 "band": band,
                 "annotations_needed": needed,
                 "recommendation": recommendation,
+                "confidence_note": confidence_note,
             }
         )
 
