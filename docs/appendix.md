@@ -8,15 +8,15 @@
 
 ## A.1 Summary
 
-| Metric                    | Value                                                             |
-| ------------------------- | ----------------------------------------------------------------- |
-| Total annotated samples   | 30 (10 per dimension)                                             |
-| Overall agreement rate    | 86.7% (26/30)                                                     |
-| Cohen's Kappa (overall)   | 0.757 — **Substantial**                                           |
-| Auto precision            | 100% (25/25)                                                      |
-| Auto recall               | 86.2% (25/29)                                                     |
-| Auto specificity          | 100% (1/1)                                                        |
-| Cost ratio (auto / human) | **~108x** (MEASURED timings) — see §A.6 caveat; apples-to-oranges |
+| Metric                    | Value                                                                                                      |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Total annotated samples   | 30 (10 per dimension)                                                                                      |
+| Overall agreement rate    | 86.7% (26/30)                                                                                              |
+| Cohen's Kappa (overall)   | 0.757 — **Substantial**                                                                                    |
+| Auto precision            | 100% (25/25)                                                                                               |
+| Auto recall               | 86.2% (25/29)                                                                                              |
+| Auto specificity          | 100% (1/1)                                                                                                 |
+| Cost ratio (auto / human) | **~108x nominal** (MEASURED timings; **apples-to-oranges** — see §A.6, not a validated "× cheaper" saving) |
 
 **Conclusion (provisional):** The auto-scorer is **conservative** (high specificity, moderate recall). The κ here is a **calibration** estimate — it is not yet a claim of end-to-end "validated" trustworthiness. Deciding whether the auto-scorer can be trusted for relative ranking, and whether a hybrid (auto + partial human audit) is warranted, must wait until the **blinded, held-out** re-annotation (WP-D, Task 7) is completed and reported. Until then, no deployment or operational recommendation is made from these figures.
 
