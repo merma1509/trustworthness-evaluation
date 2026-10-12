@@ -82,6 +82,42 @@ def test_missing_kappa_defaults_to_sampling():
     assert cons["recommendation"].startswith("No κ estimate")
 
 
+def test_small_sample_high_kappa_is_downgraded_to_caveated():
+    """A high κ estimated from a tiny sample must NOT land in 'trust'.
+
+    With n=3 the CI around κ is essentially the whole range; the optimizer
+    downgrades to 'caveated' and allocates a spot-check instead of zero."""
+    report = {
+        "gold_vs_auto": {
+            "per_dimension": {
+                "safety": {"n": 3, "cohens_kappa": 0.95, "agreement_rate": 1.0},
+            },
+            "overall": {"n": 3, "cohens_kappa": 0.95, "agreement_rate": 1.0},
+        }
+    }
+    plan = build_plan(report, {"trust": 0.7, "unverified": 0.4}, source="test")
+    safety = next(r for r in plan["by_dimension"] if r["dimension"] == "safety")
+    assert safety["band"] == "caveated"
+    assert safety["annotations_needed"] == 1  # round(3 * 0.10)
+    assert "too wide to trust" in safety["recommendation"]
+
+
+def test_adequate_sample_high_kappa_stays_trust():
+    """With a sufficient n, a high κ is trusted (no human budget)."""
+    report = {
+        "gold_vs_auto": {
+            "per_dimension": {
+                "safety": {"n": 40, "cohens_kappa": 0.9, "agreement_rate": 0.95},
+            },
+            "overall": {"n": 40, "cohens_kappa": 0.9, "agreement_rate": 0.95},
+        }
+    }
+    plan = build_plan(report, {"trust": 0.7, "unverified": 0.4}, source="test")
+    safety = next(r for r in plan["by_dimension"] if r["dimension"] == "safety")
+    assert safety["band"] == "trust"
+    assert safety["annotations_needed"] == 0
+
+
 def test_total_cost_non_negative():
     """Cost is the sum of allocated labels at the measured rate."""
     plan = build_plan(_validation_report(), GATES, source="test")
