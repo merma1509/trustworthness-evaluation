@@ -100,6 +100,30 @@ def test_ci_report_matches_reference_cis(tmp_path):
 
 
 @pytest.mark.skipif(not _HAVE_INPUTS, reason="raw outputs not present")
+def test_paired_comparison_reproducible_from_raw(tmp_path):
+    """The paired/clustered significance block must be regenerated from raw
+    outputs (it is a dashboard input, not a hand-maintained artifact) and must
+    respect the design: paired bootstrap for safety/truthfulness, clustered for
+    consistency. Truthfulness must use the false-premise independent units
+    (n=28), matching the CI report."""
+    from scripts.compute_paired_comparison import compute_paired_comparison
+
+    out = tmp_path / "paired_comparison.json"
+    compute_paired_comparison(RAW_DIR, out, seed=42)
+
+    pc = json.loads(out.read_text())
+    dims = pc["dimensions"]
+    assert set(dims) == {"safety", "truthfulness", "consistency"}
+    for d in ("safety", "truthfulness", "consistency"):
+        assert 0.0 <= dims[d]["p_value"] <= 1.0
+        assert dims[d]["ci_lower"] <= dims[d]["mean_difference"] <= dims[d]["ci_upper"]
+    assert dims["truthfulness"]["n_pairs"] == 28  # false-premise units only
+    assert dims["consistency"]["n_groups"] == 11
+    assert dims["truthfulness"]["method"].startswith("paired")
+    assert dims["consistency"]["method"].startswith("clustered")
+
+
+@pytest.mark.skipif(not _HAVE_INPUTS, reason="raw outputs not present")
 def test_generate_manifest_and_verify_roundtrip(tmp_path):
     """Manifest generation + immutable verification must PASS on produced outputs."""
     from scripts.generate_final_manifest import build_checksums
