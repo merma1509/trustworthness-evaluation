@@ -838,6 +838,107 @@ def compute_ranking_stability(
 
 
 # ──────────────────────────────────────────────────────────────
+# Ranking stability — trial-level bootstrap (defensible)
+# ──────────────────────────────────────────────────────────────
+def compute_ranking_stability_with_trials(
+    model1_trials: Dict[str, List[float]],
+    model2_trials: Dict[str, List[float]],
+    weight_configs: List[Dict] = None,
+    n_bootstrap: int = 10000,
+    random_seed: int = 42,
+) -> Dict:
+    """Ranking stability from per-unit trial scores (preferred method).
+
+    This is the **scientifically defensible** ranking-stability estimator and
+    the successor to ``compute_ranking_stability`` (which perturbs point scores
+    with an ad-hoc Beta surrogate). Here each dimension's per-independent-unit
+    0/1 trials are resampled with replacement (Efron percentile bootstrap), so
+    the **dataset size enters the uncertainty directly**: a model scored from
+    n=38 prompts gets a tighter spread than one scored from n=11 groups, and
+    the reported win probabilities are anchored to real sampling variability
+    instead of an arbitrary ``Beta(a, b)`` spread.
+
+    Implementation: for each weight config it delegates to
+    ``compute_model_win_probability`` (P(model1 > model2) / P(model2 > model1)
+    / tie per config, with a ``stable_win`` verdict), as demonstrated by the
+    experimental setup. P-values for the marginal (per-dimension) paired
+    difference are available through ``paired_bootstrap_test``.
+
+    Args:
+        model1_trials: dict with keys 'safety','truthfulness','consistency'
+            mapping to per-unit 0/1 trial lists for model 1.
+        model2_trials: same for model 2.
+        weight_configs: defaults to DEFAULT_WEIGHT_CONFIGS.
+        n_bootstrap: bootstrap resamples per config.
+        random_seed: RNG seed for reproducibility.
+
+    Returns:
+        Dict with keys:
+            'method': 'trial_bootstrap' (immutable label for downstream checks)
+            'model_wins': {'model1': pct, 'model2': pct, 'tie': pct}
+            'per_config': list of per-config results (P_model1_wins,
+                          P_model2_wins, tie_pct, stable_win)
+            'n_bootstrap', 'random_seed',
+            'n_units': {'model1': {dim: n}, 'model2': {dim: n}}
+            'interpretation': text guide.
+    """
+    if weight_configs is None:
+        weight_configs = DEFAULT_WEIGHT_CONFIGS
+
+    win = compute_model_win_probability(
+        model1_trials,
+        model2_trials,
+        weight_configs=weight_configs,
+        n_bootstrap=n_bootstrap,
+        seed=random_seed,
+    )
+
+    overall1 = overall2 = overall_tie = 0
+    per_config = []
+    for cfg in win["per_config"]:
+        overall1 += int(round(cfg["P_model1_wins"] * n_bootstrap))
+        overall2 += int(round(cfg["P_model2_wins"] * n_bootstrap))
+        overall_tie += int(round(cfg["tie_pct"] / 100.0 * n_bootstrap))
+        per_config.append(
+            {
+                "config": cfg["config"],
+                "name": cfg["config"],
+                "P_model1_wins": cfg["P_model1_wins"],
+                "P_model2_wins": cfg["P_model2_wins"],
+                "flip_probability": round(cfg["P_model1_wins"], 4),
+                "model1_wins_pct": round(cfg["P_model1_wins"] * 100, 1),
+                "model2_wins_pct": round(cfg["P_model2_wins"] * 100, 1),
+                "tie_pct": cfg["tie_pct"],
+                "stable_win": cfg["stable_win"],
+            }
+        )
+
+    total = overall1 + overall2 + overall_tie
+    dims = ("safety", "truthfulness", "consistency")
+    n1 = {d: len(model1_trials.get(d) or []) for d in dims}
+    n2 = {d: len(model2_trials.get(d) or []) for d in dims}
+
+    return {
+        "method": "trial_bootstrap",
+        "model_wins": {
+            "model1_pct": round(overall1 / total * 100, 1) if total else 0.0,
+            "model2_pct": round(overall2 / total * 100, 1) if total else 0.0,
+            "tie_pct": round(overall_tie / total * 100, 1) if total else 0.0,
+        },
+        "per_config": per_config,
+        "n_bootstrap": n_bootstrap,
+        "random_seed": random_seed,
+        "n_units": {"model1": n1, "model2": n2},
+        "interpretation": (
+            "flip_probability / P_model1_wins = P(model1 outscores model2) "
+            "under the config, from a trial-level Efron bootstrap (dataset "
+            "size enters the uncertainty). A 'stable win' requires P >= 0.95 "
+            "for one model under that config."
+        ),
+    }
+
+
+# ──────────────────────────────────────────────────────────────
 # Empirical required sample size
 # ──────────────────────────────────────────────────────────────
 def compute_required_n_empirically(
