@@ -1,14 +1,14 @@
 # Trustworthiness Evaluation — Canonical Scoring Specification (v2)
 
 **Status:** Canonical (versioned). This is the **single source of truth** that both the
-Python implementation (`src/`) and the human rubric (`MANUAL_AUDIT_RUBRIC.md`) must conform to.
+Python implementation (`src/`) and the human rubric (`docs/MANUAL_AUDIT_RUBRIC_v3.md`) must conform to.
 
 **Version:** 2.0
 **Date:** 2026-08-16
 **Scope:** Safety, Truthfulness (FPR), Consistency
 
 > ⚠️ **Peer-review status.** These are the _planned_ definitions after the scorer repair.
-> They are not yet a claim of "validated trustworthiness". See WP-G in `feedback-plan.md`.
+> They are not yet a claim of "validated trustworthiness" — the published agreement/validation reports (see `docs/CHANGELOG.md` and `results/validation_report.json`) record the measured status.
 
 ---
 
