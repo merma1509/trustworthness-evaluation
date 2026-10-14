@@ -14,7 +14,7 @@ The study also treats **evaluation itself as a measurement instrument**: it vali
 
 ## What's inside
 
-- `data/` — the datasets (105 curated prompts + original seeds)
+- `data/` — the curated datasets (105 prompts across the three dimensions)
 - `src/` — scoring logic (safety, truthfulness, consistency, trustscore)
 - `scripts/` — pipeline scripts: evaluation, analysis, validation, experiment automation
 - `app/` — interactive Streamlit dashboard
