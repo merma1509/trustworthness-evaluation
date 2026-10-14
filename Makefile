@@ -1,10 +1,11 @@
-.PHONY: help setup run clean clean-all lint format audit dashboard eval offlinescore test \
-	generate-audit experiment-audit experiment-budget \
+.PHONY: help setup run clean clean-all lint format dashboard test \
+	experiment-audit experiment-budget \
 	human-timing budget-figure error-heatmap pipeline-figure cost-report cost-frontier \
 	experiment-seal experiment-annotate experiment-ingest experiment-resolve \
 	experiment-gold experiment-agreement experiment-seal-verify experiment-reproduce \
-	verify-artifacts compute-scores compute-ci compute-ranking generate-results-json \
-	generate-final-manifest verify-immutable verify-results generate-expected
+	experiment-validate-rerun validate-rerun \
+	verify-artifacts compute-scores compute-ci compute-ranking compute-paired generate-results-json \
+	generate-final-manifest verify-results generate-expected
 
 
 # Interpreter for project tooling. Defaults to the venv so dev/test deps
@@ -19,8 +20,8 @@ endif
 
 
 # ── Shared recipe: build an audit dataset (single source of truth) ──
-# Used by `generate-audit` (small sample) and `experiment-audit` (full
-# sample). Each caller sets the target-specific variables below:
+# Used by `experiment-audit` (full sample). The caller sets the
+# target-specific variables below:
 #   AUDIT_OUTPUT       output jsonl path
 #   AUDIT_N_SAFETY     # samples per-dimension (safety)
 #   AUDIT_N_TRUTHFULNESS
@@ -41,15 +42,11 @@ help:
 	@echo "  make run                      Run full evaluation pipeline + dashboard"
 	@echo "                                (fresh audit + paper-analysis figures; interactive"
 	@echo "                                gates; reports sealed-experiment status honestly)"
-	@echo "  make eval                     Run evaluation only (no dashboard)"
 	@echo "  make dashboard                Launch Streamlit dashboard only"
-	@echo "  make offlinescore             Run offline rescoring"
-	@echo "  make generate-audit           Rebuild results/audit/all_audit.jsonl from fresh raw outputs"
 	@echo "  make clean                    Clean computed results (model dirs, json/txt/png, raw outputs)"
 	@echo "  make clean-all                Remove ALL generated/untracked/ignored artifacts, keep git files"
 	@echo "  make lint                     Check code quality with ruff"
 	@echo "  make format                   Auto-format code with ruff (format + import sort)"
-	@echo "  make audit                    Generate manual audit file"
 	@echo "  make test                     Run automated test suite (fails closed)"
 	@echo ""
 	@echo "PAPER ANALYSIS (cost / budget figures — also run by 'make run'):"
@@ -76,17 +73,24 @@ help:
 	@echo "                                           (scores, CI, ranking, cost, κ) from immutable inputs"
 	@echo "                                           then verify internal consistency + artifact checksums"
 	@echo "                                           FAILS CLOSED unless real rater annotations are READY"
+	@echo "  make experiment-validate-rerun         Clean-rerun validation gate: regenerate every reported"
+	@echo "                                           number (incl. gold/agreement κ+CIs) from immutable inputs"
+	@echo "                                           + held-out annotations, then verify blindness,"
+	@echo "                                           no-silent-drop coverage, gold/auto join and κ bounds."
+	@echo "                                           FAILS CLOSED on any broken invariant"
+	@echo "                                           SEAL_PASSPHRASE=... EXPERIMENT_ID=... [KEEP_RERUN=1]"
+	@echo "  make validate-rerun                   Alias of experiment-validate-rerun (one-command gate)"
 	@echo ""
 	@echo "REPRODUCIBILITY DRIVERS (used by experiment-reproduce; run individually too):"
 	@echo "  make compute-scores                    Per-model/per-dimension scores + TrustScore (results/scores_report.json)"
 	@echo "  make compute-ci                        Bootstrap CIs n=10000 seed=42 (results/ci_report.json)"
 	@echo "  make compute-ranking                   Ranking stability / flip probability (results/ranking_stability.json)"
+	@echo "  make compute-paired                    Paired/clustered model comparison CI (results/paired_comparison.json)"
 	@echo "  make generate-results-json             Assemble final result reports (results/trustscore_report.json)"
 	@echo "  make generate-final-manifest           Write results/manifest.json (SHA-256 checksums)"
 	@echo "  make verify-artifacts                  Verify immutable artifacts match the manifest"
 	@echo "  make verify-results                    Verify generated results are internally consistent (vs results/expected_results.json)"
 	@echo "  make generate-expected                 Snapshot current reports into results/expected_results.json (committed expectations)"
-	@echo "  make verify-immutable                  Check artifact checksums (alias of verify-artifacts)"
 
 setup:
 	@echo "Installing dependencies with uv (including dev extras)..."
@@ -99,29 +103,6 @@ run:
 	@echo "shell, set RUN_INTERACTIVE=0 to skip the annotation gates."
 	./demo.sh
 	@echo "Pipeline complete"
-
-generate-audit: AUDIT_OUTPUT := "$(RESULTS)/audit/all_audit.jsonl"
-generate-audit: AUDIT_N_SAFETY := 10
-generate-audit: AUDIT_N_TRUTHFULNESS := 10
-generate-audit: AUDIT_N_CONSISTENCY := 10
-generate-audit:
-	@echo "Rebuilding $(AUDIT_OUTPUT) from fresh raw outputs..."
-	$(AUDIT_SAMPLES)
-	@echo "Audit dataset regenerated (human labels reset to empty)"
-
-eval:
-	@echo "Running evaluation only..."
-	$(PY) run_evaluation.py --models $(MODELS) --output $(RESULTS)
-	$(PY) scripts/analysis.py
-	@echo "Evaluation complete"
-
-offlinescore:
-	@echo "Offline rescoring saved outputs..."
-	$(PY) scripts/score_saved_outputs.py \
-		--input "$(RESULTS)/raw_outputs/*.jsonl" \
-		--output "$(RESULTS)/rescored_verification.json" \
-		--dimension all
-	@echo "Offline rescoring complete"
 
 dashboard:
 	@echo "Launching Streamlit dashboard..."
@@ -170,11 +151,6 @@ format:
 	ruff format src/ scripts/ app/
 	ruff check --select I src/ scripts/ app/ --fix
 	@echo "Formatting complete"
-
-audit:
-	@echo "Generating manual audit file..."
-	$(PY) scripts/manual_audit_consistency.py
-	@echo "Manual audit generated"
 
 # Test target: runs the suite with the venv interpreter by default, so the dev
 # dependencies (pytest, scipy, requests) are actually present. Falls back to a
@@ -342,6 +318,41 @@ experiment-reproduce: verify-artifacts
 	$(PY) scripts/verify_immutable.py --manifest "$(RESULTS)/manifest.json" --base-dir .
 	@echo "=== All numbers reproduced & verified ==="
 
+# One-command clean-rerun VALIDATION gate. Unlike `experiment-reproduce` (which
+# reproduces the committed results from raw outputs), this step additionally
+# re-derives the held-out agreement/GOLD/κ+CIs FROM THE REAL FILLED ANNOTATION
+# FILES and verifies the scientific-integrity invariants of the rerun:
+#   * sealed templates remain fully blinded (no auto/model/prompt-id leakage),
+#   * every recorded annotation is accounted for (no silent drop),
+#   * gold/auto join is complete (every gold key resolves to an auto label),
+#   * κ / agreement-rate / CIs are within bounds and internally consistent.
+#
+# The script uses ONLY the immutable inputs (raw outputs + sealed templates +
+# filled rater annotations) and refuses to fabricate numbers when the
+# annotations are not READY or the SEAL_PASSPHRASE is unavailable.
+#
+# The derived agreement/gold reports are written to tmp and (without KEEP_RERUN=1)
+# discarded; the committed numbers under results/ are regenerated in place from
+# raw outputs (immutable), so the gate never mangles the existing results.
+experiment-validate-rerun:
+	@echo "=== Clean-rerun VALIDATION gate ==="
+	@test -n "$(SEAL_PASSPHRASE)" || { \
+		echo "  ✗ SEAL_PASSPHRASE=... is required to unseal the auto labels."; \
+		echo "    The gate FAILS CLOSED rather than fabricating agreement numbers."; \
+		exit 1; \
+	}
+	@EXPERIMENT_ID_ID="$(EXPERIMENT_ID)"; \
+	if [ -z "$$EXPERIMENT_ID_ID" ]; then EXPERIMENT_ID_ID="trustworthiness-validation-2025-08-redo"; fi; \
+	$(PY) scripts/validate_rerun_pipeline.py \
+		--experiment-id "$$EXPERIMENT_ID_ID" \
+		--annotations-dir experiment/annotations \
+		--passphrase "$(SEAL_PASSPHRASE)" \
+		$(if $(KEEP_RERUN),--keep)
+	@echo "  ✓ validate-rerun complete"
+
+# Alias for the one-command validation gate (used in manual instructions)
+validate-rerun: experiment-validate-rerun
+
 # Verify immutable artifacts match their manifest checksums
 verify-artifacts:
 	@echo "Verifying immutable artifacts..."
@@ -360,6 +371,13 @@ compute-ci:
 # Ranking stability (flip probability) from the scores report
 compute-ranking:
 	$(PY) scripts/compute_ranking_stability.py --scores "$(RESULTS)/scores_report.json" --n-bootstrap 10000 --output "$(RESULTS)/ranking_stability.json"
+
+# Paired/clustered model comparison CI (offline rescore with v3 classifiers).
+# NOTE: produces results/paired_comparison.json via scripts/compute_paired_comparison.py
+# (the offline v3 path). `make run` additionally writes a live path version of the
+# same file from run_evaluation.py; the offline driver is the reproducibility source.
+compute-paired:
+	$(PY) scripts/compute_paired_comparison.py --raw "$(RESULTS)/raw_outputs" --output "$(RESULTS)/paired_comparison.json" --seed 42
 
 # Assemble final result reports (TrustScore report) from score data
 generate-results-json:
@@ -380,10 +398,6 @@ verify-results:
 generate-expected:
 	$(PY) scripts/generate_expected_results.py --results "$(RESULTS)" --output "$(RESULTS)/expected_results.json"
 	@echo "Expected results snapshotted from current reports into $(RESULTS)/expected_results.json."
-
-# Check artifact checksums against the manifest
-verify-immutable:
-	$(PY) scripts/verify_immutable.py --manifest "$(RESULTS)/manifest.json" --base-dir .
 
 
 # Single source of truth for the budget/cost ratio: MEASURED per-label human
