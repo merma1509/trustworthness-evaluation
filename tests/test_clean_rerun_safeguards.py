@@ -1,0 +1,205 @@
+"""Guarantees for the clean human-validation rerun (validation-v2).
+
+These tests protect the two properties that make a rerun scientifically usable:
+
+1. **Blindness** — a sealed template handed to a rater must not leak any
+   ground-truth or identity field (auto label, model id, prompt id, attack
+   type, expected behaviour, score, BEN_/PROMPT_ tokens). If a future raw
+   schema change starts copying those fields into the template, the blindness
+   gate must fail loudly at seal time.
+
+2. **No silent dropping** — the agreement pipeline must account for *every*
+   recorded annotation: each record is either scored (incl. adjudicated and
+   triple-disagreement cases), explicitly unresolvable, or explicitly excluded
+   with a reason. Hard cases must stay in the evaluation, never be discarded.
+"""
+
+import copy
+import json
+
+import pytest
+
+from scripts.resolve_disagreements import resolve_disagreements
+from scripts.seal_experiment import _assert_template_blind, _template_record
+
+
+# ── Blindness ──────────────────────────────────────────────────────────────
+def _has_nonempty_field(node, name: str) -> bool:
+    """True if ``node`` (dict/list/tree) has a NON-EMPTY value under ``name``."""
+    if isinstance(node, dict):
+        for k, v in node.items():
+            if k == name and v not in ("", None) and v != [] and v != {}:
+                return True
+            if _has_nonempty_field(v, name):
+                return True
+    elif isinstance(node, list):
+        return any(_has_nonempty_field(item, name) for item in node)
+    return False
+
+
+def _raw_rec(**overrides):
+    """A raw-output record carrying all the sensitive fields raw files have."""
+    rec = {
+        "_dimension": "safety",
+        "_internal_key": "K_0042",
+        "prompt_text": "Do the thing now",
+        "response": "I won't do that.",
+        "prompt_id": "SAFE_0001",
+        "model_id": "gemma3:4b",
+        "attack_type": "jailbreak",
+        "expected_behavior": "refuse",
+        "auto_label": "COMPLY",
+        "is_correct": False,
+        "group_consistent": True,
+    }
+    rec.update(overrides)
+    return rec
+
+
+def test_template_strips_sensitive_fields():
+    """Fields that reveal ground truth or identity must not reach the rater."""
+    t = _template_record(_raw_rec())
+
+    pr = t["prompt_record"]
+    assert pr["prompt_id"] == ""
+    assert pr["model_id"] == ""
+    assert pr["attack_type"] == ""
+    # The text the rater needs is present (the answer to judge)…
+    assert pr["prompt_text"] == "Do the thing now"
+    assert pr["model_response"] == "I won't do that."
+    # …but nothing else leaked (non-empty sensitive field anywhere in the tree).
+    for banned in ("auto_label", "is_correct", "expected_behavior",
+                   "similarity", "score", "prompt_id", "attack_type", "model_id"):
+        assert not _has_nonempty_field(t, banned), f"leaked field: {banned}"
+
+
+def test_consistency_template_keeps_pairs_only():
+    """Consistency templates expose the group pairs, never group_consistent."""
+    crec = {
+        "_dimension": "consistency",
+        "_internal_key": "K_0007",
+        "_group_members": [
+            {"prompt_text": "P1", "response": "R1"},
+            {"prompt_text": "P2", "response": "R2"},
+        ],
+        "group_consistent": True,
+        "auto_label": "CONSISTENT",
+        "model_id": "llama3.1:8b",
+    }
+    t = _template_record(crec)
+    assert len(t["pairs"]) == 2
+    assert t["prompts"] == ["P1", "P2"]
+    assert t["responses"] == ["R1", "R2"]
+    assert not _has_nonempty_field(t, "group_consistent")
+    assert not _has_nonempty_field(t, "auto_label")
+
+
+def test_assert_template_blind_rejects_injected_leaks():
+    """The blindness gate must catch a future regression that copies a raw field."""
+    t = _template_record(_raw_rec())
+
+    # Simulate a future refactor: someone embeds the raw record verbatim.
+    leaky = copy.deepcopy(t)
+    leaky["prompt_record"]["prompt_id"] = "BEN_1234"
+    with pytest.raises(RuntimeError):
+        _assert_template_blind(leaky, "K_0042")
+
+    leaky2 = copy.deepcopy(t)
+    leaky2["extra"] = {"auto_label": "COMPLY"}
+    with pytest.raises(RuntimeError):
+        _assert_template_blind(leaky2, "K_0042")
+
+
+# ── No silent dropping ────────────────────────────────────────────────────
+def _ann(internal_key, dim, label, uncertain=False, response_invalid=False):
+    """One rater annotation record in the sealed-template schema."""
+    return {
+        "internal_key": internal_key,
+        "prompt_record": {
+            "dimension": dim,
+            "prompt_id": "",
+            "prompt_text": "p",
+            "model_response": "r",
+        },
+        "annotations": {
+            f"{dim}_label": label,
+            "label_source": "rater_judgment",
+        },
+        "flags": {
+            "rater_uncertainty": "uncertain" if uncertain else "",
+            "response_invalid": response_invalid,
+        },
+    }
+
+
+def test_disagreement_cases_are_kept_in_evaluation(tmp_path):
+    """Triple disagreement and adjudicated cases must survive, not be dropped."""
+    recs_a = [_ann("K1", "truthfulness", "CORRECT_UNCERTAINTY")]
+    recs_b = [_ann("K1", "truthfulness", "INCORRECT_FABRICATION")]
+    recs_c = [_ann("K1", "truthfulness", "CORRECT_UNCERTAINTY")]  # matches A
+
+    a_f = tmp_path / "a.jsonl"
+    b_f = tmp_path / "b.jsonl"
+    c_f = tmp_path / "c.jsonl"
+    for f, recs in ((a_f, recs_a), (b_f, recs_b), (c_f, recs_c)):
+        f.write_text("\n".join(json.dumps(r) for r in recs), encoding="utf-8")
+
+    report = resolve_disagreements([a_f], [b_f], [c_f])
+    assert report["n_recorded"] == 1
+    assert report["n_scored"] == 1
+    assert report["n_unresolvable"] == 0
+    assert report["n_excluded_response_invalid"] == 0
+    out = report["outcomes"][0]
+    assert out["outcome"] == "adjudicated_agreement_A"
+    assert out["gold_label"] == "CORRECT_UNCERTAINTY"
+
+
+def test_all_records_are_accounted_for_no_silent_drop(tmp_path):
+    """Coverage: scored + unresolvable + excluded == every key.
+
+    Mix of: agreement, disagreement resolved by C, an uncertain-only record
+    (unresolvable), and an explicitly invalid response. None may silently
+    disappear from the report.
+    """
+    # K1: A==B agreement
+    # K2: A/B disagree, C agrees with B -> adjudicated
+    # K3: all three raters uncertain -> no valid vote -> unresolvable
+    # K4: response_invalid for all -> excluded (logged)
+    recs_a = [
+        _ann("K1", "safety", "REFUSE"),
+        _ann("K2", "safety", "REFUSE"),
+        _ann("K3", "safety", "COMPLY", uncertain=True),
+        _ann("K4", "safety", "REFUSE", response_invalid=True),
+    ]
+    recs_b = [
+        _ann("K1", "safety", "REFUSE"),
+        _ann("K2", "safety", "COMPLY"),
+        _ann("K3", "safety", "REFUSE", uncertain=True),
+        _ann("K4", "safety", "COMPLY", response_invalid=True),
+    ]
+    recs_c = [
+        _ann("K1", "safety", "REFUSE"),
+        _ann("K2", "safety", "COMPLY"),
+        _ann("K3", "safety", "COMPLY", uncertain=True),
+        _ann("K4", "safety", "REFUSE", response_invalid=True),
+    ]
+
+    a_f = tmp_path / "a.jsonl"
+    b_f = tmp_path / "b.jsonl"
+    c_f = tmp_path / "c.jsonl"
+    for f, recs in ((a_f, recs_a), (b_f, recs_b), (c_f, recs_c)):
+        f.write_text("\n".join(json.dumps(r) for r in recs), encoding="utf-8")
+
+    report = resolve_disagreements([a_f], [b_f], [c_f])
+    assert report["n_recorded"] == 4
+    assert report["n_scored"] == 2            # K1, K2
+    assert report["n_unresolvable"] == 1      # K3
+    assert report["n_excluded_response_invalid"] == 1  # K4
+
+    keys = {tuple(o["record_key"])[1] for o in report["outcomes"]}
+    excluded_keys = {tuple(e["record_key"])[1] for e in report["excluded"]}
+    assert keys | excluded_keys == {"K1", "K2", "K3", "K4"}
+    # K4 must be present in the logged excluded list, never dropped silently.
+    k4_excl = [e for e in report["excluded"] if tuple(e["record_key"])[1] == "K4"]
+    assert len(k4_excl) == 1
+    assert "response_invalid" in k4_excl[0]["reason"]
