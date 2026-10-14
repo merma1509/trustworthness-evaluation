@@ -122,6 +122,64 @@ def _build_response_pool(raw_dir: Path) -> List[dict]:
     return pool
 
 
+# Field names that must NEVER appear in a sealed template handed to a rater.
+# Anything carrying ground-truth or identity-leaking information must be
+# stripped *here*, so future raw-schema changes cannot silently leak it.
+FORBIDDEN_TEMPLATE_FIELDS = (
+    "auto_label",
+    "auto_score",
+    "similarity",
+    "sym_sim",
+    "expected_behavior",
+    "expected_label",
+    "model_id",
+    "_model_id",
+    "attack_type",
+    "prompt_id",
+    "is_correct",
+    "score",
+    "group_consistent",
+    "gold",
+    "claimed",
+    "benign",
+)
+
+
+def _assert_template_blind(record: dict, internal_key: str) -> None:
+    """Recursively assert a sealed template leaks no ground-truth/identity field.
+
+    Called at seal time so a template that accidentally exposes an auto verdict
+    (e.g. because a new raw field is copied verbatim) fails loudly instead of
+    silently blinding a rater to a leak.
+    """
+    import re as _re
+
+    if isinstance(record, dict):
+        for k, v in record.items():
+            if isinstance(k, str):
+                kl = k.lower()
+                # A name from the forbidden set is only a probe if it carries a
+                # non-empty value: empty schema placeholders (e.g. "prompt_id": "")
+                # are intentionally present and reveal nothing.
+                empty = v in ("", None) or v == [] or v == {}
+                if not empty and any(f in kl for f in FORBIDDEN_TEMPLATE_FIELDS):
+                    raise RuntimeError(
+                        f"[blindness] template {internal_key} leaks field {k!r} "
+                        f"with value {v!r}; stripping failed — refusing to seal."
+                    )
+                if v is None:
+                    continue
+                # A bare "BEN_" / prompt-id-style value also hints at status.
+                if isinstance(v, str) and (_re.search(r"\bBEN_", v) or v.startswith("PROMPT_")):
+                    raise RuntimeError(
+                        f"[blindness] template {internal_key} leaks encoded id {v!r}"
+                    )
+            _assert_template_blind(v, internal_key)
+    elif isinstance(record, list):
+        for item in record:
+            _assert_template_blind(item, internal_key)
+
+
 def _template_record(rec: dict) -> dict:
     """Convert a raw response record into a sealed template record.
 
@@ -134,27 +192,27 @@ def _template_record(rec: dict) -> dict:
     it can never hint at the claimed/benign status of a record.
     """
     dimension = rec.get("_dimension") or rec.get("dimension")
-    # Consistency templates show the group's paired prompt/response sets
+    internal_key = rec.get("_internal_key", "")
+
     if dimension == "consistency":
+        # Consistency templates show the group's paired prompt/response sets.
         pairs = [
             {"prompt": p.get("prompt_text", ""), "response": p.get("response", "")}
             for p in rec.get("_group_members", [])
         ]
-        prompts = [p["prompt"] for p in pairs]
-        responses = [p["response"] for p in pairs]
-        return {
-            "annotation_id": "",  # filled when the rater submits
+        record = {
+            "annotation_id": "",
             "rater_id": "",
             "experiment_id": "",
             "template_version": TEMPLATE_VERSION,
             "rubric_version": RUBRIC_VERSION,
-            "internal_key": rec.get("_internal_key", ""),
+            "internal_key": internal_key,
             "prompt_record": {
-                "prompt_id": "",  # hidden from the rater (would reveal BEN_/claimed)
+                "prompt_id": "",
                 "dimension": dimension,
-                "attack_type": "",  # hidden from the rater
-                "prompt_text": "",  # consistency uses pairs
-                "model_id": "",     # hidden
+                "attack_type": "",
+                "prompt_text": "",
+                "model_id": "",
                 "model_response": "",
             },
             "annotations": {
@@ -176,47 +234,51 @@ def _template_record(rec: dict) -> dict:
                 "declared_conflicts": [],
             },
             "pairs": pairs,
-            "prompts": prompts,
-            "responses": responses,
+            "prompts": [p["prompt"] for p in pairs],
+            "responses": [p["response"] for p in pairs],
+        }
+    else:
+        # Safety / truthfulness: flat prompt + response.
+        record = {
+            "annotation_id": "",
+            "rater_id": "",
+            "experiment_id": "",
+            "template_version": TEMPLATE_VERSION,
+            "rubric_version": RUBRIC_VERSION,
+            "internal_key": internal_key,
+            "prompt_record": {
+                "prompt_id": "",
+                "dimension": dimension,
+                "attack_type": "",
+                "prompt_text": rec.get("prompt_text", ""),
+                "model_id": "",
+                "model_response": rec.get("response", ""),
+            },
+            "annotations": {
+                "safety_label": "",
+                "truthfulness_label": "",
+                "consistency_label": "",
+                "label_source": "rater_judgment",
+            },
+            "flags": {
+                "difficult_case": False,
+                "rater_uncertainty": "",
+                "ai_assistance_used": False,
+                "ai_assistance_description": "",
+                "response_invalid": False,
+            },
+            "metadata": {
+                "annotation_duration_seconds": None,
+                "template_checksum": "",
+                "rubric_checksum": "",
+                "timestamp_utc": "",
+                "declared_conflicts": [],
+            },
         }
 
-    # Safety / truthfulness: flat prompt + response
-    return {
-        "annotation_id": "",
-        "rater_id": "",
-        "experiment_id": "",
-        "template_version": TEMPLATE_VERSION,
-        "rubric_version": RUBRIC_VERSION,
-        "internal_key": rec.get("_internal_key", ""),
-        "prompt_record": {
-            "prompt_id": "",  # hidden from the rater (would reveal BEN_/claimed)
-            "dimension": dimension,
-            "attack_type": "",  # hidden
-            "prompt_text": rec.get("prompt_text", ""),
-            "model_id": "",  # hidden
-            "model_response": rec.get("response", ""),
-        },
-        "annotations": {
-            "safety_label": "",
-            "truthfulness_label": "",
-            "consistency_label": "",
-            "label_source": "rater_judgment",
-        },
-        "flags": {
-            "difficult_case": False,
-            "rater_uncertainty": "",
-            "ai_assistance_used": False,
-            "ai_assistance_description": "",
-            "response_invalid": False,
-        },
-        "metadata": {
-            "annotation_duration_seconds": None,
-            "template_checksum": "",
-            "rubric_checksum": "",
-            "timestamp_utc": "",
-            "declared_conflicts": [],
-        },
-    }
+    # Blindness gate: no ground-truth / identity-leaking field may survive.
+    _assert_template_blind(record, internal_key)
+    return record
 
 
 def _auto_label_from_raw(rec: dict) -> str:
