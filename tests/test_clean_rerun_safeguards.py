@@ -12,6 +12,10 @@ These tests protect the two properties that make a rerun scientifically usable:
    recorded annotation: each record is either scored (incl. adjudicated and
    triple-disagreement cases), explicitly unresolvable, or explicitly excluded
    with a reason. Hard cases must stay in the evaluation, never be discarded.
+
+3. **Validation gate** — the one-command `validate-rerun` pipeline must fail
+   closed when any integrity invariant breaks (coverage, κ/CI bounds, gold/auto
+   join completeness).
 """
 
 import copy
@@ -21,6 +25,11 @@ import pytest
 
 from scripts.resolve_disagreements import resolve_disagreements
 from scripts.seal_experiment import _assert_template_blind, _template_record
+from scripts.validate_rerun_pipeline import (
+    _check_agreement,
+    _check_coverage,
+    _check_gold_join,
+)
 
 
 # ── Blindness ──────────────────────────────────────────────────────────────
@@ -203,3 +212,89 @@ def test_all_records_are_accounted_for_no_silent_drop(tmp_path):
     k4_excl = [e for e in report["excluded"] if tuple(e["record_key"])[1] == "K4"]
     assert len(k4_excl) == 1
     assert "response_invalid" in k4_excl[0]["reason"]
+
+
+# ── Validation gate (validate_rerun_pipeline) ────────────────────────────
+def _resolution_report(n_scored=3, n_unres=1, n_excl=1):
+    """A resolution report shaped like resolve_disagreements output.
+
+    coverage invariant: scored + unresolvable + excluded == recorded.
+    """
+    n_recorded = n_scored + n_unres + n_excl
+    return {
+        "n_recorded": n_recorded,
+        "n_scored": n_scored,
+        "n_unresolvable": n_unres,
+        "n_excluded_response_invalid": n_excl,
+        "outcome_counts": {},
+        "gold_label_distribution": {},
+    }
+
+
+def test_validation_gate_coverage_ok():
+    """A well-formed resolution report passes the no-silent-drop gate."""
+    _check_coverage(_resolution_report(n_scored=3, n_unres=1, n_excl=1))
+
+
+def test_validation_gate_coverage_fails_closed():
+    """A report that drops a record (e.g. a future refactor) must abort."""
+    good = _resolution_report(n_scored=3, n_unres=1, n_excl=1)
+    good["n_scored"] = 2  # one record silently vanished
+    with pytest.raises(SystemExit):
+        _check_coverage(good)
+
+
+def test_validation_gate_agreement_ok(tmp_path):
+    """A sane agreement report (κ in bounds, n>0, CI contains κ) passes."""
+    p = tmp_path / "agreement.json"
+    p.write_text(json.dumps({
+        "gold_vs_auto": {
+            "overall": {
+                "n": 20,
+                "agreement_rate": 0.8,
+                "cohens_kappa": 0.6,
+                "kappa_ci": {"ci_lower": 0.4, "ci_upper": 0.8},
+            },
+            "per_dimension": {},
+        },
+        "inter_rater_A_vs_B": {
+            "safety": {"cohens_kappa": 0.5, "agreement_rate": 0.75},
+        },
+    }))
+    _check_agreement(p)
+
+
+def test_validation_gate_agreement_fails_closed(tmp_path):
+    """An out-of-bounds κ or zero n must abort the validation gate."""
+    p = tmp_path / "agreement.json"
+    p.write_text(json.dumps({
+        "gold_vs_auto": {
+            "overall": {"n": 0, "cohens_kappa": 2.0, "agreement_rate": 1.5},
+            "per_dimension": {},
+        },
+        "inter_rater_A_vs_B": {},
+    }))
+    with pytest.raises(SystemExit):
+        _check_agreement(p)
+
+
+def test_validation_gate_gold_join_ok(tmp_path):
+    """Gold records all carrying an auto label pass the join-completeness gate."""
+    p = tmp_path / "gold.jsonl"
+    recs = [
+        {"internal_key": "K1", "auto_label": "REFUSE"},
+        {"internal_key": "K2", "auto_label": "COMPLY"},
+    ]
+    p.write_text("\n".join(json.dumps(r) for r in recs) + "\n", encoding="utf-8")
+    _check_gold_join(p)
+
+
+def test_validation_gate_gold_join_fails_closed(tmp_path):
+    """A gold record missing its auto label (join broken) must abort."""
+    p = tmp_path / "gold.jsonl"
+    p.write_text(
+        json.dumps({"internal_key": "K1", "auto_label": None}) + "\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(SystemExit):
+        _check_gold_join(p)
