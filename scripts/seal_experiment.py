@@ -41,7 +41,6 @@ import json
 import os
 import random
 import sys
-import uuid
 from collections import defaultdict
 from pathlib import Path
 from typing import Dict, List
@@ -49,6 +48,7 @@ from typing import Dict, List
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.audit_log import log_action
+from src.experiment import generate_experiment_id
 from src.labels import RUBRIC_VERSION, TEMPLATE_VERSION
 from src.sealing import (
     encrypt_json_to_file,
@@ -354,7 +354,7 @@ def main() -> int:
         return 1
 
     # ── Step 1: Experiment id ────────────────────────────────────────────────
-    experiment_id = args.experiment_id or f"trustworthiness-validation-{uuid.uuid4().hex[:8]}"
+    experiment_id = args.experiment_id or generate_experiment_id()
     print(f"  Experiment id: {experiment_id}")
 
     # ── Passphrase handling ───────────────────────────────────────────────────
@@ -508,5 +508,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
-
-
