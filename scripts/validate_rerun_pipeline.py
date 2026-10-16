@@ -41,6 +41,7 @@ from typing import Dict, List
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.audit_log import log_action  # noqa: E402
+from src.experiment import find_latest_experiment_id  # noqa: E402
 
 # Headline invariants checked per dimension of the gold/agreement reports.
 INTEGRITY_CHECKS = ("gold_vs_auto", "inter_rater", "ci", "coverage")
@@ -330,8 +331,12 @@ def validate_rerun(args) -> None:
 
 
 def main() -> int:
+    default_exp_id = (
+        find_latest_experiment_id()
+        or "trustworthiness-validation-0000-00-00-000000"
+    )
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--experiment-id", default="trustworthiness-validation-2025-08-redo")
+    parser.add_argument("--experiment-id", default=default_exp_id)
     parser.add_argument("--annotations-dir", default="experiment/annotations")
     parser.add_argument("--passphrase", default=None,
                         help="Passphrase to open sealed auto labels for the gold join.")
@@ -363,3 +368,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+    
