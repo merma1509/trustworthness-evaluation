@@ -8,8 +8,7 @@
 	generate-final-manifest verify-results generate-expected
 
 
-# Interpreter for project tooling. Defaults to the venv so dev/test deps
-# (pytest, scipy, requests) resolve; override with PY=python3 if needed
+# Interpreter (venv by default; override with PY=python3)
 SHELL := /bin/bash
 RESULTS := results
 MODELS := gemma3:4b,llama3.1:8b
@@ -18,14 +17,11 @@ ifeq ("$(wildcard $(PY))","")
 	PY := python3
 endif
 
+# Id of the last-sealed experiment (fallback when EXPERIMENT_ID is unset).
+LATEST_EXPERIMENT_ID := $(shell $(PY) -c "import sys; sys.path.insert(0,'.'); from src.experiment import find_latest_experiment_id; print(find_latest_experiment_id() or '')" 2>/dev/null)
 
-# ── Shared recipe: build an audit dataset (single source of truth) ──
-# Used by `experiment-audit` (full sample). The caller sets the
-# target-specific variables below:
-#   AUDIT_OUTPUT       output jsonl path
-#   AUDIT_N_SAFETY     # samples per-dimension (safety)
-#   AUDIT_N_TRUTHFULNESS
-#   AUDIT_N_CONSISTENCY
+
+# Shared recipe: build an audit dataset (AUDIT_* target-specific vars)
 define AUDIT_SAMPLES
 	$(PY) scripts/generate_audit_samples.py \
 		--raw "$(RESULTS)/raw_outputs" \
@@ -61,7 +57,8 @@ help:
 	@echo "CLEAN-REDO (sealed-randomization protocol) - CANONICAL methodology:"
 	@echo "  make experiment-audit                  Regenerate FULL audit dataset (experiment/all_audit_full.jsonl)"
 	@echo "  make experiment-seal                   Seal a NEW experiment (templates + encrypted labels)"
-	@echo "                                           SEED=... EXPERIMENT_ID=... [PASSPHRASE=...]"
+	@echo "                                           SEED=... [EXPERIMENT_ID=...] [PASSPHRASE=...]"
+	@echo "                                           (EXPERIMENT_ID optional — auto-derived from run datetime)"
 	@echo "  make experiment-annotate               Emit blank rater templates + declaration forms"
 	@echo "                                           RATERS=\"raterA raterB\""
 	@echo "  make experiment-ingest ANNOTATIONS=... Schema-validate filled annotations"
@@ -116,18 +113,7 @@ clean:
 	@echo "Cleaned"
 
 
-# ========= Full clean: ==========
-# remove every GENERATED / UNTRACKED / IGNORED artifact under
-# results/, WITHOUT touching git-tracked files (committed reference data such
-# as all_audit.jsonl, annotation CSV/JSONL, sealed templates, manual audit,
-# human_annotation_30.csv are preserved). This is a safe "reset to a fresh,
-# reproducible state"
-#
-# Two sources of junk are swept:
-#   * untracked files  -> `git clean -fd` (git never touches committed files),
-#   * ignored work dirs (experiment/annotations/ — per-rater templates filled
-#     by humans, listed in .gitignore) -> explicit rm -rf
-# Committed files are always preserved; nothing is lost irrecoverably
+# Full clean: remove all generated/untracked/ignored artifacts (git files kept)
 clean-all:
 	@echo "Removing generated / untracked / ignored artifacts..."
 	@echo "  (git-tracked files are preserved; sealed reference data is kept)"
@@ -152,16 +138,12 @@ format:
 	ruff check --select I src/ scripts/ app/ --fix
 	@echo "Formatting complete"
 
-# Test target: runs the suite with the venv interpreter by default, so the dev
-# dependencies (pytest, scipy, requests) are actually present. Falls back to a
-# user-supplied interpreter via PY=... (e.g. PY=python3 make test)
+# Run test suite (PY=... to override interpreter)
 test:
 	$(PY) -m pytest -q
 
 
-# ── Full audit dataset (single source of truth for the sealed experiment) ──
-# experiment-audit regenerates the FULL audit dataset used by the sealed
-# CLEAN-REDO experiment (all prompts/groups, no per-dimension cap).
+# Full audit dataset (.jsonl) for the sealed experiment
 experiment-audit: AUDIT_OUTPUT := experiment/all_audit_full.jsonl
 experiment-audit: AUDIT_N_SAFETY := 100
 experiment-audit: AUDIT_N_TRUTHFULNESS := 100
@@ -173,72 +155,55 @@ experiment-audit:
 
 
 # ==== CLEAN-REDO: sealed-randomization protocol ====
-# Fresh, label-constrained human-validation pipeline that fixes the reviewer's
-# integrity findings (annotation mismatch, prompt/model leakage, silent
-# exclusion). Uses the FINITE label vocabulary from src/labels.py and seals the
-# ground truth separately from the rater templates
-#
-#    experiment-seal          seal a NEW experiment (templates + encrypted auto labels)
-#    experiment-annotate      emit per-rater blank templates + declaration forms
-#    experiment-ingest        schema-validate filled annotations (label-constrained gate)
-#    experiment-resolve       adjudicate A/B disagreements -> gold labels
-#    experiment-gold          build gold_labels.jsonl (gold + sealed auto join)
-#    experiment-agreement     held-out agreement figures (gold-vs-auto, inter-rater)
-#    experiment-seal-verify   check a sealed experiment is intact & fully blinded
-#    experiment-reproduce     regenerate EVERY reported number from immutable inputs,
-#                             FAILING CLOSED unless real rater annotations are READY
-#                             (never fabricates agreement κ from simulated raters)
-#
-# Most steps need variables; run `make help` or see each script's --help
 
-# Seal a new experiment. Pass PASSPHRASE explicitly for reproducibility, or use
-# --generate-passphrase via the target below.
+# Seal a new experiment (EXPERIMENT_ID optional: auto-derived from run datetime)
 experiment-seal:
 	@test -n "$(SEED)" || (echo "Set SEED=..."; exit 1)
 	$(PY) scripts/seal_experiment.py \
 		--raw "$(RESULTS)/raw_outputs" \
 		--experiment-dir experiment/sealed \
 		--seed "$(SEED)" \
-		--experiment-id "$(EXPERIMENT_ID)" \
+		$(if $(EXPERIMENT_ID),--experiment-id "$(EXPERIMENT_ID)",) \
 		$(if $(PASSPHRASE),--passphrase "$(PASSPHRASE)",--generate-passphrase --keeper experiment/.sealed_keeper.json)
 	@echo "  Sealed experiment ready. NEXT: make experiment-annotate"
 
-# Emit one blank template + declaration form per rater
+# Emit blank rater templates + declaration forms
 experiment-annotate:
 	$(PY) scripts/onboard_raters.py \
 		--experiment-dir experiment/sealed \
 		--out-experiment experiment \
 		--raters $(RATERS) ADJUDICATOR
 
-# Schema-validate filled annotation files (label-constrained gate)
-# Pass ANNOTATIONS="..." with the filled jsonl paths
+# Schema-validate filled annotations (ANNOTATIONS="...")
 experiment-ingest:
 	$(PY) scripts/ingest_annotations.py \
 		--annotations $(ANNOTATIONS) \
 		--manifest experiment/manifests/annotation_manifest.json \
 		--declarations-dir experiment/rater_declarations
 
-# Resolve A/B disagreements with the adjudicator -> agreements JSON.
-# Pass SPLIT=calibration|heldout and point the rater files via ANNOTATIONS
+# Adjudicate A/B disagreements (SPLIT=calibration|heldout)
 experiment-resolve:
+	@EXP_ID="$(EXPERIMENT_ID)"; \
+	if [ -z "$$EXP_ID" ]; then EXP_ID="$(LATEST_EXPERIMENT_ID)"; fi; \
 	$(PY) scripts/resolve_disagreements.py \
 		--rater-a $(RATER_A_FILE) \
 		--rater-b $(RATER_B_FILE) \
 		--adjudicator $(ADJUDICATOR_FILE) \
 		--split $(SPLIT) \
-		--experiment-id "$(EXPERIMENT_ID)" \
-		--out experiment/agreements/$(EXPERIMENT_ID)_$(SPLIT)_disagreements.json
+		--experiment-id "$$EXP_ID" \
+		--out experiment/agreements/$${EXP_ID}_$(SPLIT)_disagreements.json
 
-# Build gold_labels.jsonl (join gold human label + sealed auto)
-# Requires a recoverable SEAL_PASSPHRASE.
+# Build gold_labels.jsonl (requires SEAL_PASSPHRASE)
 experiment-gold:
+	@EXP_ID="$(EXPERIMENT_ID)"; \
+	if [ -z "$$EXP_ID" ]; then EXP_ID="$(LATEST_EXPERIMENT_ID)"; fi; \
 	$(PY) scripts/generate_gold_labels.py \
-		--resolutions experiment/agreements/$(EXPERIMENT_ID)_heldout_disagreements.json \
+		--resolutions experiment/agreements/$${EXP_ID}_heldout_disagreements.json \
 		--sealed-labels experiment/sealed/labels/sealed_auto_labels.jsonl.enc \
 		--passphrase "$(SEAL_PASSPHRASE)" \
 		--out experiment/gold/gold_labels.jsonl
 
-# Final held-out agreement report (gold vs auto + inter-rater A vs B)
+# Held-out agreement report (gold vs auto + inter-rater)
 experiment-agreement:
 	$(PY) scripts/report_part1_agreement.py \
 		--gold experiment/gold/gold_labels.jsonl \
@@ -255,23 +220,16 @@ experiment-seal-verify:
 		--sealed-labels experiment/sealed/labels/sealed_auto_labels.jsonl.enc \
 		--keys-file experiment/.sealed_keeper.json
 
-# One-command reproduction of the entire pipeline regenerates
-# EVERY reported number (scores, CI, ranking stability, cost) from immutable
-# raw outputs + sealed artifacts, then verifies internal consistency and
-# checks artifact checksums. Deterministic (fixed seeds)
-#
-# HONESTY GATE (methodological fix): the annotation-derived κ figures
-# (gold-vs-auto, inter-rater) are ONLY regenerated from the REAL sealed rater
-# annotations. If any rater file is empty/invalid (STATUS != READY), the
-# reproduce step FAILS CLOSED instead of fabricating agreement numbers from
-# simulated raters
-#
-# EXPERIMENT_ID / SEAL_PASSPHRASE are read from the environment when the
-# annotations are READY so the held-out gold can be rebuilt in-place.
+# Regenerate every reported number from immutable inputs; fails closed unless
+# real rater annotations are READY (never fabricates agreement κ)
 experiment-reproduce: verify-artifacts
 	@echo "=== Reproducing all reported numbers ==="
-	@echo "--- 0/7 annotation honesty gate (fail-closed) ---"
-	@STATUS=$$($(PY) scripts/experiment_status.py --annotations-dir experiment/annotations --experiment-id "$(EXPERIMENT_ID)" --status-only); \
+	@EXP_ID="$(EXPERIMENT_ID)"; \
+	if [ -z "$$EXP_ID" ]; then EXP_ID="$(LATEST_EXPERIMENT_ID)"; fi; \
+	if [ -z "$$EXP_ID" ]; then echo "  ✗ No experiment id found (set EXPERIMENT_ID=... or seal one first)."; exit 1; fi; \
+	echo "=== Reproducing all reported numbers (experiment: $$EXP_ID) ==="; \
+	echo "--- 0/7 annotation honesty gate (fail-closed) ---"; \
+	STATUS=$$($(PY) scripts/experiment_status.py --annotations-dir experiment/annotations --experiment-id "$$EXP_ID" --status-only); \
 	echo "  Experiment annotation STATUS: $$STATUS"; \
 	if [ "$$STATUS" != "READY" ]; then \
 		echo "  ✗ Annotations not complete — refusing to fabricate agreement κ from simulated/short data."; \
@@ -280,17 +238,18 @@ experiment-reproduce: verify-artifacts
 		exit 1; \
 	fi
 	@echo "--- 1/7 rater agreements -> gold labels -> held-out agreement κ ---"
-	@EXPERIMENT_ID="$(EXPERIMENT_ID)"; \
-	if [ -f "experiment/agreements/$${EXPERIMENT_ID}_heldout_disagreements.json" ]; then \
+	@EXP_ID="$(EXPERIMENT_ID)"; \
+	if [ -z "$$EXP_ID" ]; then EXP_ID="$(LATEST_EXPERIMENT_ID)"; fi; \
+	if [ -f "experiment/agreements/$${EXP_ID}_heldout_disagreements.json" ]; then \
 		$(PY) scripts/generate_gold_labels.py \
-			--resolutions "experiment/agreements/$${EXPERIMENT_ID}_heldout_disagreements.json" \
+			--resolutions "experiment/agreements/$${EXP_ID}_heldout_disagreements.json" \
 			--sealed-labels experiment/sealed/labels/sealed_auto_labels.jsonl.enc \
 			--passphrase "$(SEAL_PASSPHRASE)" \
 			--out experiment/gold/gold_labels.jsonl; \
 		$(PY) scripts/report_part1_agreement.py \
 			--gold experiment/gold/gold_labels.jsonl \
-			--rater-a "experiment/annotations/$${EXPERIMENT_ID}_RATER_A_heldout.jsonl" \
-			--rater-b "experiment/annotations/$${EXPERIMENT_ID}_RATER_B_heldout.jsonl" \
+			--rater-a "experiment/annotations/$${EXP_ID}_RATER_A_heldout.jsonl" \
+			--rater-b "experiment/annotations/$${EXP_ID}_RATER_B_heldout.jsonl" \
 			--out experiment/reports/part1_agreement_report.json \
 			--with-ci; \
 	else \
@@ -318,22 +277,8 @@ experiment-reproduce: verify-artifacts
 	$(PY) scripts/verify_immutable.py --manifest "$(RESULTS)/manifest.json" --base-dir .
 	@echo "=== All numbers reproduced & verified ==="
 
-# One-command clean-rerun VALIDATION gate. Unlike `experiment-reproduce` (which
-# reproduces the committed results from raw outputs), this step additionally
-# re-derives the held-out agreement/GOLD/κ+CIs FROM THE REAL FILLED ANNOTATION
-# FILES and verifies the scientific-integrity invariants of the rerun:
-#   * sealed templates remain fully blinded (no auto/model/prompt-id leakage),
-#   * every recorded annotation is accounted for (no silent drop),
-#   * gold/auto join is complete (every gold key resolves to an auto label),
-#   * κ / agreement-rate / CIs are within bounds and internally consistent.
-#
-# The script uses ONLY the immutable inputs (raw outputs + sealed templates +
-# filled rater annotations) and refuses to fabricate numbers when the
-# annotations are not READY or the SEAL_PASSPHRASE is unavailable.
-#
-# The derived agreement/gold reports are written to tmp and (without KEEP_RERUN=1)
-# discarded; the committed numbers under results/ are regenerated in place from
-# raw outputs (immutable), so the gate never mangles the existing results.
+# Clean-rerun validation gate: regenerate every number (incl. gold/κ+CIs) from
+# immutable inputs + filled annotations; fails closed on any broken invariant
 experiment-validate-rerun:
 	@echo "=== Clean-rerun VALIDATION gate ==="
 	@test -n "$(SEAL_PASSPHRASE)" || { \
@@ -341,16 +286,17 @@ experiment-validate-rerun:
 		echo "    The gate FAILS CLOSED rather than fabricating agreement numbers."; \
 		exit 1; \
 	}
-	@EXPERIMENT_ID_ID="$(EXPERIMENT_ID)"; \
-	if [ -z "$$EXPERIMENT_ID_ID" ]; then EXPERIMENT_ID_ID="trustworthiness-validation-2025-08-redo"; fi; \
+	@EXP_ID="$(EXPERIMENT_ID)"; \
+	if [ -z "$$EXP_ID" ]; then EXP_ID="$(LATEST_EXPERIMENT_ID)"; fi; \
+	if [ -z "$$EXP_ID" ]; then echo "  ✗ No experiment id found (set EXPERIMENT_ID=... or seal one first)."; exit 1; fi; \
 	$(PY) scripts/validate_rerun_pipeline.py \
-		--experiment-id "$$EXPERIMENT_ID_ID" \
+		--experiment-id "$$EXP_ID" \
 		--annotations-dir experiment/annotations \
 		--passphrase "$(SEAL_PASSPHRASE)" \
 		$(if $(KEEP_RERUN),--keep)
 	@echo "  ✓ validate-rerun complete"
 
-# Alias for the one-command validation gate (used in manual instructions)
+# Alias of experiment-validate-rerun
 validate-rerun: experiment-validate-rerun
 
 # Verify immutable artifacts match their manifest checksums
@@ -372,10 +318,7 @@ compute-ci:
 compute-ranking:
 	$(PY) scripts/compute_ranking_stability.py --scores "$(RESULTS)/scores_report.json" --n-bootstrap 10000 --output "$(RESULTS)/ranking_stability.json"
 
-# Paired/clustered model comparison CI (offline rescore with v3 classifiers).
-# NOTE: produces results/paired_comparison.json via scripts/compute_paired_comparison.py
-# (the offline v3 path). `make run` additionally writes a live path version of the
-# same file from run_evaluation.py; the offline driver is the reproducibility source.
+# Paired/clustered model comparison CI (offline v3 path)
 compute-paired:
 	$(PY) scripts/compute_paired_comparison.py --raw "$(RESULTS)/raw_outputs" --output "$(RESULTS)/paired_comparison.json" --seed 42
 
@@ -391,23 +334,13 @@ generate-final-manifest:
 verify-results:
 	$(PY) scripts/verify_results.py --results "$(RESULTS)" --expected "$(RESULTS)/expected_results.json"
 
-# Write results/expected_results.json — the committed expectations that
-# `verify_results.py --expected` checks regenerated reports against
-# Snapshots current scores/CI/ranking values; run
-# only when a NEW reference result set is intentionally published.
+# Snapshot current reports into results/expected_results.json (committed expectations)
 generate-expected:
 	$(PY) scripts/generate_expected_results.py --results "$(RESULTS)" --output "$(RESULTS)/expected_results.json"
 	@echo "Expected results snapshotted from current reports into $(RESULTS)/expected_results.json."
 
 
-# Single source of truth for the budget/cost ratio: MEASURED per-label human
-# annotation time via the live interactive timing study. A human annotator
-# labels the sampled records one-by-one and the wall-clock time per decision is
-# recorded (written to results/human_timing_measurement.json, which both
-# paradigm_report.py (RQ4 cost) and budget_optimizer.py consume
-#
-# Picks the dimension with DIMENSION=safety|truthfulness|consistency and the
-# sample size with SAMPLE=n (default 8). This REQUIRES a human at the keyboard
+# MEASURED human timing study (interactive; DIMENSION=..., SAMPLE=n)
 human-timing:
 	$(PY) scripts/measure_human_annotation_time.py \
 		--input results/audit/all_audit.jsonl \
@@ -416,9 +349,7 @@ human-timing:
 		--output results/human_timing_measurement.json
 	@echo "  -> MEASURED human timing study written to results/human_timing_measurement.json"
 
-# Trust-budget plan: turn the held-out gold-vs-auto κ into a human-allocation
-# policy. REPORT defaults to the sealed experiment report once produced.
-# Optional gates: GATE_TRUST / GATE_UNVERIFIED override the 0.7 / 0.4 defaults
+# Trust-budget plan from held-out κ (GATE_TRUST / GATE_UNVERIFIED optional)
 experiment-budget:
 	@test -n "$(REPORT)" || REPORT=experiment/reports/part1_agreement_report.json; \
 	budget=results/budget_plan.json; \
@@ -435,8 +366,7 @@ experiment-budget:
 	@echo "  -> Budget plan written to results/budget_plan.json"
 
 
-# Budget-vs-reliability figure. Optionally pass REPORT=<json> or
-# inline KAPPAS="safety=0.615 truthfulness=0.0 consistency=0.615"
+# Budget-vs-reliability figure (REPORT=<json> or KAPPAS="...")
 budget-figure:
 	@REPORT_ARG=""; \
 	if [ -n "$(REPORT)" ] && [ -f "$(REPORT)" ]; then REPORT_ARG="--report $(REPORT)"; fi; \
@@ -445,16 +375,12 @@ budget-figure:
 	$(PY) scripts/budget_reliability_curve.py $$REPORT_ARG $$KAPPA_ARG --output results/budget_reliability_curve.png
 	@echo "  -> Figure written to results/budget_reliability_curve.png"
 
-# Cost breakdown with explicit MEASURED/ASSUMED/MODEL labels
-# Reads measured timings from cost_tracker.json / human_timing_measurement.json.
-# Optional DISAGREEMENT=0.1 adds a MODEL adjudication cost (ASSUMED s/case).
+# Cost breakdown (MEASURED/ASSUMED/MODEL; DISAGREEMENT=0.1 optional)
 cost-report:
 	$(PY) scripts/compute_cost.py $(if $(DISAGREEMENT),--disagreement $(DISAGREEMENT)) --output results/cost_breakdown.json
 	@echo "  -> results/cost_breakdown.json written (MEASURED/ASSUMED/MODEL breakdown)"
 
-# Cost-reliability frontier per dimension — a MODEL ESTIMATE, never a measured
-# result. Optionally pass REPORT=<json> (measured κ) or inline
-# KAPPAS="safety=0.593 truthfulness=0.277 consistency=0.0"
+# Cost-reliability frontier (MODEL estimate; REPORT=<json> or KAPPAS="...")
 cost-frontier:
 	@REPORT_ARG=""; \
 	if [ -n "$(REPORT)" ] && [ -f "$(REPORT)" ]; then REPORT_ARG="--report $(REPORT)"; fi; \
@@ -463,7 +389,7 @@ cost-frontier:
 	$(PY) scripts/cost_reliability_frontier.py $$REPORT_ARG $$KAPPA_ARG --output results/cost_reliability_frontier.json
 	@echo "  -> results/cost_reliability_frontier.json written (MODEL estimate)"
 
-# Auto × Human error heatmap from the agreement/validation reports
+# Auto × Human error heatmap from agreement/validation reports
 error-heatmap:
 	$(PY) scripts/error_heatmap.py \
 		--agreement results/audit/agreement_report.json \
@@ -471,8 +397,7 @@ error-heatmap:
 		--output results/error_heatmap.png
 	@echo "  -> Figure written to results/error_heatmap.png"
 
-# Measurement-validation loop diagram. Pure structure — no
-# numeric values, so it is valid for every run regardless of the fresh data
+# Measurement-validation loop diagram (pure structure)
 pipeline-figure:
 	$(PY) scripts/pipeline_diagram.py --output results/pipeline_loop.png
 	@echo "  -> Figure written to results/pipeline_loop.png"
