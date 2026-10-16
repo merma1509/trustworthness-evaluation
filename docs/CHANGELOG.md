@@ -54,6 +54,24 @@ here. Format follows [Keep a Changelog](https://keepachangelog.com/).
     taxonomy (pure uncertainty, pure fabrication, short/long/far-separated
     reject-then-invent, conditional fabrication, hedging, correct-factual).
 
+- **Experiment id is now auto-derived from the run's UTC date/time.**
+  - New `src/experiment.py`: `generate_experiment_id(now)` builds
+    `trustworthiness-validation-YYYY-MM-DD-HHMMSS` from the run timestamp, and
+    `find_latest_experiment_id()` reads the current sealed experiment id from
+    `experiment/sealed/manifests/sealing_manifest.json`.
+  - `scripts/seal_experiment.py` no longer falls back to a random hex uuid when
+    `--experiment-id` is omitted; it now generates a date-based id, so every
+    fresh seal produces a uniquely-named, readable, sortable experiment.
+  - `scripts/experiment_status.py`, `scripts/validate_rerun_pipeline.py`, and
+    the `Makefile` consumers (`experiment-seal`, `experiment-resolve`,
+    `experiment-gold`, `experiment-reproduce`, `experiment-validate-rerun`)
+    now fall back to the _last-sealed_ experiment id via `find_latest_experiment_id()`
+    instead of a hard-coded `2025-08-redo`. Explicit `EXPERIMENT_ID=...` still
+    overrides the default for reproducible re-seals.
+  - `tests/test_experiment.py` — 10 tests covering date-based id generation
+    (UTC normalisation, sortability, uniqueness) and manifest lookup
+    (missing/malformed manifest handling).
+
 - **Added** one-command clean-rerun validation gate (`make validate-rerun`).
   - New `scripts/validate_rerun_pipeline.py` regenerates EVERY reported number
     (held-out gold labels, gold-vs-auto and inter-rater κ+CIs, scores/TrustScore,
