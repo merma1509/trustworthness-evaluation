@@ -21,18 +21,26 @@ here. Format follows [Keep a Changelog](https://keepachangelog.com/).
     (verified: every raw `prompt_id` is present in final), and no code/Makefile/docs
     read `data/raw`. README updated to not mention the seeds.
   - Removed `docs/MANUAL_AUDIT_RUBRIC.md` (v2 rubric) — fully superseded by
-    `docs/MANUAL_AUDIT_RUBRIC_v3.md`; references in `docs/scoring-spec-v2.md` and
+    `docs/MANUAL_AUDIT_RUBRIC_v3.md`; references in `docs/scoring-spec.md` and
     `docs/annotation-instructions.md` repointed to the v3 rubric.
   - Removed `docs/annotation-instructions.md` (legacy v2 rater instructions) — fully
     superseded by `docs/RATER_INSTRUCTIONS_v3.md` (it documented non-existent
     `confidence`/`annotations.notes` fields and `experiment/annotations/` paths).
   - Removed a broken cross-reference to a non-existent `docs/feedback-plan.md` in
-    `docs/scoring-spec-v2.md`.
+    `docs/scoring-spec.md`.
   - Fixed a stale docstring in `scripts/analysis.py` referencing a non-existent
     `./week2.sh`.
   - Added a missing `make compute-paired` reproducibility target for the working but
     previously un-wrapped `scripts/compute_paired_comparison.py` (offline v3 driver
     for `results/paired_comparison.json`).
+  - Merged the scoring spec into a single canonical file: `docs/scoring-spec-v2.md`
+    (canonical safety / truthfulness / consistency + TrustScore + kappa) and
+    `docs/scoring-spec-v3.md` (reject-then-invent response-classification layer)
+    are now one document, `docs/scoring-spec.md` (v3, with the v2 core intact as
+    sections 1–6 and the v3 truthfulness layer as section 7). The two old files
+    were removed; references in `tests/test_scoring_spec.py`,
+    `tests/test_classifiers.py`, `src/stats.py` and the changelog were repointed
+    to `docs/scoring-spec.md`.
   - Pruned redundant Makefile targets (and their `.PHONY` / `make help` entries)
     that duplicated actions already performed directly by `demo.sh` or other
     targets and were referenced nowhere in docs/tests:
@@ -41,6 +49,32 @@ here. Format follows [Keep a Changelog](https://keepachangelog.com/).
     `verify-artifacts`). Updated the `AUDIT_SAMPLES` comment and the
     `scripts/analysis.py` docstring accordingly.
 
+- **Dashboard tabs now map to the project's research questions (RQ1–RQ4).**
+  - New `RQ2 — What Affects Agreement` tab (`app/tabs/rq2_factors.py`) replaces the
+    old `Failure Analysis` tab: it shows agreement factors (dimension / attack type /
+    model) straight from `results/audit/agreement_report.json`, with a read-out of
+    the worst cell. `app/tabs/failure_analysis.py` was removed (superseded by
+    `rq2_factors.py`).
+  - Each remaining tab carries a small caption stating its role in the project
+    (results layer vs. a specific RQ); the `Research Questions` tab now explains
+    which sections answer RQ1–RQ4.
+  - Footer reworded from a course-project tagline to a neutral research label.
+  - `Rater Annotation` tab (`app/tabs/rater_annotation.py`) now shows the rater's
+    declaration-form status (signed / blank / missing) in a read-only block
+    placed before annotation.
+  - `Rater Annotation` tab shows a handoff note when the `ADJUDICATOR` role is
+    selected: the adjudicator file is the disagreements-only output of
+    `make experiment-adjudicator-prep`, not the full-size template of
+    `make experiment-annotate`. The generic "No annotation template found" hint
+    is no longer misleading for the adjudicator.
+  - `README.md` gains a "Dashboard tabs → research questions" mapping;
+    `docs/appendix.md` adds §A.11 with the same mapping.
+  - Renamed the `RQ2 — What Affects Agreement` tab to `What Affects Agreement`
+    (the `RQ2` prefix was redundant — the tab's role in the appendix already
+    states it answers RQ2; stripped `(CLEAN-REDO)` from the
+    `Sealed Multi-Rater Re-Validation` heading in `app/tabs/inter_annotator.py`).
+    Appendix/README mapping updated to match.
+
 ### Added
 
 - **Added** `TruthfulnessScorer with reject-then-invent fix.\*\*
@@ -48,8 +82,8 @@ here. Format follows [Keep a Changelog](https://keepachangelog.com/).
     response-classification rule: _"the final output is what matters"_.
   - `RTTI_MAX_DISTANCE = 150` position heuristic for reject-then-invent
     detection, plus a fabrication-marker list `FABRICATION_MARKERS`.
-  - `docs/scoring-spec-v3.md` — versioned specification for the new
-    response-classification layer (complements the v2 FPR rubric).
+  - `docs/scoring-spec.md` — merged canonical specification (v2 + v3) defining
+    the FPR rubric and the v3 response-classification layer (reject-then-invent).
   - `tests/test_truthfulness_scorer.py` — 16 passing tests covering the v3
     taxonomy (pure uncertainty, pure fabrication, short/long/far-separated
     reject-then-invent, conditional fabrication, hedging, correct-factual).
@@ -94,6 +128,28 @@ here. Format follows [Keep a Changelog](https://keepachangelog.com/).
   This supersedes the legacy v2 instructions in `docs/annotation-instructions.md`,
   which referenced non-existent `confidence`/`annotations.notes` fields.
 
+- **Added** disagreements-only, double-blind ADJUDICATOR handoff
+  (`make experiment-adjudicator-prep`).
+  - New `scripts/prepare_adjudicator.py` builds the ADJUDICATOR file from ONLY the
+    records where RATER*A and RATER_B cast different \_valid* votes, rebuilt from
+    the _sealed_ template (prompt/response only — no A/B label, no auto_label, no
+    model/prompt/attack ids), so the adjudicator never sees how A or B voted.
+    An `uncertain` rater does not cast a valid vote (mirrors
+    `scripts/resolve_disagreements.py`); a disagreement key missing from the sealed
+    template fails closed instead of silently dropping the record.
+  - `Makefile` target `experiment-adjudicator-prep` runs AFTER RATER_A/RATER_B are
+    fully annotated and BEFORE ADJUDICATOR starts
+    (`SPLIT=... RATER_A_FILE=... RATER_B_FILE=... ADJUDICATOR_FILE=...`), falling
+    back to the last-sealed experiment id and logging the handoff to
+    `experiment/logs/annotation_log.jsonl`.
+  - `prepare_adjudicator.py` **deletes any pre-existing ADJUDICATOR file before
+    writing** the fresh disagreements-only one, so the full-size template left
+    by `make experiment-annotate` can never linger and be shown to the
+    adjudicator alongside (or instead of) the real disagreements.
+  - `tests/test_prepare_adjudicator.py` — 7 tests covering disagreements-only
+    selection, double-blind rebuild, fail-closed coverage, and the
+    delete-then-write replacement of a stale full-size file.
+
 ### Fixed
 
 - **reject-then-invent scoring.**
@@ -105,7 +161,7 @@ here. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
-- Canonical scoring specification v2 (`docs/scoring-spec-v2.md`); safety /
+- Canonical scoring specification v2 (`docs/scoring-spec.md`); safety /
   truthfulness (FPR) / consistency scoring definitions.
 - Deterministic local auto-scorer pipeline (`src/classifiers.py`, `src/safety.py`,
   `src/truthfulness.py`, `src/consistency.py`) and offline rescoring
