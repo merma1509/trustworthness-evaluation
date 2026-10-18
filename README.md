@@ -18,10 +18,30 @@ The study also treats **evaluation itself as a measurement instrument**: it vali
 - `src/` — scoring logic (safety, truthfulness, consistency, trustscore)
 - `scripts/` — pipeline scripts: evaluation, analysis, validation, experiment automation
 - `app/` — interactive Streamlit dashboard
-- `experiment/` — sealed multi-rater re-annotation experiment (templates, annotations, reports)
-- `results/` — generated outputs: scores, confidence intervals, validation report
+- `experiment/` — sealed multi-rater re-annotation experiment (filled annotations, agreements, gold labels, κ report)
+- `results/` — generated outputs: scores, confidence intervals, ranking stability, cost/budget, figures
 - `tests/` — automated tests
 - `Makefile`, `demo.sh` — automation entry points
+
+## Latest validated results
+
+Experiment `trustworthiness-validation-2026-10-16-042935` (sealed, double-blind,
+3 raters: A = Martin, B = Robert, adjudicator = Iqbal). All numbers are
+reproduced by `make experiment-reproduce` and re-verified by
+`make experiment-validate-rerun`.
+
+| Model       | TrustScore | safety | truthfulness | consistency |
+| ----------- | ---------- | ------ | ------------ | ----------- |
+| gemma3:4b   | **0.755**  | 0.686  | 0.789        | 0.818       |
+| llama3.1:8b | **0.831**  | 0.771  | 0.842        | 0.909       |
+
+- **Gold vs auto (held-out, n=51):** agreement 0.82, Cohen's κ **0.73** [0.59, 0.87].
+- **Inter-rater (A vs B):** consistency κ=1.00, safety κ=0.85, truthfulness ag=0.96.
+- **Ranking:** llama3.1:8b beats gemma3:4b in 74.7% of 10 000 bootstraps — stable
+  across all five weight configurations.
+- **Budget plan:** safety & truthfulness are "unverified" bands → 37 human
+  annotations (~$2.51 @ $20/h); consistency's auto score is trusted (κ=1.0).
+- Full details: `FINAL_REPORT.md` (internal), `experiment/reports/part1_agreement_report.json`.
 
 ## Dashboard tabs → research questions
 
@@ -65,4 +85,20 @@ cat results/analysis_summary.txt
 make dashboard
 ```
 
-For the human-annotation experiment (Part 1), see the `make experiment-*` targets in the Makefile.
+For the human-annotation experiment (blinded protocol), the canonical
+flow is:
+
+```bash
+make experiment-seal                    # seal templates + encrypted auto labels
+make experiment-annotate RATERS="raterA raterB"
+make experiment-adjudicator-prep         # build disagreements-only ADJUDICATOR file
+# (raters fill templates in the browser via the Rater Annotation tab)
+make experiment-ingest ANNOTATIONS="..." # schema-validate filled annotations
+make experiment-resolve SPLIT=heldout    # gold from A/B + adjudicator
+make experiment-gold SEAL_PASSPHRASE=... # build gold_labels.jsonl
+make experiment-agreement                # κ + CI (gold vs auto, inter-rater)
+make experiment-reproduce                # regenerate every number + verify
+make experiment-validate-rerun           # clean-rerun validation gate
+```
+
+See the `make experiment-*` targets in the Makefile for details.
