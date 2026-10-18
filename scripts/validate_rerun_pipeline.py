@@ -217,8 +217,17 @@ def validate_rerun(args) -> None:
     # ── 3. Build gold labels + held-out agreement κ/CIs ──────────────────────
     print("\n=== 3/6 gold labels + agreement κ/CIs ===")
     gold_out = Path(tempfile.mkdtemp(prefix="rerun_gold_")) / "gold_labels.jsonl"
-    rc = _run(
-        [
+    plaintext_auto = root / "experiment/sealed/labels/auto_labels.jsonl"
+    if plaintext_auto.exists():
+        gold_cmd = [
+            sys.executable,
+            "scripts/generate_gold_labels.py",
+            "--resolutions", str(resolve_out),
+            "--auto-labels", str(plaintext_auto),
+            "--out", str(gold_out),
+        ]
+    else:
+        gold_cmd = [
             sys.executable,
             "scripts/generate_gold_labels.py",
             "--resolutions", str(resolve_out),
@@ -226,9 +235,8 @@ def validate_rerun(args) -> None:
             "experiment/sealed/labels/sealed_auto_labels.jsonl.enc",
             "--passphrase", args.passphrase or "",
             "--out", str(gold_out),
-        ],
-        root,
-    )
+        ]
+    rc = _run(gold_cmd, root)
     if rc != 0:
         _fail("gold label generation failed")
     _check_gold_join(gold_out)
@@ -344,10 +352,16 @@ def main() -> int:
                         help="Keep derived agreement/gold reports under experiment/.")
     args = parser.parse_args()
 
-    if not args.passphrase:
+    plaintext_auto = Path("experiment/sealed/labels/auto_labels.jsonl")
+    if not args.passphrase and not plaintext_auto.exists():
         # The reproduce pipeline is designed to FAIL CLOSED rather than
-        # fabricate these numbers when the passphrase is unavailable.
-        print("  Provide --passphrase to unseal the auto labels for the gold join.")
+        # fabricate these numbers when neither the passphrase nor the
+        # committed plaintext auto labels are available.
+        print(
+            "  Provide --passphrase to unseal the auto labels for the gold join, "
+            "or commit the plaintext auto labels "
+            "(experiment/sealed/labels/auto_labels.jsonl)."
+        )
         return 2
 
     try:

@@ -7,6 +7,27 @@ here. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ### Changed
 
+- **Held-out gold / agreement now reproducible from git without a passphrase.**
+  - Added committed plaintext auto labels
+    (`experiment/sealed/labels/auto_labels.jsonl`, deterministic canonical
+    serialisation, 210 records) alongside the encrypted sealed copy. A
+    `.gitignore` negation now keeps this single plaintext file tracked while
+    `sealed_auto_labels.jsonl.enc` and the keeper stay private.
+  - `scripts/generate_gold_labels.py` now accepts the plaintext auto labels as a
+    JSON array **or** JSONL (`--auto-labels`), matching both the sealed payload
+    and the on-disk committed file. The sealed `--sealed-labels + --passphrase`
+    path is preserved as the fallback.
+  - `scripts/validate_rerun_pipeline.py` no longer hard-requires
+    `--passphrase` when the committed plaintext auto labels exist: it builds
+    gold from `experiment/sealed/labels/auto_labels.jsonl` directly and only
+    falls back to the sealed path otherwise.
+  - `Makefile` targets `experiment-gold`, `experiment-reproduce` (step 1/7) and
+    `experiment-validate-rerun` now prefer the plaintext path and only require
+    `SEAL_PASSPHRASE` when no plaintext is present.
+  - Result: from a clean git clone, `make experiment-validate-rerun` regenerates
+    every number (gold labels, gold-vs-auto κ+CIs, scores/TrustScore, CIs,
+    ranking stability) from immutable inputs with **no local secrets**.
+
 - **Repository hygiene: removed legacy / superseded / duplicated files.**
   - Removed `requirements.txt` — legacy dependency list superseded by
     `pyproject.toml` + `uv.lock` (canonical via `make setup` = `uv sync --extra dev`).
