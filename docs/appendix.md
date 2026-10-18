@@ -8,15 +8,15 @@
 
 ## A.1 Summary
 
-| Metric                    | Value                                                             |
-| ------------------------- | ----------------------------------------------------------------- |
-| Total annotated samples   | 30 (10 per dimension)                                             |
-| Overall agreement rate    | 86.7% (26/30)                                                     |
-| Cohen's Kappa (overall)   | 0.757 — **Substantial**                                           |
-| Auto precision            | 100% (25/25)                                                      |
-| Auto recall               | 86.2% (25/29)                                                     |
-| Auto specificity          | 100% (1/1)                                                        |
-| Cost ratio (auto / human) | **~108x** (MEASURED timings) — see §A.6 caveat; apples-to-oranges |
+| Metric                    | Value                                                                                                      |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Total annotated samples   | 30 (10 per dimension)                                                                                      |
+| Overall agreement rate    | 86.7% (26/30)                                                                                              |
+| Cohen's Kappa (overall)   | 0.757 — **Substantial**                                                                                    |
+| Auto precision            | 100% (25/25)                                                                                               |
+| Auto recall               | 86.2% (25/29)                                                                                              |
+| Auto specificity          | 100% (1/1)                                                                                                 |
+| Cost ratio (auto / human) | **~108x nominal** (MEASURED timings; **apples-to-oranges** — see §A.6, not a validated "× cheaper" saving) |
 
 **Conclusion (provisional):** The auto-scorer is **conservative** (high specificity, moderate recall). The κ here is a **calibration** estimate — it is not yet a claim of end-to-end "validated" trustworthiness. Deciding whether the auto-scorer can be trusted for relative ranking, and whether a hybrid (auto + partial human audit) is warranted, must wait until the **blinded, held-out** re-annotation (WP-D, Task 7) is completed and reported. Until then, no deployment or operational recommendation is made from these figures.
 
@@ -253,6 +253,34 @@ cat results/validation_report.json | python3 -m json.tool
 ```
 
 **Provenance:** All raw outputs include `provenance` field with model digest, temperature, seed, Ollama version, and timestamp.
+
+---
+
+## A.11 Dashboard Tabs -> Research Questions
+
+The Streamlit dashboard (`app/dashboard.py`) maps each tab to a project role /
+research question, so the UI mirrors the study's structure:
+
+| Dashboard tab          | Role in the project                                                             | Research question              |
+| ---------------------- | ------------------------------------------------------------------------------- | ------------------------------ |
+| Overview               | Headline results (TrustScore, ranking, significance)                            | Results — points to RQ tabs    |
+| Dimensions             | Measurement output per dimension + bootstrap CI + paired/clustered significance | Feeds RQ1–RQ4                  |
+| Confusion Matrix       | Safety results (refusal / over-refusal)                                         | Material for RQ1, RQ2          |
+| Research Questions     | Summary answer to all four RQs (κ, factors, stability, cost)                    | RQ1, RQ3, RQ4 (+ RQ2 overview) |
+| What Affects Agreement | Agreement factors: dimension / attack type / model                              | RQ2                            |
+| Human Annotation       | Blinded multi-rater + gold-vs-auto κ (measuring instrument)                     | RQ1                            |
+| Rater Annotation       | Data-collection workflow (records human labels)                                 | Feeds RQ1                      |
+
+The four research questions themselves are computed in `src/validation.py` /
+`scripts/paradigm_report.py`:
+
+- **RQ1** — How well do auto-labels agree with human labels?
+- **RQ2** — Which factors affect agreement? (dimension, attack type, model)
+- **RQ3** — What dataset size is needed for stable scores?
+- **RQ4** — What does automatic vs manual evaluation cost?
+
+The same mapping is documented in `README.md` (section "Dashboard tabs ->
+research questions").
 
 ---
 

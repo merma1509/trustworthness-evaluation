@@ -1,5 +1,5 @@
 """Generates all analysis figures and tables for the project report
-Run once after ./week2.sh completes.
+Run once after `make run` (`./demo.sh`) completes.
 
 Analysis 1: CI bar chart with error bars
 Analysis 2: Weight sensitivity (TrustScore vs safety weight)

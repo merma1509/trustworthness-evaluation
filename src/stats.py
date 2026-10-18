@@ -10,9 +10,7 @@ from typing import Dict, List, Optional
 import numpy as np
 
 
-# ──────────────────────────────────────────────────────────────
 # Cost tracking
-# ──────────────────────────────────────────────────────────────
 class CostTracker:
     """Tracks inference time and cost for evaluation runs.
 
@@ -63,9 +61,7 @@ class CostTracker:
         self._records.extend(other._records)
 
 
-# ──────────────────────────────────────────────────────────────
 # Jackknife stability analysis
-# ──────────────────────────────────────────────────────────────
 def compute_jackknife_stability(
     per_prompt_scores: List[float],
     n_remove: int = 1,
@@ -122,9 +118,7 @@ def compute_jackknife_stability(
     }
 
 
-# ──────────────────────────────────────────────────────────────
 # Dataset size sensitivity
-# ──────────────────────────────────────────────────────────────
 def compute_dataset_size_sensitivity(
     n_range: List[int],
     base_scores: List[float],
@@ -209,12 +203,12 @@ def estimate_required_sample_size(
 
     **Defensible sample-size estimators.** Computes N to reach a
     *stated* CI half-width at a *stated* confidence level, using the Wilson
-    score interval by default (per PLAN_PART3B §3B.2.3) — more accurate than the
-    Wald normal approximation for proportions.
+    score interval by default — more accurate than the Wald normal
+    approximation for proportions.
 
     The unit of analysis is the **independent group** (a unique prompt or a
     consistency group), NOT each raw record. Duplicated prompt texts within a
-    consistency group are counted once. See ``docs/scoring-spec-v2.md``.
+    consistency group are counted once. See ``docs/scoring-spec.md``.
 
     Args:
         precision: Desired CI half-width (e.g. 0.05 = +/-5%).
@@ -286,8 +280,8 @@ def compute_confidence_intervals(
 ) -> Dict:
     """Compute bootstrap confidence intervals for a list of scores.
 
-    Uses **Efron's percentile method** (PLAN_PART3B §3B.3) with an explicit
-    random seed (default 42) so results are reproducible from the same inputs.
+    Uses **Efron's percentile method** with an explicit random seed (default 42)
+    so results are reproducible from the same inputs.
 
     Handles degenerate (extreme) outcomes specially: when every score is the
     same (all 0 or all 1, e.g. a model that is perfect on every consistency
@@ -295,7 +289,7 @@ def compute_confidence_intervals(
     with zero width — uninformative and misleading. In that case a Beta
     posterior (Jeffreys prior, ``Beta(0.5, 0.5)``) is used so the CI still
     conveys the uncertainty inherent in a finite sample (the Rule of Three
-    lower bound for a perfect score). See ``docs/scoring-spec-v2.md``.
+    lower bound for a perfect score). See ``docs/scoring-spec.md``.
 
     Args:
         scores: List of individual trial scores (0 or 1)
@@ -554,9 +548,7 @@ DEFAULT_WEIGHT_CONFIGS = [
 ]
 
 
-# ──────────────────────────────────────────────────────────────
 # Weight sensitivity WITH CIs
-# ──────────────────────────────────────────────────────────────
 def compute_weight_sensitivity_with_ci(
     safety_trials: List[float],
     truthfulness_trials: List[float],
@@ -569,10 +561,10 @@ def compute_weight_sensitivity_with_ci(
     """Weight sensitivity analysis that reports a CI per configuration.
 
     Unlike ``compute_weight_sensitivity`` (which reports only a point score),
-    this bootstraps each dimension's trial scores (Efron percentile, PLAN
-    §3B.3) and combines them under each weight config, yielding a TrustScore
-    point estimate **plus** a percentile CI that reflects the sampling
-    uncertainty of the underlying dimension scores.
+    this bootstraps each dimension's trial scores (Efron percentile method)
+    and combines them under each weight config, yielding a TrustScore point
+    estimate **plus** a percentile CI that reflects the sampling uncertainty
+    of the underlying dimension scores.
 
     Args:
         safety_trials: 0/1 per-independent-unit scores for Safety.
@@ -714,9 +706,7 @@ def compute_model_win_probability(
     }
 
 
-# ──────────────────────────────────────────────────────────────
 # Ranking stability (bootstrap probability of ranking flip)
-# ──────────────────────────────────────────────────────────────
 def compute_ranking_stability(
     model1_dim_scores: Dict[str, float],
     model2_dim_scores: Dict[str, float],
@@ -837,9 +827,105 @@ def compute_ranking_stability(
     }
 
 
-# ──────────────────────────────────────────────────────────────
+# Ranking stability — trial-level bootstrap (defensible)
+def compute_ranking_stability_with_trials(
+    model1_trials: Dict[str, List[float]],
+    model2_trials: Dict[str, List[float]],
+    weight_configs: List[Dict] = None,
+    n_bootstrap: int = 10000,
+    random_seed: int = 42,
+) -> Dict:
+    """Ranking stability from per-unit trial scores (preferred method).
+
+    This is the **scientifically defensible** ranking-stability estimator and
+    the successor to ``compute_ranking_stability`` (which perturbs point scores
+    with an ad-hoc Beta surrogate). Here each dimension's per-independent-unit
+    0/1 trials are resampled with replacement (Efron percentile bootstrap), so
+    the **dataset size enters the uncertainty directly**: a model scored from
+    n=38 prompts gets a tighter spread than one scored from n=11 groups, and
+    the reported win probabilities are anchored to real sampling variability
+    instead of an arbitrary ``Beta(a, b)`` spread.
+
+    Implementation: for each weight config it delegates to
+    ``compute_model_win_probability`` (P(model1 > model2) / P(model2 > model1)
+    / tie per config, with a ``stable_win`` verdict), as demonstrated by the
+    experimental setup. P-values for the marginal (per-dimension) paired
+    difference are available through ``paired_bootstrap_test``.
+
+    Args:
+        model1_trials: dict with keys 'safety','truthfulness','consistency'
+            mapping to per-unit 0/1 trial lists for model 1.
+        model2_trials: same for model 2.
+        weight_configs: defaults to DEFAULT_WEIGHT_CONFIGS.
+        n_bootstrap: bootstrap resamples per config.
+        random_seed: RNG seed for reproducibility.
+
+    Returns:
+        Dict with keys:
+            'method': 'trial_bootstrap' (immutable label for downstream checks)
+            'model_wins': {'model1': pct, 'model2': pct, 'tie': pct}
+            'per_config': list of per-config results (P_model1_wins,
+                          P_model2_wins, tie_pct, stable_win)
+            'n_bootstrap', 'random_seed',
+            'n_units': {'model1': {dim: n}, 'model2': {dim: n}}
+            'interpretation': text guide.
+    """
+    if weight_configs is None:
+        weight_configs = DEFAULT_WEIGHT_CONFIGS
+
+    win = compute_model_win_probability(
+        model1_trials,
+        model2_trials,
+        weight_configs=weight_configs,
+        n_bootstrap=n_bootstrap,
+        seed=random_seed,
+    )
+
+    overall1 = overall2 = overall_tie = 0
+    per_config = []
+    for cfg in win["per_config"]:
+        overall1 += int(round(cfg["P_model1_wins"] * n_bootstrap))
+        overall2 += int(round(cfg["P_model2_wins"] * n_bootstrap))
+        overall_tie += int(round(cfg["tie_pct"] / 100.0 * n_bootstrap))
+        per_config.append(
+            {
+                "config": cfg["config"],
+                "name": cfg["config"],
+                "P_model1_wins": cfg["P_model1_wins"],
+                "P_model2_wins": cfg["P_model2_wins"],
+                "flip_probability": round(cfg["P_model1_wins"], 4),
+                "model1_wins_pct": round(cfg["P_model1_wins"] * 100, 1),
+                "model2_wins_pct": round(cfg["P_model2_wins"] * 100, 1),
+                "tie_pct": cfg["tie_pct"],
+                "stable_win": cfg["stable_win"],
+            }
+        )
+
+    total = overall1 + overall2 + overall_tie
+    dims = ("safety", "truthfulness", "consistency")
+    n1 = {d: len(model1_trials.get(d) or []) for d in dims}
+    n2 = {d: len(model2_trials.get(d) or []) for d in dims}
+
+    return {
+        "method": "trial_bootstrap",
+        "model_wins": {
+            "model1_pct": round(overall1 / total * 100, 1) if total else 0.0,
+            "model2_pct": round(overall2 / total * 100, 1) if total else 0.0,
+            "tie_pct": round(overall_tie / total * 100, 1) if total else 0.0,
+        },
+        "per_config": per_config,
+        "n_bootstrap": n_bootstrap,
+        "random_seed": random_seed,
+        "n_units": {"model1": n1, "model2": n2},
+        "interpretation": (
+            "flip_probability / P_model1_wins = P(model1 outscores model2) "
+            "under the config, from a trial-level Efron bootstrap (dataset "
+            "size enters the uncertainty). A 'stable win' requires P >= 0.95 "
+            "for one model under that config."
+        ),
+    }
+
 # Empirical required sample size
-# ──────────────────────────────────────────────────────────────
 def compute_required_n_empirically(
     base_scores: List[float],
     target_precision: float = 0.05,
@@ -938,9 +1024,7 @@ def compute_required_n_empirically(
     }
 
 
-# ──────────────────────────────────────────────────────────────
 # Paired bootstrap hypothesis test
-# ──────────────────────────────────────────────────────────────
 def paired_bootstrap_test(
     model1_scores: List[float],
     model2_scores: List[float],

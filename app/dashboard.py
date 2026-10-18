@@ -23,26 +23,19 @@ st.set_page_config(
 from app.config import MODEL_NAMES
 from app.data_loader import (
     get_confusion_matrix,
-    load_agreement_report,
     load_all_confidence_intervals,
     load_all_scores,
-    load_all_weight_sensitivity,
-    load_ranking_stability,
-    load_rescore_summary,
     models_available,
 )
 from app.tabs.confusion import render as render_confusion
 from app.tabs.dimensions import render as render_dimensions
-from app.tabs.failure_analysis import render as render_failure
 from app.tabs.human_annotation import render as render_human
-from app.tabs.manual_audit_tab import render as render_audit
+from app.tabs.rater_annotation import render as render_rater
+from app.tabs.rq2_factors import render as render_rq2
 
 # ─── Tab modules ──────────────────────────────────────────
 from app.tabs.overview import render as render_overview
-from app.tabs.raw_outputs import render as render_raw
 from app.tabs.research_question import render as render_research
-from app.tabs.verification import render as render_verification
-from app.tabs.weight_sensitivity import render as render_weights
 
 # ─── Sidebar ──────────────────────────────────────────────
 st.sidebar.title("Trustworthiness Eval")
@@ -83,10 +76,6 @@ if not available:
 # Load all data once
 all_scores = load_all_scores()
 all_cis = load_all_confidence_intervals()
-all_weight_sensitivity = load_all_weight_sensitivity()
-agreement_report = load_agreement_report()
-ranking_stability = load_ranking_stability()
-rescore_summary = load_rescore_summary()
 gemma_scores = all_scores.get("gemma3_4b", {})
 llama_scores = all_scores.get("llama3.1_8b", {})
 gemma_cis = all_cis.get("gemma3_4b", {})
@@ -99,25 +88,19 @@ llama_cm = get_confusion_matrix(llama_scores)
     tab_overview,
     tab_dimensions,
     tab_confusion,
-    tab_weights,
     tab_research,
-    tab_failure,
+    tab_rq2,
     tab_human,
-    tab_audit,
-    tab_verification,
-    tab_raw,
+    tab_rater,
 ) = st.tabs(
     [
         "Overview",
         "Dimensions",
         "Confusion Matrix",
-        "Weight Sensitivity",
         "Research Questions",
-        "Failure Analysis",
+        "What Affects Agreement",
         "Human Annotation",
-        "Manual Audit",
-        "Verification",
-        "Raw Outputs",
+        "Rater Annotation",
     ]
 )
 
@@ -132,32 +115,24 @@ with tab_dimensions:
 with tab_confusion:
     render_confusion(available, gemma_cm, llama_cm, gemma_scores, llama_scores)
 
-with tab_weights:
-    render_weights(available, all_scores, all_weight_sensitivity)
-
 with tab_research:
     render_research(
         available, gemma_scores, llama_scores, gemma_cis, llama_cis, all_scores, all_cis
     )
 
-with tab_failure:
-    render_failure(available)
+with tab_rq2:
+    render_rq2(available)
 
 with tab_human:
     render_human(available)
 
-with tab_audit:
-    render_audit(available)
-
-with tab_verification:
-    render_verification(available)
-
-with tab_raw:
-    render_raw(available)
+with tab_rater:
+    render_rater(available)
 
 # ─── Footer ─────────────────────────────────────────────────
 st.markdown("---")
 st.markdown(
-    "*Built for the course 'Security and Interpretability of Machine Learning' at Innopolis University. "
+    "*Trustworthiness evaluation of small, local LLMs. "
+    "Research dashboard — results reflect the current experimental snapshot. "
     "[GitHub](https://github.com/merma1509/trustworthness-evaluation)*"
 )

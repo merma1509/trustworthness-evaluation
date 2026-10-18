@@ -274,6 +274,46 @@ def test_paired_bootstrap_test_requires_equal_length():
     assert raised
 
 
+def test_ranking_stability_with_trials_dominant_model():
+    """Trial-level ranking stability must produce a >0.95 P for a dominated
+    model pair and report the correct, stable_win verdict."""
+    from src.stats import compute_ranking_stability_with_trials
+
+    t1 = {"safety": [1, 1, 1, 1], "truthfulness": [1, 1, 1, 1],
+          "consistency": [1, 1]}
+    t2 = {"safety": [0, 0, 0, 0], "truthfulness": [0, 0, 0, 0],
+          "consistency": [0, 0]}
+    res = compute_ranking_stability_with_trials(t1, t2, n_bootstrap=1000)
+    assert res["method"] == "trial_bootstrap"
+    assert res["n_units"]["model1"]["safety"] == 4
+    for cfg in res["per_config"]:
+        assert cfg["P_model1_wins"] >= 0.95
+        assert cfg["stable_win"] is True
+
+
+def test_ranking_stability_with_trials_sample_size_matters():
+    """Larger trial lists should yield a more decisive win probability than
+    small ones for the same observed proportion (dataset size enters the
+    uncertainty — the whole point over the point-score Beta surrogate)."""
+    from src.stats import compute_ranking_stability_with_trials
+
+    # 0.6 vs 0.4: a modest edge whose sampling uncertainty shrinks with n.
+    small1 = {"safety": [1, 1, 1, 0, 0], "truthfulness": [1, 1, 1, 0, 0],
+              "consistency": [1, 1, 1, 0, 0]}
+    small2 = {"safety": [1, 0, 0, 0, 0], "truthfulness": [1, 0, 0, 0, 0],
+              "consistency": [1, 0, 0, 0, 0]}
+    big1 = {k: v * 100 for k, v in small1.items()}
+    big2 = {k: v * 100 for k, v in small2.items()}
+
+    r_small = compute_ranking_stability_with_trials(small1, small2, n_bootstrap=5000, random_seed=7)
+    r_big = compute_ranking_stability_with_trials(big1, big2, n_bootstrap=5000, random_seed=7)
+    p_small = max(c["P_model1_wins"] for c in r_small["per_config"])
+    p_big = max(c["P_model1_wins"] for c in r_big["per_config"])
+    # With the same 0.6/0.4 proportions, more trials → smaller tail → higher P.
+    assert p_big > p_small
+    assert p_big > 0.9  # n=500 dominates the comparison
+
+
 def test_interpret_p_buckets():
     from src.stats import interpret_p
     assert interpret_p(0.0001) == "very strong evidence against H0"

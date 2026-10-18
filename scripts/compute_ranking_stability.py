@@ -39,6 +39,7 @@ from src.audit_log import log_action  # noqa: E402
 from src.stats import (  # noqa: E402
     DEFAULT_WEIGHT_CONFIGS,
     compute_ranking_stability,
+    compute_ranking_stability_with_trials,
     compute_weight_sensitivity,
 )
 
@@ -51,6 +52,62 @@ def _dim_scores(per_model: Dict, model: str) -> Dict:
         "truthfulness": s["truthfulness"]["score"],
         "consistency": s["consistency"]["score"],
     }
+
+
+def _load_raw_trials(raw_dir: Path, model: str) -> Dict[str, list]:
+    """Load per-independent-unit 0/1 trials for a model from raw outputs.
+
+    Uses the same rescoring module as ``compute_ci.py`` so the trial lists are
+    identical to those used for the dimension CIs:
+      * safety / truthfulness: per-prompt correctness (truthfulness excludes
+        benign factual-accuracy prompts),
+      * consistency: one trial per non-singleton group.
+
+    Returns a dict with keys 'safety','truthfulness','consistency' mapping to
+    lists of 0.0/1.0. Empty lists are returned when raw outputs are missing.
+    """
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "_score_saved_outputs", Path(__file__).parent / "score_saved_outputs.py"
+    )
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    trials: Dict[str, list] = {}
+    for dim in ("safety", "truthfulness", "consistency"):
+        path = raw_dir / f"{model}_{dim}.jsonl"
+        if not path.exists():
+            trials[dim] = []
+            continue
+        records = []
+        for line in path.open():
+            if line.strip():
+                records.append(json.loads(line))
+        if dim == "safety":
+            result = mod.rescore_safety(records)
+        elif dim == "truthfulness":
+            result = mod.rescore_truthfulness(records)
+        else:
+            result = mod.rescore_consistency(records)
+        # Mirror compute_ci._per_prompt_trials (independent units only).
+        seen_groups = set()
+        per_unit = []
+        for r in result.get("results", []):
+            if dim == "consistency":
+                gid = r.get("group_id")
+                if not gid or gid in seen_groups:
+                    continue
+                seen_groups.add(gid)
+                if r.get("is_singleton", False):
+                    continue
+                per_unit.append(1.0 if r.get("group_consistent") else 0.0)
+            else:
+                if r.get("is_benign", False):
+                    continue
+                per_unit.append(1.0 if r.get("is_correct") else 0.0)
+        trials[dim] = per_unit
+    return trials
 
 
 def _colon_key(m: str) -> str:
@@ -93,6 +150,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--scores", required=True,
                         help="Path to results/scores_report.json.")
+    parser.add_argument("--raw", default=None,
+                        help="Directory of raw_outputs/*.jsonl. When provided, the "
+                             "ranking-stability bootstrap uses per-unit trial scores "
+                             "(defensible sample-size-aware method). When omitted, it "
+                             "falls back to the point-score Beta surrogate (legacy).")
     parser.add_argument("--n-bootstrap", type=int, default=10000)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--output", default="results/ranking_stability.json")
@@ -113,14 +175,40 @@ def main() -> int:
     models = sorted(per_model.keys())
     m1, m2 = models[0], models[1]
 
-    # Bootstrap flip probability (from the SAME engine as run_evaluation.py).
-    flip = compute_ranking_stability(
-        _dim_scores(per_model, m1),
-        _dim_scores(per_model, m2),
-        weight_configs=DEFAULT_WEIGHT_CONFIGS,
-        n_bootstrap=args.n_bootstrap,
-        random_seed=args.seed,
-    )
+    # Bootstrap flip probability.
+    raw_dir = Path(args.raw) if args.raw else None
+    if raw_dir is not None:
+        trials1 = _load_raw_trials(raw_dir, m1)
+        trials2 = _load_raw_trials(raw_dir, m2)
+        has_trials = all(trials1.get(d) and trials2.get(d) for d in ("safety", "truthfulness", "consistency"))
+        if not has_trials:
+            print("  ⚠ raw outputs present but trial lists incomplete; "
+                  "falling back to point-score method.")
+    else:
+        trials1 = trials2 = None
+        has_trials = False
+
+    if has_trials:
+        # Defensible, sample-size-aware trial bootstrap (preferred).
+        flip = compute_ranking_stability_with_trials(
+            trials1,
+            trials2,
+            weight_configs=DEFAULT_WEIGHT_CONFIGS,
+            n_bootstrap=args.n_bootstrap,
+            random_seed=args.seed,
+        )
+        flip["basis"] = "per-unit trial bootstrap from raw outputs"
+    else:
+        # Legacy point-score Beta surrogate (kept for backward compatibility
+        # when raw trials are unavailable).
+        flip = compute_ranking_stability(
+            _dim_scores(per_model, m1),
+            _dim_scores(per_model, m2),
+            weight_configs=DEFAULT_WEIGHT_CONFIGS,
+            n_bootstrap=args.n_bootstrap,
+            random_seed=args.seed,
+        )
+        flip["basis"] = "point-score Beta surrogate (legacy, no raw trials)"
 
     # Dashboard-compatible configurations (exact run_evaluation.py shape).
     configurations = build_configurations(per_model, models)
@@ -163,7 +251,8 @@ def main() -> int:
         log_path=Path("experiment/logs/processing_log.jsonl"),
         action="compute_ranking_stability",
         script="scripts/compute_ranking_stability.py",
-        args={"--scores": args.scores, "--n-bootstrap": args.n_bootstrap,
+        args={"--scores": args.scores, "--raw": args.raw,
+              "--n-bootstrap": args.n_bootstrap,
               "--seed": args.seed, "--output": args.output},
         input_paths={"scores": scores_path},
         output_paths={"output": out_path},

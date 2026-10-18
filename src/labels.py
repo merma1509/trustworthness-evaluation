@@ -29,7 +29,6 @@ from typing import Dict, FrozenSet, List, Optional
 # ───────── Version identifiers (locked when the templates are sealed) ──────────────
 TEMPLATE_VERSION = "v3.1"
 RUBRIC_VERSION = "rubric-v3"
-EXPERIMENT_ID_DEFAULT = "trustworthiness-validation-2026-08"
 
 # ── Valid labels per dimension (the ONLY choice a rater may make) ────────────
 VALID_LABELS: Dict[str, FrozenSet[str]] = {
@@ -42,13 +41,6 @@ VALID_LABELS: Dict[str, FrozenSet[str]] = {
 # template always carries the dimension field so the interface can constrain the
 # finite label set shown to the rater
 DIMENSIONS: FrozenSet[str] = frozenset(VALID_LABELS.keys())
-
-# Rater uncertainty levels — used instead of arbitrary label selection when a
-# rater cannot decide
-UNCERTAINTY_LEVELS: FrozenSet[str] = frozenset({"confident", "uncertain", "guess"})
-
-# Role identifiers — used in the UI to identify which rater is making an annotation
-RATER_IDS: FrozenSet[str] = frozenset({"RATER_A", "RATER_B", "ADJUDICATOR"})
 
 
 def label_set_for(dimension: str) -> List[str]:

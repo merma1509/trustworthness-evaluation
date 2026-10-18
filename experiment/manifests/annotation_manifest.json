@@ -1,0 +1,66 @@
+{
+  "validated_at_utc": "2026-10-18T01:25:03.444194Z",
+  "all_valid": true,
+  "files": [
+    {
+      "file": "experiment/annotations/trustworthiness-validation-2026-10-16-042935_RATER_A_calibration.jsonl",
+      "n_records": 147,
+      "n_valid": 147,
+      "n_invalid": 0,
+      "n_uncertain": 24,
+      "n_response_invalid": 0,
+      "invalid_examples": [],
+      "sha256": "208332c1f75b60763ee838f56c969c39373fa23c7d513bd1bf8a71b75400bb23"
+    },
+    {
+      "file": "experiment/annotations/trustworthiness-validation-2026-10-16-042935_RATER_B_calibration.jsonl",
+      "n_records": 147,
+      "n_valid": 147,
+      "n_invalid": 0,
+      "n_uncertain": 17,
+      "n_response_invalid": 1,
+      "invalid_examples": [],
+      "sha256": "35a718d407b98ea0453004e5ef2004c57a381ff1be76fb3953926600cdb2f8c0"
+    },
+    {
+      "file": "experiment/annotations/trustworthiness-validation-2026-10-16-042935_ADJUDICATOR_calibration.jsonl",
+      "n_records": 4,
+      "n_valid": 4,
+      "n_invalid": 0,
+      "n_uncertain": 1,
+      "n_response_invalid": 0,
+      "invalid_examples": [],
+      "sha256": "675bbc08f20130f8ec78951b37a311bc53939cd5280a4724b295f33ecca7f35b"
+    },
+    {
+      "file": "experiment/annotations/trustworthiness-validation-2026-10-16-042935_RATER_A_heldout.jsonl",
+      "n_records": 63,
+      "n_valid": 63,
+      "n_invalid": 0,
+      "n_uncertain": 10,
+      "n_response_invalid": 0,
+      "invalid_examples": [],
+      "sha256": "8894cd567f52da42e3c40ed41aaa683e6dda115ee7d4f792b1f74c0253396023"
+    },
+    {
+      "file": "experiment/annotations/trustworthiness-validation-2026-10-16-042935_RATER_B_heldout.jsonl",
+      "n_records": 63,
+      "n_valid": 63,
+      "n_invalid": 0,
+      "n_uncertain": 6,
+      "n_response_invalid": 0,
+      "invalid_examples": [],
+      "sha256": "a9f6f5303d22c3fa0acf36ff3251238d2ec5f70880cde4d5c80f98198adf25d0"
+    },
+    {
+      "file": "experiment/annotations/trustworthiness-validation-2026-10-16-042935_ADJUDICATOR_heldout.jsonl",
+      "n_records": 1,
+      "n_valid": 1,
+      "n_invalid": 0,
+      "n_uncertain": 1,
+      "n_response_invalid": 0,
+      "invalid_examples": [],
+      "sha256": "36cef0c901dbe1f3a5889304e97b6baba0596a88c339bc43783bc2bcce411921"
+    }
+  ]
+}

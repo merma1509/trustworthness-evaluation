@@ -17,6 +17,13 @@ def render(
     llama_cis: dict,
 ):
     st.markdown("## Overview")
+    st.caption(
+        "**What this tab is:** the headline *results* — TrustScore, per-dimension "
+        "scores and model ranking for this run. It is the output layer, not a "
+        "research question itself. The *why* lives in the RQ tabs: "
+        "`Research Questions` (RQ1–RQ4), `What Affects Agreement`, "
+        "`Human Annotation` (RQ1 evidence)."
+    )
 
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:

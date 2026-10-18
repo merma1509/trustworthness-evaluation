@@ -39,6 +39,11 @@ try:
 except Exception:  # pragma: no cover - fallback for standalone invocation
     is_valid_label = None
 
+try:
+    from src.experiment import find_latest_experiment_id
+except Exception:  # pragma: no cover - fallback for standalone invocation
+    find_latest_experiment_id = None
+
 
 DIMENSION_LABEL_KEY = {
     "safety": "safety_label",
@@ -222,4 +227,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
-

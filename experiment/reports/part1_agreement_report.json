@@ -1,0 +1,295 @@
+{
+  "gold_vs_auto": {
+    "n_records": 51,
+    "overall": {
+      "n": 51,
+      "n_valid_pairs": 51,
+      "agreement_rate": 0.8235,
+      "cohens_kappa": 0.7324,
+      "weighted_kappa": 0.0868,
+      "p_observed": 0.8235,
+      "p_expected": 0.3406,
+      "categories": [
+        "COMPLY",
+        "CONSISTENT",
+        "CORRECT_UNCERTAINTY",
+        "INCORRECT_FABRICATION",
+        "REFUSE"
+      ],
+      "confusion_matrix": {
+        "COMPLY": {
+          "REFUSE": 1,
+          "COMPLY": 2
+        },
+        "CONSISTENT": {
+          "CONSISTENT": 14
+        },
+        "CORRECT_UNCERTAINTY": {
+          "CORRECT_UNCERTAINTY": 24
+        },
+        "INCORRECT_FABRICATION": {
+          "CORRECT_UNCERTAINTY": 3
+        },
+        "REFUSE": {
+          "COMPLY": 5,
+          "REFUSE": 2
+        }
+      },
+      "per_label_agreement": {
+        "COMPLY": {
+          "precision": 0.6667,
+          "recall": 0.2857,
+          "f1": 0.4,
+          "auto_count": 3,
+          "human_count": 7
+        },
+        "CONSISTENT": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "auto_count": 14,
+          "human_count": 14
+        },
+        "CORRECT_UNCERTAINTY": {
+          "precision": 1.0,
+          "recall": 0.8889,
+          "f1": 0.9412,
+          "auto_count": 24,
+          "human_count": 27
+        },
+        "INCORRECT_FABRICATION": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "auto_count": 3,
+          "human_count": 0
+        },
+        "REFUSE": {
+          "precision": 0.2857,
+          "recall": 0.6667,
+          "f1": 0.4,
+          "auto_count": 7,
+          "human_count": 3
+        }
+      },
+      "kappa_ci": {
+        "kappa": 0.7324,
+        "ci_lower": 0.5935,
+        "ci_upper": 0.8719,
+        "n": 51,
+        "n_bootstrap": 1000,
+        "weighted": false,
+        "ci_level": 0.95,
+        "method": "bootstrap"
+      }
+    },
+    "per_dimension": {
+      "consistency": {
+        "n": 14,
+        "n_valid_pairs": 14,
+        "agreement_rate": 1.0,
+        "cohens_kappa": 1.0,
+        "weighted_kappa": 1.0,
+        "p_observed": 1.0,
+        "p_expected": 0.0,
+        "categories": [
+          "CONSISTENT"
+        ],
+        "confusion_matrix": {
+          "CONSISTENT": {
+            "CONSISTENT": 14
+          }
+        },
+        "per_label_agreement": {
+          "CONSISTENT": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "auto_count": 14,
+            "human_count": 14
+          }
+        }
+      },
+      "safety": {
+        "n": 10,
+        "n_valid_pairs": 10,
+        "agreement_rate": 0.4,
+        "cohens_kappa": -0.0345,
+        "weighted_kappa": -0.0345,
+        "p_observed": 0.4,
+        "p_expected": 0.42,
+        "categories": [
+          "COMPLY",
+          "REFUSE"
+        ],
+        "confusion_matrix": {
+          "COMPLY": {
+            "REFUSE": 1,
+            "COMPLY": 2
+          },
+          "REFUSE": {
+            "COMPLY": 5,
+            "REFUSE": 2
+          }
+        },
+        "per_label_agreement": {
+          "COMPLY": {
+            "precision": 0.6667,
+            "recall": 0.2857,
+            "f1": 0.4,
+            "auto_count": 3,
+            "human_count": 7
+          },
+          "REFUSE": {
+            "precision": 0.2857,
+            "recall": 0.6667,
+            "f1": 0.4,
+            "auto_count": 7,
+            "human_count": 3
+          }
+        }
+      },
+      "truthfulness": {
+        "n": 27,
+        "n_valid_pairs": 27,
+        "agreement_rate": 0.8889,
+        "cohens_kappa": 0.0,
+        "weighted_kappa": 0.0,
+        "p_observed": 0.8889,
+        "p_expected": 0.8889,
+        "categories": [
+          "CORRECT_UNCERTAINTY",
+          "INCORRECT_FABRICATION"
+        ],
+        "confusion_matrix": {
+          "CORRECT_UNCERTAINTY": {
+            "CORRECT_UNCERTAINTY": 24
+          },
+          "INCORRECT_FABRICATION": {
+            "CORRECT_UNCERTAINTY": 3
+          }
+        },
+        "per_label_agreement": {
+          "CORRECT_UNCERTAINTY": {
+            "precision": 1.0,
+            "recall": 0.8889,
+            "f1": 0.9412,
+            "auto_count": 24,
+            "human_count": 27
+          },
+          "INCORRECT_FABRICATION": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "auto_count": 3,
+            "human_count": 0
+          }
+        }
+      }
+    }
+  },
+  "inter_rater_A_vs_B": {
+    "consistency": {
+      "n": 18,
+      "n_valid_pairs": 18,
+      "agreement_rate": 1.0,
+      "cohens_kappa": 1.0,
+      "weighted_kappa": 1.0,
+      "p_observed": 1.0,
+      "p_expected": 0.0,
+      "categories": [
+        "CONSISTENT"
+      ],
+      "confusion_matrix": {
+        "CONSISTENT": {
+          "CONSISTENT": 18
+        }
+      },
+      "per_label_agreement": {
+        "CONSISTENT": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "auto_count": 18,
+          "human_count": 18
+        }
+      }
+    },
+    "safety": {
+      "n": 17,
+      "n_valid_pairs": 17,
+      "agreement_rate": 0.9412,
+      "cohens_kappa": 0.8496,
+      "weighted_kappa": 0.8496,
+      "p_observed": 0.9412,
+      "p_expected": 0.609,
+      "categories": [
+        "COMPLY",
+        "REFUSE"
+      ],
+      "confusion_matrix": {
+        "COMPLY": {
+          "COMPLY": 12,
+          "REFUSE": 1
+        },
+        "REFUSE": {
+          "REFUSE": 4
+        }
+      },
+      "per_label_agreement": {
+        "COMPLY": {
+          "precision": 0.9231,
+          "recall": 1.0,
+          "f1": 0.96,
+          "auto_count": 13,
+          "human_count": 12
+        },
+        "REFUSE": {
+          "precision": 1.0,
+          "recall": 0.8,
+          "f1": 0.8889,
+          "auto_count": 4,
+          "human_count": 5
+        }
+      }
+    },
+    "truthfulness": {
+      "n": 28,
+      "n_valid_pairs": 28,
+      "agreement_rate": 0.9643,
+      "cohens_kappa": 0.0,
+      "weighted_kappa": 0.0,
+      "p_observed": 0.9643,
+      "p_expected": 0.9643,
+      "categories": [
+        "CORRECT_UNCERTAINTY",
+        "INCORRECT_FABRICATION"
+      ],
+      "confusion_matrix": {
+        "CORRECT_UNCERTAINTY": {
+          "CORRECT_UNCERTAINTY": 27
+        },
+        "INCORRECT_FABRICATION": {
+          "CORRECT_UNCERTAINTY": 1
+        }
+      },
+      "per_label_agreement": {
+        "CORRECT_UNCERTAINTY": {
+          "precision": 1.0,
+          "recall": 0.9643,
+          "f1": 0.9818,
+          "auto_count": 27,
+          "human_count": 28
+        },
+        "INCORRECT_FABRICATION": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "auto_count": 1,
+          "human_count": 0
+        }
+      }
+    }
+  },
+  "note": "Labels use the constrained vocabulary (REFUSE/COMPLY, ...). gold_vs_auto compares the adjudicated human label to the sealed auto-scorer label; inter_rater compares RATER_A to RATER_B."
+}

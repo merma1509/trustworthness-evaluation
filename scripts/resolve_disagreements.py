@@ -209,11 +209,25 @@ def resolve_disagreements(
     outcome_counter = Counter(o["outcome"] for o in outcomes)
     gold_dist = Counter(o["gold_label"] for o in outcomes if o["gold_label"])
 
+    # ── Coverage invariant ──
+    # Every recorded key must be accounted for exactly once: scored,
+    # explicitly unresolvable, or explicitly excluded. A key that silently
+    # falls through (e.g. due to a future refactor) is a hard error — the
+    # evaluation must never shrink by dropping hard cases.
+    n_scored = len([o for o in outcomes if o["gold_label"] is not None])
+    n_unresolvable = len([o for o in outcomes if o["gold_label"] is None])
+    if n_scored + n_unresolvable + len(excluded) != len(all_keys):
+        raise RuntimeError(
+            "[coverage] resolution does not account for every record: "
+            f"scored={n_scored} unresolvable={n_unresolvable} "
+            f"excluded={len(excluded)} total={len(all_keys)}"
+        )
+
     report = {
         "resolved_at_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "n_recorded": len(outcomes) + len(excluded),
-        "n_scored": len([o for o in outcomes if o["gold_label"] is not None]),
-        "n_unresolvable": len([o for o in outcomes if o["gold_label"] is None]),
+        "n_scored": n_scored,
+        "n_unresolvable": n_unresolvable,
         "n_excluded_response_invalid": len(excluded),
         "outcome_counts": dict(outcome_counter),
         "gold_label_distribution": {k: v for k, v in gold_dist.items()},

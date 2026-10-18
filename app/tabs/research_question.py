@@ -78,6 +78,17 @@ def render(available, gemma_scores, llama_scores, gemma_cis, llama_cis, all_scor
         "*When can a very small, cheap, local evaluation be trusted, "
         "and how do we know when it fails?*"
     )
+    st.caption(
+        "**Mapping to the project's research questions:**\n"
+        "- **RQ1 — Agreement:** how well do auto-labels match human labels? "
+        "(sections: Core Finding, Cohen's Kappa, Evidence, Confusion Matrix)\n"
+        "- **RQ2 — Factors:** what affects agreement? (section: When Does It Fail?, "
+        "plus the `What Affects Agreement` tab)\n"
+        "- **RQ3 — Stability:** what dataset size is needed for stable scores? "
+        "(section: Dataset Stability)\n"
+        "- **RQ4 — Cost:** what does auto vs manual evaluation cost? "
+        "(sections: Cost-Benefit, Budget Optimization)"
+    )
     st.markdown("---")
 
     # ── 1. Core Finding ─────────────────────────────────────

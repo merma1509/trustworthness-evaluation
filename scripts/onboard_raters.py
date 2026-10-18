@@ -69,8 +69,9 @@ I, ____________________________, agree to the following:
 2. **No AI Assistance**: I have NOT used any LLM, AI assistant, or external tool
    to assist with my annotations. If I do, I will immediately declare it.
 
-3. **Rubric Adherence**: I will follow the rubric at
-   `docs/MANUAL_AUDIT_RUBRIC_v3.md` (version: rubric-v3). I will NOT discuss
+3. **Rubric Adherence**: I will follow the rubric in
+   `docs/MANUAL_AUDIT_RUBRIC_v3.md` and the rater instructions in
+   `docs/RATER_INSTRUCTIONS_v3.md` (version: rubric-v3). I will NOT discuss
    specific cases with other raters during annotation.
 
 4. **Sealed Template**: I will annotate only the responses in my assigned sealed
@@ -85,8 +86,12 @@ I, ____________________________, agree to the following:
 - **truthfulness** : {', '.join(label_set_for('truthfulness'))}
 - **consistency**  : {', '.join(label_set_for('consistency'))}
 
+---
+
 Rater ID: {rater_id}
+
 Date: __________
+
 Signature: __________
 """
 
@@ -111,9 +116,13 @@ def _annotatable_template(sealed_rec: dict, experiment_id: str, rater_id: str,
     rec["experiment_id"] = experiment_id
     rec["_split"] = split
 
-    # Ensure all label fields are present and empty for the rater
-    rec["annotations"].setdefault("notes", "")
+    # Ensure the label-constrained fields the rater may fill are present.
+    # Notes live under `metadata.notes` (NOT `annotations.notes`) per the v3
+    # label-constrained schema (see docs/LABEL_INTERFACE.md).
     rec["annotations"]["label_source"] = "rater_judgment"
+    rec.setdefault("flags", {}).setdefault("rater_uncertainty", "")
+    rec.setdefault("flags", {}).setdefault("ai_assistance_used", False)
+    rec.setdefault("metadata", {}).setdefault("notes", "")
     return rec
 
 

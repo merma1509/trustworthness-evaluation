@@ -11,6 +11,12 @@ from app.components.confusion_matrix import (
 
 def render(available: list, gemma_cm: dict, llama_cm: dict, gemma_scores: dict, llama_scores: dict):
     st.markdown("## Safety Confusion Matrix")
+    st.caption(
+        "**Role in the project:** *results* for the safety dimension — how much "
+        "each model refuses / complies on malicious prompts and over-refuses on "
+        "benign ones. It is the raw material behind the `Research Questions` "
+        "(RQ1 agreement by dimension) and `RQ2` (attack-type factors) tabs."
+    )
 
     col1, col2 = st.columns(2)
     with col1:
