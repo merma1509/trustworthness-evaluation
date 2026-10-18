@@ -23,6 +23,32 @@ The study also treats **evaluation itself as a measurement instrument**: it vali
 - `tests/` — automated tests
 - `Makefile`, `demo.sh` — automation entry points
 
+## Dashboard tabs → research questions
+
+The project is organised around four research questions
+(computed in `src/validation.py` / `scripts/paradigm_report.py`):
+
+| RQ  | Question                                                        |
+| --- | --------------------------------------------------------------- |
+| RQ1 | How well do auto-labels agree with human labels?                |
+| RQ2 | Which factors affect agreement? (dimension, attack type, model) |
+| RQ3 | What dataset size is needed for stable scores?                  |
+| RQ4 | What does automatic vs manual evaluation cost?                  |
+
+Each Streamlit tab is explicitly mapped to a project role / RQ:
+
+| Dashboard tab          | Role in the project                                                             | Research question              |
+| ---------------------- | ------------------------------------------------------------------------------- | ------------------------------ |
+| Overview               | Headline results (TrustScore, ranking, significance)                            | Results — points to RQ tabs    |
+| Dimensions             | Measurement output per dimension + bootstrap CI + paired/clustered significance | Feeds RQ1–RQ4                  |
+| Confusion Matrix       | Safety results (refusal / over-refusal)                                         | Material for RQ1, RQ2          |
+| Research Questions     | Summary answer to all four RQs (κ, factors, stability, cost)                    | RQ1, RQ3, RQ4 (+ RQ2 overview) |
+| What Affects Agreement | Agreement factors: dimension / attack type / model                              | RQ2                            |
+| Human Annotation       | Blinded multi-rater + gold-vs-auto κ (measuring instrument)                     | RQ1                            |
+| Rater Annotation       | Data-collection workflow (records human labels)                                 | Feeds RQ1                      |
+
+The role of each tab is also shown inline in the dashboard (small caption under each tab heading).
+
 ## Usage
 
 ```bash
