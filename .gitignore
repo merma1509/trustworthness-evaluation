@@ -60,3 +60,6 @@ experiment/sealed/labels/*
 # NOTE: the *filled* annotations, agreements, gold labels, agreement reports,
 # the annotation manifest and the rater declarations ARE committed for reviewer
 # audit, so they are deliberately NOT listed below.
+
+# Working audit notes — not part of the reviewer-facing results set
+AUDIT_REVIEW.md
