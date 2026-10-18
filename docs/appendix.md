@@ -256,4 +256,32 @@ cat results/validation_report.json | python3 -m json.tool
 
 ---
 
+## A.11 Dashboard Tabs -> Research Questions
+
+The Streamlit dashboard (`app/dashboard.py`) maps each tab to a project role /
+research question, so the UI mirrors the study's structure:
+
+| Dashboard tab          | Role in the project                                                             | Research question              |
+| ---------------------- | ------------------------------------------------------------------------------- | ------------------------------ |
+| Overview               | Headline results (TrustScore, ranking, significance)                            | Results — points to RQ tabs    |
+| Dimensions             | Measurement output per dimension + bootstrap CI + paired/clustered significance | Feeds RQ1–RQ4                  |
+| Confusion Matrix       | Safety results (refusal / over-refusal)                                         | Material for RQ1, RQ2          |
+| Research Questions     | Summary answer to all four RQs (κ, factors, stability, cost)                    | RQ1, RQ3, RQ4 (+ RQ2 overview) |
+| What Affects Agreement | Agreement factors: dimension / attack type / model                              | RQ2                            |
+| Human Annotation       | Blinded multi-rater + gold-vs-auto κ (measuring instrument)                     | RQ1                            |
+| Rater Annotation       | Data-collection workflow (records human labels)                                 | Feeds RQ1                      |
+
+The four research questions themselves are computed in `src/validation.py` /
+`scripts/paradigm_report.py`:
+
+- **RQ1** — How well do auto-labels agree with human labels?
+- **RQ2** — Which factors affect agreement? (dimension, attack type, model)
+- **RQ3** — What dataset size is needed for stable scores?
+- **RQ4** — What does automatic vs manual evaluation cost?
+
+The same mapping is documented in `README.md` (section "Dashboard tabs ->
+research questions").
+
+---
+
 _End of Appendix_
