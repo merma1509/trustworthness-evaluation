@@ -1,7 +1,8 @@
 .PHONY: help setup run clean clean-all lint format dashboard test \
 	experiment-audit experiment-budget \
 	human-timing budget-figure error-heatmap pipeline-figure cost-report cost-frontier \
-	experiment-seal experiment-annotate experiment-ingest experiment-resolve \
+	experiment-seal experiment-annotate experiment-adjudicator-prep \
+	experiment-ingest experiment-resolve \
 	experiment-gold experiment-agreement experiment-seal-verify experiment-reproduce \
 	experiment-validate-rerun validate-rerun \
 	verify-artifacts compute-scores compute-ci compute-ranking compute-paired generate-results-json \
@@ -54,13 +55,16 @@ help:
 	@echo "  make error-heatmap                            Auto×Human error heatmap"
 	@echo "  make pipeline-figure                          Measurement-validation loop diagram"
 	@echo ""
-	@echo "CLEAN-REDO (sealed-randomization protocol) - CANONICAL methodology:"
+	@echo "(sealed-randomization protocol) - CANONICAL methodology:"
 	@echo "  make experiment-audit                  Regenerate FULL audit dataset (experiment/all_audit_full.jsonl)"
 	@echo "  make experiment-seal                   Seal a NEW experiment (templates + encrypted labels)"
 	@echo "                                           SEED=... [EXPERIMENT_ID=...] [PASSPHRASE=...]"
 	@echo "                                           (EXPERIMENT_ID optional — auto-derived from run datetime)"
 	@echo "  make experiment-annotate               Emit blank rater templates + declaration forms"
 	@echo "                                           RATERS=\"raterA raterB\""
+	@echo "  make experiment-adjudicator-prep       Build ADJUDICATOR file from ONLY A/B disagreements"
+	@echo "                                           (double-blind; run AFTER A/B, BEFORE adjudicator)"
+	@echo "                                           SPLIT=..., RATER_A_FILE=..., RATER_B_FILE=... ADJUDICATOR_FILE=..."
 	@echo "  make experiment-ingest ANNOTATIONS=... Schema-validate filled annotations"
 	@echo "  make experiment-resolve                Adjudicate A/B disagreements (SPLIT=..., rater files)"
 	@echo "  make experiment-gold                   Build gold_labels.jsonl (SEAL_PASSPHRASE=...)"
@@ -173,6 +177,23 @@ experiment-annotate:
 		--experiment-dir experiment/sealed \
 		--out-experiment experiment \
 		--raters $(RATERS) ADJUDICATOR
+
+# Build the ADJUDICATOR file from ONLY the A/B disagreement records
+# (double-blind: rebuilt from the sealed template, never from A/B files).
+# Run AFTER RATER_A and RATER_B are fully annotated, BEFORE ADJUDICATOR starts.
+#     SPLIT=heldout RATER_A_FILE=... RATER_B_FILE=... ADJUDICATOR_FILE=...
+experiment-adjudicator-prep:
+	@EXP_ID="$(EXPERIMENT_ID)"; \
+	if [ -z "$$EXP_ID" ]; then EXP_ID="$(LATEST_EXPERIMENT_ID)"; fi; \
+	if [ -z "$$EXP_ID" ]; then echo "  ✗ No experiment id found (set EXPERIMENT_ID=... or seal one first)."; exit 1; fi; \
+	$(PY) scripts/prepare_adjudicator.py \
+		--rater-a $(RATER_A_FILE) \
+		--rater-b $(RATER_B_FILE) \
+		--sealed "experiment/sealed/templates/$${EXP_ID}_$(SPLIT)_template.jsonl" \
+		--out $(ADJUDICATOR_FILE) \
+		--experiment-id "$$EXP_ID" \
+		--split $(SPLIT)
+	@echo "  Adjudicator file prepared (only A≠B disagreements, double-blind)."
 
 # Schema-validate filled annotations (ANNOTATIONS="...")
 experiment-ingest:
