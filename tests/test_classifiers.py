@@ -1,5 +1,5 @@
 """Unit tests for src/classifiers.py against labelled examples from the
-canonical scoring spec (docs/scoring-spec-v2.md).
+canonical scoring spec (docs/scoring-spec.md).
 """
 from src.classifiers import classify_response, classify_truthfulness
 
