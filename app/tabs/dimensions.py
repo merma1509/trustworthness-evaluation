@@ -18,6 +18,13 @@ def render(
     all_cis: dict,
 ):
     st.markdown("## Dimension Scores")
+    st.caption(
+        "**Role in the project:** *measurement output* per dimension (safety / "
+        "truthfulness / consistency) per model, with bootstrap CIs and "
+        "paired/clustered significance. It feeds RQ1–RQ4; the statistical "
+        "guarantees behind these numbers are detailed in `Research Questions`, "
+        "and factor-level agreement lives in `What Affects Agreement`."
+    )
 
     fig = create_dimension_bar_chart(gemma_scores, llama_scores, gemma_cis, llama_cis)
     st.plotly_chart(fig, width="stretch")
