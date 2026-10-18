@@ -10,9 +10,7 @@ from typing import Dict, List, Optional
 import numpy as np
 
 
-# ──────────────────────────────────────────────────────────────
 # Cost tracking
-# ──────────────────────────────────────────────────────────────
 class CostTracker:
     """Tracks inference time and cost for evaluation runs.
 
@@ -63,9 +61,7 @@ class CostTracker:
         self._records.extend(other._records)
 
 
-# ──────────────────────────────────────────────────────────────
 # Jackknife stability analysis
-# ──────────────────────────────────────────────────────────────
 def compute_jackknife_stability(
     per_prompt_scores: List[float],
     n_remove: int = 1,
@@ -122,9 +118,7 @@ def compute_jackknife_stability(
     }
 
 
-# ──────────────────────────────────────────────────────────────
 # Dataset size sensitivity
-# ──────────────────────────────────────────────────────────────
 def compute_dataset_size_sensitivity(
     n_range: List[int],
     base_scores: List[float],
@@ -214,7 +208,7 @@ def estimate_required_sample_size(
 
     The unit of analysis is the **independent group** (a unique prompt or a
     consistency group), NOT each raw record. Duplicated prompt texts within a
-    consistency group are counted once. See ``docs/scoring-spec-v2.md``.
+    consistency group are counted once. See ``docs/scoring-spec.md``.
 
     Args:
         precision: Desired CI half-width (e.g. 0.05 = +/-5%).
@@ -295,7 +289,7 @@ def compute_confidence_intervals(
     with zero width — uninformative and misleading. In that case a Beta
     posterior (Jeffreys prior, ``Beta(0.5, 0.5)``) is used so the CI still
     conveys the uncertainty inherent in a finite sample (the Rule of Three
-    lower bound for a perfect score). See ``docs/scoring-spec-v2.md``.
+    lower bound for a perfect score). See ``docs/scoring-spec.md``.
 
     Args:
         scores: List of individual trial scores (0 or 1)
@@ -554,9 +548,7 @@ DEFAULT_WEIGHT_CONFIGS = [
 ]
 
 
-# ──────────────────────────────────────────────────────────────
 # Weight sensitivity WITH CIs
-# ──────────────────────────────────────────────────────────────
 def compute_weight_sensitivity_with_ci(
     safety_trials: List[float],
     truthfulness_trials: List[float],
@@ -714,9 +706,7 @@ def compute_model_win_probability(
     }
 
 
-# ──────────────────────────────────────────────────────────────
 # Ranking stability (bootstrap probability of ranking flip)
-# ──────────────────────────────────────────────────────────────
 def compute_ranking_stability(
     model1_dim_scores: Dict[str, float],
     model2_dim_scores: Dict[str, float],
@@ -837,9 +827,7 @@ def compute_ranking_stability(
     }
 
 
-# ──────────────────────────────────────────────────────────────
 # Ranking stability — trial-level bootstrap (defensible)
-# ──────────────────────────────────────────────────────────────
 def compute_ranking_stability_with_trials(
     model1_trials: Dict[str, List[float]],
     model2_trials: Dict[str, List[float]],
@@ -937,10 +925,7 @@ def compute_ranking_stability_with_trials(
         ),
     }
 
-
-# ──────────────────────────────────────────────────────────────
 # Empirical required sample size
-# ──────────────────────────────────────────────────────────────
 def compute_required_n_empirically(
     base_scores: List[float],
     target_precision: float = 0.05,
@@ -1039,9 +1024,7 @@ def compute_required_n_empirically(
     }
 
 
-# ──────────────────────────────────────────────────────────────
 # Paired bootstrap hypothesis test
-# ──────────────────────────────────────────────────────────────
 def paired_bootstrap_test(
     model1_scores: List[float],
     model2_scores: List[float],
