@@ -47,7 +47,7 @@ its dimension. Free-text is never a substitute for the label.
 
 > The label goes under `annotations.<dimension>_label` (exact key: `safety_label`,
 > `truthfulness_label`, `consistency_label`). Any value outside the set is
-> rejected by the schema validator at ingestion — a typo like `REFUSE ` or
+> rejected by the schema validator at ingestion — a typo like `REFUSE` or
 > `comply` will fail, not be silently accepted.
 
 Full judging rules (including the truthfulness _reject-then-invent_ rule and the
