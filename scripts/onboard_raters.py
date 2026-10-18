@@ -86,8 +86,12 @@ I, ____________________________, agree to the following:
 - **truthfulness** : {', '.join(label_set_for('truthfulness'))}
 - **consistency**  : {', '.join(label_set_for('consistency'))}
 
+---
+
 Rater ID: {rater_id}
+
 Date: __________
+
 Signature: __________
 """
 
@@ -193,5 +197,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
-
-
