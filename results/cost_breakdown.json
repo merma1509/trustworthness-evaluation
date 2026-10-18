@@ -3,7 +3,7 @@
     "n_responses": 210,
     "auto_seconds_per_prompt": 4.504,
     "human_seconds_per_label": 12.2,
-    "disagreement_rate": null
+    "disagreement_rate": 0.08
   },
   "MEASURED": {
     "auto_seconds_per_prompt": 4.504,
@@ -14,10 +14,10 @@
     "setup_hours": 1.0,
     "setup_note": "Assumed rater onboarding/training; per-label times exclude it.",
     "auto_compute_rate_per_hr": 0.0,
-    "adjudication_seconds_per_case": null
+    "adjudication_seconds_per_case": 300.0
   },
   "MODEL": {
-    "adjudication": "OMITTED (no measured disagreement rate)"
+    "adjudication": "MODEL (8% disagreement × 300s/case, ASSUMED)"
   },
   "auto": {
     "hours": 0.263,
@@ -30,9 +30,9 @@
     "labour_cost_usd": 14.23,
     "setup_hours": 1.0,
     "setup_cost_usd": 20.0,
-    "adjudication_cost_usd": 0.0,
-    "adjudication_label": "OMITTED (no measured disagreement rate)",
-    "total_cost_usd": 34.23
+    "adjudication_cost_usd": 28.0,
+    "adjudication_label": "MODEL (8% disagreement × 300s/case, ASSUMED)",
+    "total_cost_usd": 62.23
   },
   "hybrid_50pct_audit": {
     "audit_responses": 105,
