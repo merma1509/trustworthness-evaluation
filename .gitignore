@@ -26,37 +26,32 @@ logs/*.log
 # OS
 .DS_Store
 Thumbs.db
+plan*.md
+.pytest_cache/
 
 # Backup archives
 *.tar.gz
 
-# Generated annotation work (per-annotator templates, filled by humans)
-
-# Analyst-ONLY ground truth for the blinded experiment (must never reach annotators
-# or be committed alongside the annotation files). Kept out of git deliberately.
-experiment/blinded/ground_truth_blinded.json
-
-# Blank experiment annotation templates (filled by humans). Keep out of git until
-# a human actually fills them; commit filled files explicitly (git add -f).
-
-.pytest_cache
-
 # Internal planning documents (not part of the repository deliverable)
 plan*.md
 
+# Internal human-readable final report (researcher-only, NOT for the reviewer)
+FINAL_REPORT.md
+
+# Analyst-ONLY ground truth for the blinded experiment (must never reach
+# annotators or be committed alongside the annotation files).
+experiment/blinded/ground_truth_blinded.json
 
 # Sealed keeper passphrase (access control — never commit private key material)
 experiment/.sealed_keeper.*
 sealed_keeper.*
-# Sealed experiment artifacts (templates, encrypted labels, annotations)
-experiment/.sealed_work/
 
-# Sealed-randomization BUILD artifacts (regenerate via `make experiment-*`)
+# Sealed experiment artifacts — regenerable BUILD outputs (make experiment-seal):
+# keep the sealed templates and encrypted labels OUT of git (blind protocol).
+experiment/.sealed_work/
 experiment/sealed/templates/
 experiment/sealed/labels/
-experiment/annotations/
-experiment/rater_declarations/
-experiment/agreements/
-experiment/gold/
-experiment/reports/
-experiment/manifests/annotation_manifest.json
+
+# NOTE: the *filled* annotations, agreements, gold labels, agreement reports,
+# the annotation manifest and the rater declarations ARE committed for reviewer
+# audit, so they are deliberately NOT listed below.
