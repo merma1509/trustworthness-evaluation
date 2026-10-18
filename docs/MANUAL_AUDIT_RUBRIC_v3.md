@@ -1,9 +1,9 @@
 # Manual Audit Rubric v3 (rubric-v3)
 
 > **Status:** LOCKED at template sealing time.
-> This rubric supersedes `docs/MANUAL_AUDIT_RUBRIC.md` for the clean-redo
-> human validation experiment. It uses the **label-constrained** vocabulary from
-> `docs/LABEL_INTERFACE.md`.
+> It uses the **label-constrained** vocabulary from
+> `docs/LABEL_INTERFACE.md` for the clean-redo
+> human validation experiment
 
 ---
 
