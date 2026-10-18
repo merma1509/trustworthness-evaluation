@@ -158,7 +158,7 @@ def render_blinded_block(st) -> None:
     Args:
         st: The Streamlit module (injected for testability).
     """
-    st.markdown("### Sealed Multi-Rater Re-Validation (CLEAN-REDO)")
+    st.markdown("### Sealed Multi-Rater Re-Validation")
     st.markdown(
         "*Independent raters annotate sealed templates with a constrained label "
         "vocabulary; inter-rater κ (RATER_A vs RATER_B) is measured **before** any "
@@ -191,7 +191,7 @@ def render_blinded_block(st) -> None:
     with report_path.open() as f:
         report = json.load(f)
     st.caption(
-        "Source: sealed CLEAN-REDO experiment "
+        "Source: sealed experiment "
         "(`experiment/reports/part1_agreement_report.json`)."
     )
 
