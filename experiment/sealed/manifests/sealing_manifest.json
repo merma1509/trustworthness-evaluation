@@ -1,23 +1,23 @@
 {
-  "experiment_id": "trustworthiness-validation-2025-08-redo",
-  "created_at_utc": "2026-09-08T04:30:53.316509Z",
+  "experiment_id": "trustworthiness-validation-2026-10-16-042935",
+  "created_at_utc": "2026-10-16T04:29:36.072304Z",
   "seed": "42",
-  "seed_hash": "6f81490699833d4f49e05165839d5a57644136514c52aaf968827503a378a018",
+  "seed_hash": "617cd999dd42cc3df62cde34aba3c33dd1adbd7d31ec84a7ddf45609e2045f52",
   "calibration_ratio": 0.7,
   "pool_size": 210,
   "calibration_size": 147,
   "heldout_size": 63,
   "seal_checksums": {
-    "calibration_template": "sha256:9f283803f5bced104fc8f444774eee52003fe4914605f839d8543a879f899444",
-    "heldout_template": "sha256:f320606bd0ce73aee54eeed83c9336b39e81f3afe359bfa1bafa82fa3fb9cb6e",
+    "calibration_template": "sha256:1b3811e7412f5341c3d330153e5b97e7c30c4a913a209c1e74bae6e6cad76eb2",
+    "heldout_template": "sha256:55fd2e6948d6d58a0128ba5e10b9eb63df27965badb7a45184b817ae3d1c9c9e",
     "auto_labels_plaintext": "sha256:d6d7ad09dbad75ec83111bf2ec9b6737c34d707666341517b93837c3655225ec",
-    "auto_labels_sealed_file": "sha256:8835ced4821db372d10788b5d35d7e29ae1a8417f3469b07e5ecd47e1ba68271",
-    "rubric": "sha256:a76b267a0a2dcaf35fab1e64af41e20326feef269fbc4431973d0c839dddaa1f",
+    "auto_labels_sealed_file": "sha256:91931665e0edb21e87ac71d4bff8d522aecb56f23b048c62e4aa6306170c02b9",
+    "rubric": "sha256:643699b7b26c828ed0247ad42c317b4b4e56f0ba76018aaed62c7df5d8fd1b1c",
     "label_interface": "sha256:c7f138c627897e5dec05c42f48341a21cd6e625074fdf8715b5a8f0578d03800"
   },
   "templates": {
-    "calibration": "sealed/templates/trustworthiness-validation-2025-08-redo_calibration_template.jsonl",
-    "heldout": "sealed/templates/trustworthiness-validation-2025-08-redo_heldout_template.jsonl"
+    "calibration": "sealed/templates/trustworthiness-validation-2026-10-16-042935_calibration_template.jsonl",
+    "heldout": "sealed/templates/trustworthiness-validation-2026-10-16-042935_heldout_template.jsonl"
   },
   "pending": "Auto labels are SEALED. Do NOT open until all human annotations are finalised and declarations filed."
 }
