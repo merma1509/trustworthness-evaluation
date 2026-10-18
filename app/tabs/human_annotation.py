@@ -24,6 +24,12 @@ def render(available):
         "view is authoritative; the legacy single-rater view is shown only for "
         "traceability to the pre-revision protocol.*"
     )
+    st.caption(
+        "**Research question it serves:** RQ1 — *how well do auto-labels agree "
+        "with human labels?* The blinded multi-rater block below is the "
+        "measuring instrument: independent raters, an inter-rater κ gate, and "
+        "gold-vs-auto κ. The results feed the `Research Questions` tab."
+    )
 
     # ── 1) Blinded multi-rater block (authoritative) ──────────
     render_blinded_block(st)
