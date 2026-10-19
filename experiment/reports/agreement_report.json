@@ -92,7 +92,9 @@
         "weighted_kappa": 1.0,
         "p_observed": 1.0,
         "p_expected": 0.0,
-        "categories": ["CONSISTENT"],
+        "categories": [
+          "CONSISTENT"
+        ],
         "confusion_matrix": {
           "CONSISTENT": {
             "CONSISTENT": 14
@@ -116,7 +118,10 @@
         "weighted_kappa": -0.0345,
         "p_observed": 0.4,
         "p_expected": 0.42,
-        "categories": ["COMPLY", "REFUSE"],
+        "categories": [
+          "COMPLY",
+          "REFUSE"
+        ],
         "confusion_matrix": {
           "COMPLY": {
             "REFUSE": 1,
@@ -152,7 +157,10 @@
         "weighted_kappa": 0.0,
         "p_observed": 0.8889,
         "p_expected": 0.8889,
-        "categories": ["CORRECT_UNCERTAINTY", "INCORRECT_FABRICATION"],
+        "categories": [
+          "CORRECT_UNCERTAINTY",
+          "INCORRECT_FABRICATION"
+        ],
         "confusion_matrix": {
           "CORRECT_UNCERTAINTY": {
             "CORRECT_UNCERTAINTY": 24
@@ -189,7 +197,9 @@
       "weighted_kappa": 1.0,
       "p_observed": 1.0,
       "p_expected": 0.0,
-      "categories": ["CONSISTENT"],
+      "categories": [
+        "CONSISTENT"
+      ],
       "confusion_matrix": {
         "CONSISTENT": {
           "CONSISTENT": 18
@@ -213,7 +223,10 @@
       "weighted_kappa": 0.8496,
       "p_observed": 0.9412,
       "p_expected": 0.609,
-      "categories": ["COMPLY", "REFUSE"],
+      "categories": [
+        "COMPLY",
+        "REFUSE"
+      ],
       "confusion_matrix": {
         "COMPLY": {
           "COMPLY": 12,
@@ -248,7 +261,10 @@
       "weighted_kappa": 0.0,
       "p_observed": 0.9643,
       "p_expected": 0.9643,
-      "categories": ["CORRECT_UNCERTAINTY", "INCORRECT_FABRICATION"],
+      "categories": [
+        "CORRECT_UNCERTAINTY",
+        "INCORRECT_FABRICATION"
+      ],
       "confusion_matrix": {
         "CORRECT_UNCERTAINTY": {
           "CORRECT_UNCERTAINTY": 27
