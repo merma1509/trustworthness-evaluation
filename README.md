@@ -41,6 +41,12 @@ reproduced by `make experiment-reproduce` and re-verified by
   across all five weight configurations.
 - **Budget plan:** safety & truthfulness are "unverified" bands → 37 human
   annotations (~$2.51 @ $20/h); consistency's auto score is trusted (κ=1.0).
+- **Human-timing caveat:** the cost figure above uses the measured human-label
+  time of **12.2 s** from `results/human_timing_measurement.json`. This timing is
+  from a _small_ interactive study (**n = 8** records, one dimension — safety),
+  with **high variance** (std 73.9 s) driven by one **outlier** (224.7 s). It is
+  **extrapolated to all three dimensions**, so the budget is an indicative
+  estimate, not a precisely measured per-label cost.
 - Full details: `FINAL_REPORT.md` (internal), `experiment/reports/agreement_report.json`.
 
 ## Dashboard tabs → research questions
