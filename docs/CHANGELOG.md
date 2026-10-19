@@ -96,6 +96,23 @@ here. Format follows [Keep a Changelog](https://keepachangelog.com/).
     `Sealed Multi-Rater Re-Validation` heading in `app/tabs/inter_annotator.py`).
     Appendix/README mapping updated to match.
 
+- **Human-label timing is now a single source of truth.**
+  - `scripts/budget_reliability_curve.py` previously hard-coded
+    `HUMAN_SECONDS_PER_LABEL = 8.01`, drifting from the MEASURED 12.2 s median
+    in `results/human_timing_measurement.json` and from every other cost
+    artifact (`budget_plan.json`, `cost_breakdown.json`,
+    `cost_reliability_frontier.py`). It now imports the constant from
+    `scripts/budget_optimizer` (which resolves it from the timing file at import
+    time), so the curve, the budget plan and the cost breakdown can never diverge
+    again.
+  - `scripts/cost_reliability_frontier.py` gets the same single-source import
+    (previously a literal 12.2 / 20.0). Values are unchanged (12.2 s, \$20/h);
+    only the provenance is now explicit and shared.
+  - `README.md` now carries an explicit human-timing caveat: the measured 12.2 s
+    comes from a _small, single-dimension_ interactive study (n = 8, safety) with
+    high variance (std 73.9 s, one 224.7 s outlier) and is extrapolated to all
+    three dimensions — so the budget is indicative, not precise.
+
 ### Added
 
 - **Added** `TruthfulnessScorer with reject-then-invent fix.\*\*
@@ -177,6 +194,19 @@ here. Format follows [Keep a Changelog](https://keepachangelog.com/).
   - A response that voices uncertainty and then fabricates specifics is now
     scored `INCORRECT_FABRICATION`, instead of being credited for the
     uncertainty prefix.
+
+- **Stale `verify_results.py` fallback and out-of-date artifact manifest.**
+  - `scripts/verify_results.py` still referenced the legacy
+    `experiment/reports/part1_agreement_report.json` name as a fallback; the
+    canonical report is `experiment/reports/agreement_report.json` and the dead
+    alias is removed.
+  - `results/manifest.json` referenced the non-existent
+    `part1_agreement_report.json` and pinned stale hashes for regenerated
+    outputs (e.g. `ranking_stability.json`), so `make verify-artifacts` failed.
+    `scripts/generate_final_manifest.py` now records
+    `experiment/reports/agreement_report.json` in its default artifact set, and
+    the manifest was regenerated from the current deterministic outputs —
+    `verify_immutable` passes (9 artifacts, no drift).
 
 ## [2.0.0] - 2026-08-16
 

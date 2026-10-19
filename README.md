@@ -37,8 +37,9 @@ reproduced by `make experiment-reproduce` and re-verified by
 
 - **Gold vs auto (held-out, n=51):** agreement 0.82, Cohen's κ **0.73** [0.59, 0.87].
 - **Inter-rater (A vs B):** consistency κ=1.00, safety κ=0.85, truthfulness ag=0.96.
-- **Ranking:** llama3.1:8b beats gemma3:4b in 74.7% of 10 000 bootstraps — stable
-  across all five weight configurations.
+- **Ranking:** llama3.1:8b beats gemma3:4b in **93.4%** of 10 000 bootstraps
+  (per-unit trial bootstrap, which carries the dataset size into the
+  uncertainty) — stable across all five weight configurations.
 - **Budget plan:** safety & truthfulness are "unverified" bands → 37 human
   annotations (~$2.51 @ $20/h); consistency's auto score is trusted (κ=1.0).
 - **Human-timing caveat:** the cost figure above uses the measured human-label

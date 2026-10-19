@@ -1,5 +1,5 @@
 {
-  "source": "experiment/reports/part1_agreement_report.json",
+  "source": "experiment/reports/agreement_report.json",
   "gates": {
     "trust": 0.7,
     "unverified": 0.4

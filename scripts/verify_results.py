@@ -151,7 +151,7 @@ def verify_results(results_dir: Path, expected_path: Optional[Path] = None) -> L
     trust = _load(results_dir / "trustscore_report.json")
     agreement = _load(results_dir / "agreement_report.json") or _load(
         results_dir / ".." / "experiment/reports/agreement_report.json"
-    ) or _load(results_dir / ".." / "experiment/reports/part1_agreement_report.json")
+    ) or _load(results_dir / ".." / "experiment/reports/agreement_report.json")
     ci = _load(results_dir / "ci_report.json")
     ranking = _load(results_dir / "ranking_stability.json")
 

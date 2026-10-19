@@ -67,6 +67,7 @@ def main() -> int:
         "experiment/sealed/labels/sealed_auto_labels.jsonl.enc",
         # Gold + agreement (reproducibility checkpoints)
         "experiment/gold/gold_labels.jsonl",
+        "experiment/reports/agreement_report.json",
         # Generated score outputs
         "results/scores_report.json",
         "results/ci_report.json",
