@@ -36,10 +36,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.config import RESULTS_DIR
-
-# Measured human-label economics (Part 1, rq4_cost).
-HUMAN_SECONDS_PER_LABEL = 8.01
-HUMAN_HOURLY_COST = 20.0
+from scripts.budget_optimizer import (
+    HUMAN_HOURLY_COST,
+    HUMAN_SECONDS_PER_LABEL,
+)
 
 # Per-dimension total record counts on the full audit set.
 DEFAULT_N = {
