@@ -174,7 +174,7 @@ Inter-annotator agreement is computed _before_ comparing to the auto-scorer.
 > previous line citing "overall gold-vs-auto κ ≈ 0.690 (n=114)" was built from a
 > **demo-E2E artifact** (see `experiment/logs/annotation_log.jsonl` ->
 > `demo-e2e-trust-validation`, and the removed
-> `experiment/reports/part1_agreement_report.json`), **not** from real rater labels
+> `experiment/reports/agreement_report.json`), **not** from real rater labels
 > on the current sealed experiment (`experiment/annotations/*.jsonl` are all empty).
 > The held-out value is **pending** until the real annotation flow
 > (`make experiment-seal` -> rater fill -> `experiment-ingest` -> `experiment-resolve`

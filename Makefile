@@ -238,11 +238,11 @@ experiment-gold:
 
 # Held-out agreement report (gold vs auto + inter-rater)
 experiment-agreement:
-	$(PY) scripts/report_part1_agreement.py \
+	$(PY) scripts/report_agreement.py \
 		--gold experiment/gold/gold_labels.jsonl \
 		--rater-a $(RATER_A_FILE) \
 		--rater-b $(RATER_B_FILE) \
-		--out experiment/reports/part1_agreement_report.json \
+		--out experiment/reports/agreement_report.json \
 		--with-ci
 
 # Verify a sealed experiment is intact & fully blinded
@@ -287,11 +287,11 @@ experiment-reproduce: verify-artifacts
 				--passphrase "$(SEAL_PASSPHRASE)" \
 				--out experiment/gold/gold_labels.jsonl; \
 		fi; \
-		$(PY) scripts/report_part1_agreement.py \
+		$(PY) scripts/report_agreement.py \
 			--gold experiment/gold/gold_labels.jsonl \
 			--rater-a "experiment/annotations/$${EXP_ID}_RATER_A_heldout.jsonl" \
 			--rater-b "experiment/annotations/$${EXP_ID}_RATER_B_heldout.jsonl" \
-			--out experiment/reports/part1_agreement_report.json \
+			--out experiment/reports/agreement_report.json \
 			--with-ci; \
 	else \
 		echo "  note: no held-out disagreement-resolution file found; held-out κ not regenerated."; \
@@ -304,7 +304,7 @@ experiment-reproduce: verify-artifacts
 	@echo "--- 3/7 bootstrap CIs (n=10000, seed=42) ---"
 	$(PY) scripts/compute_ci.py --raw "$(RESULTS)/raw_outputs" --n-bootstrap 10000 --output "$(RESULTS)/ci_report.json"
 	@echo "--- 4/7 ranking stability ---"
-	$(PY) scripts/compute_ranking_stability.py --scores "$(RESULTS)/scores_report.json" --n-bootstrap 10000 --output "$(RESULTS)/ranking_stability.json"
+	$(PY) scripts/compute_ranking_stability.py --scores "$(RESULTS)/scores_report.json" --raw "$(RESULTS)/raw_outputs" --n-bootstrap 10000 --output "$(RESULTS)/ranking_stability.json"
 	@echo "--- 5/7 cost analysis (from committed / measured timing) ---"
 	@if [ -f "$(RESULTS)/cost_tracker.json" ]; then \
 		echo "  Using existing (MEASURED / pipeline) cost_tracker.json — RQ4 cost is a human-timed value"; \
@@ -363,9 +363,9 @@ compute-scores:
 compute-ci:
 	$(PY) scripts/compute_ci.py --raw "$(RESULTS)/raw_outputs" --n-bootstrap 10000 --output "$(RESULTS)/ci_report.json"
 
-# Ranking stability (flip probability) from the scores report
+# Ranking stability (flip probability) from the scores report + raw trials
 compute-ranking:
-	$(PY) scripts/compute_ranking_stability.py --scores "$(RESULTS)/scores_report.json" --n-bootstrap 10000 --output "$(RESULTS)/ranking_stability.json"
+	$(PY) scripts/compute_ranking_stability.py --scores "$(RESULTS)/scores_report.json" --raw "$(RESULTS)/raw_outputs" --n-bootstrap 10000 --output "$(RESULTS)/ranking_stability.json"
 
 # Paired/clustered model comparison CI (offline v3 path)
 compute-paired:
@@ -400,7 +400,7 @@ human-timing:
 
 # Trust-budget plan from held-out κ (GATE_TRUST / GATE_UNVERIFIED optional)
 experiment-budget:
-	@test -n "$(REPORT)" || REPORT=experiment/reports/part1_agreement_report.json; \
+	@test -n "$(REPORT)" || REPORT=experiment/reports/agreement_report.json; \
 	budget=results/budget_plan.json; \
 	if [ ! -f "$$REPORT" ]; then \
 		echo "✗ Report not found: $$REPORT"; \

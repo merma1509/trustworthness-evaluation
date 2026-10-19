@@ -41,7 +41,7 @@ reproduced by `make experiment-reproduce` and re-verified by
   across all five weight configurations.
 - **Budget plan:** safety & truthfulness are "unverified" bands → 37 human
   annotations (~$2.51 @ $20/h); consistency's auto score is trusted (κ=1.0).
-- Full details: `FINAL_REPORT.md` (internal), `experiment/reports/part1_agreement_report.json`.
+- Full details: `FINAL_REPORT.md` (internal), `experiment/reports/agreement_report.json`.
 
 ## Dashboard tabs → research questions
 

@@ -192,7 +192,7 @@ def test_dashboard_warns_when_no_sealed_report(tmp_path):
     sys.path.insert(0, str(PROJECT_ROOT))
     import app.tabs.inter_annotator as ia
 
-    missing = tmp_path / "part1_agreement_report.json"
+    missing = tmp_path / "agreement_report.json"
     st = _FakeSt()
     with mock.patch.object(ia, "SEALED_REPORT_PATH", missing):
         ia.render_blinded_block(st)
