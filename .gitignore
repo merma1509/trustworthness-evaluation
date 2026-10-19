@@ -50,8 +50,16 @@ sealed_keeper.*
 # keep the sealed templates and encrypted labels OUT of git (blind protocol).
 experiment/.sealed_work/
 experiment/sealed/templates/
-experiment/sealed/labels/
+# Ignore everything inside sealed/labels/ except the committed plaintext
+# auto-labels used for reproducible gold reconstruction: this committed file
+# lets 'make experiment-gold' rebuild gold from git without the passphrase
+# (reproducibility), while the *.enc and other label artifacts stay out.
+experiment/sealed/labels/*
+!experiment/sealed/labels/auto_labels.jsonl
 
 # NOTE: the *filled* annotations, agreements, gold labels, agreement reports,
 # the annotation manifest and the rater declarations ARE committed for reviewer
 # audit, so they are deliberately NOT listed below.
+
+# Working audit notes — not part of the reviewer-facing results set
+AUDIT_REVIEW.md

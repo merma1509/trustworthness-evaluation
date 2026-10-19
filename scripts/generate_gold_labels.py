@@ -53,7 +53,13 @@ def main() -> int:
 
     # ── Load auto labels ──────────────────────────────────────────────────────
     if args.auto_labels:
-        auto_doc = json.loads(Path(args.auto_labels).read_text())
+        auto_path = Path(args.auto_labels)
+        raw = auto_path.read_text(encoding="utf-8").strip()
+        # Accept both a JSON array (single document) and JSONL (one record/line).
+        if raw.startswith("["):
+            auto_doc = json.loads(raw)
+        else:
+            auto_doc = [json.loads(line) for line in raw.splitlines() if line.strip()]
     elif args.sealed_labels:
         if not args.passphrase:
             print("  ✗ --passphrase required to unseal auto labels.")

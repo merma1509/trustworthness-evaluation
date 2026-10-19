@@ -27,7 +27,21 @@ Usage
 
 import argparse
 import json
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+# Human-label economics (rq4_cost). Single source of truth: imported
+# from budget_optimizer, which resolves the seconds-per-label value from
+# ``results/human_timing_measurement.json`` at import time (MEASURED median,
+# 12.2 s) and falls back to the 30 s placeholder when that file is absent. The
+# $/hr rate is shared as well, so the frontier and the budget/cost reports can
+# never diverge silently.
+from scripts.budget_optimizer import (
+    HUMAN_HOURLY_COST,
+    HUMAN_SECONDS_PER_LABEL,
+)
 
 # Per-dimension independent-unit counts (record counts on the full audit set).
 # NOTE: these are the *annotatable* counts; safety/truthfulness are per-prompt,
@@ -40,8 +54,6 @@ DEFAULT_N = {
 }
 FRACTIONS = (0.0, 0.25, 0.5, 0.75, 1.0)
 
-HUMAN_SECONDS_PER_LABEL = 12.2  # MEASURED median from the timing study
-HUMAN_HOURLY_COST = 20.0  # ASSUMED wage
 HUMAN_ACCURACY_ASSUMED = 0.9  # ASSUMED human accuracy (explicit modelling choice)
 
 

@@ -193,7 +193,7 @@ def test_verify_results_flags_bad_agreement(tmp_path):
         if src.exists():
             (tmp_path / name).write_text(src.read_text(), encoding="utf-8")
 
-    (tmp_path / "part1_agreement_report.json").write_text(json.dumps({
+    (tmp_path / "agreement_report.json").write_text(json.dumps({
         "gold_vs_auto": {
             "overall": {"n": 10, "agree": 7, "disagree": 5,
                         "cohens_kappa": 1.5, "agreement_rate": 2.0},
@@ -222,7 +222,7 @@ def test_verify_results_recovers_agree_from_confusion_matrix(tmp_path):
             (tmp_path / name).write_text(src.read_text(), encoding="utf-8")
 
     # Matrix diagonal = 3 (agree); n = 4 -> disagree = 1, so counts are consistent.
-    (tmp_path / "part1_agreement_report.json").write_text(json.dumps({
+    (tmp_path / "agreement_report.json").write_text(json.dumps({
         "gold_vs_auto": {
             "overall": {
                 "n": 4,
@@ -241,7 +241,7 @@ def test_verify_results_recovers_agree_from_confusion_matrix(tmp_path):
 
     # Break the counts: the confusion diagonal implies 3 agrees but n = 2, so
     # agreement cannot exceed the sample size -> invariant violation.
-    (tmp_path / "part1_agreement_report.json").write_text(json.dumps({
+    (tmp_path / "agreement_report.json").write_text(json.dumps({
         "gold_vs_auto": {
             "overall": {
                 "n": 2,

@@ -10,8 +10,8 @@ Input
 Per-dimension auto–human Cohen's κ, read from a report in ONE of two schemas:
 
 * the **sealed CLEAN-REDO experiment report** produced by
-  ``scripts/report_part1_agreement.py``
-  (``experiment/reports/part1_agreement_report.json`` — canonical, preferred),
+  ``scripts/report_agreement.py``
+  (``experiment/reports/agreement_report.json`` — canonical, preferred),
   whose ``gold_vs_auto.per_dimension[dim].cohens_kappa`` is the gold vs auto κ;
 
 * the **validation report** (``results/validation_report.json``, RQ1
@@ -29,7 +29,7 @@ Usage
 -----
     # Use the sealed experiment report (after it exists):
     python3 scripts/budget_optimizer.py \
-        --report experiment/reports/part1_agreement_report.json \
+        --report experiment/reports/agreement_report.json \
         --output results/budget_plan.json
 
     # Use the calibration validation report:
@@ -58,7 +58,7 @@ DEFAULT_GATES = {
 # [-1, 1] range. Below this floor a nominally high κ is downgraded to at most
 # 'caveated' (a small spot-check) unless the dimension is below the unverified
 # gate in which case the stricter verdict already applies. See the K-loop in
-# report_part1_agreement.py for the CI computation used here.
+# report_agreement.py for the CI computation used here.
 MIN_UNITS_FOR_TRUST = 10
 
 # Holistic budget maths (rq4_cost): human $20/h.
@@ -109,7 +109,7 @@ def _extract_dimension_kappas(report: dict, source: str) -> dict:
     """Return ``{dimension: kappa}`` from a report, tolerant of two schemas.
 
     Supports:
-      * sealed experiment (``report_part1_agreement``):
+      * sealed experiment (``report_agreement``):
         ``gold_vs_auto.per_dimension[dim].cohens_kappa``
       * validation (``paradigm_report``): ``rq1_agreement.by_dimension[dim].cohens_kappa``
     """

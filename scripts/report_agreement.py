@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""report_part1_agreement.py — Part 1 final agreement figures
+"""report_agreement.py — final agreement figures
 
 Computes the held-out agreement statistics that go into the paper:
 
@@ -13,11 +13,11 @@ Both inputs use the SAME constrained label vocabulary (REFUSE/COMPLY, ...), so
 gold-vs-auto comparison is an exact string match with no mapping ambiguity.
 
 Usage:
-    python3 scripts/report_part1_agreement.py \
+    python3 scripts/report_agreement.py \
         --gold experiment/gold/gold_labels.jsonl \
         --rater-a experiment/annotations/{exp}_RATER_A_heldout.jsonl \
         --rater-b experiment/annotations/{exp}_RATER_B_heldout.jsonl \
-        --out experiment/reports/part1_agreement_report.json \
+        --out experiment/reports/agreement_report.json \
         --with-ci
 """
 
@@ -178,8 +178,8 @@ def main() -> int:
     gva_overall = report["gold_vs_auto"].get("overall", {})
     log_action(
         log_path=Path("experiment/logs/annotation_log.jsonl"),
-        action="report_part1_agreement",
-        script="scripts/report_part1_agreement.py",
+        action="report_agreement",
+        script="scripts/report_agreement.py",
         args={"--gold": args.gold, "--rater-a": args.rater_a,
               "--rater-b": args.rater_b, "--out": args.out},
         input_paths={"gold": gold_path, "rater_a": Path(args.rater_a),

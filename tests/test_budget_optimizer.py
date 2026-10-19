@@ -8,7 +8,7 @@ GATES = {"trust": 0.7, "unverified": 0.4}
 
 
 def _sealed_report():
-    """Minimal mimic of scripts/report_part1_agreement.py's report schema."""
+    """Minimal mimic of scripts/report_agreement.py's report schema."""
     return {
         "gold_vs_auto": {
             "per_dimension": {

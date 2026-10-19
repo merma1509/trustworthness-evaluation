@@ -18,7 +18,7 @@ scientifically trustworthy:
 The script is intentionally THIN: it delegates the heavy lifting to the
 existing single-responsibility drivers (``seal_experiment`` template blindness
 is already enforced; ``resolve_disagreements`` re-checks coverage; ``compute_*``
-regenerates scores/CIs/ranking; ``report_part1_agreement`` computes κ+CIs).
+regenerates scores/CIs/ranking; ``report_agreement`` computes κ+CIs).
 Here we only orchestrate and *fail closed* when any invariant breaks.
 
 Usage:
@@ -217,8 +217,17 @@ def validate_rerun(args) -> None:
     # ── 3. Build gold labels + held-out agreement κ/CIs ──────────────────────
     print("\n=== 3/6 gold labels + agreement κ/CIs ===")
     gold_out = Path(tempfile.mkdtemp(prefix="rerun_gold_")) / "gold_labels.jsonl"
-    rc = _run(
-        [
+    plaintext_auto = root / "experiment/sealed/labels/auto_labels.jsonl"
+    if plaintext_auto.exists():
+        gold_cmd = [
+            sys.executable,
+            "scripts/generate_gold_labels.py",
+            "--resolutions", str(resolve_out),
+            "--auto-labels", str(plaintext_auto),
+            "--out", str(gold_out),
+        ]
+    else:
+        gold_cmd = [
             sys.executable,
             "scripts/generate_gold_labels.py",
             "--resolutions", str(resolve_out),
@@ -226,18 +235,17 @@ def validate_rerun(args) -> None:
             "experiment/sealed/labels/sealed_auto_labels.jsonl.enc",
             "--passphrase", args.passphrase or "",
             "--out", str(gold_out),
-        ],
-        root,
-    )
+        ]
+    rc = _run(gold_cmd, root)
     if rc != 0:
         _fail("gold label generation failed")
     _check_gold_join(gold_out)
 
-    agreement_out = Path(tempfile.mkdtemp(prefix="rerun_agree_")) / "part1_agreement_report.json"
+    agreement_out = Path(tempfile.mkdtemp(prefix="rerun_agree_")) / "agreement_report.json"
     rc = _run(
         [
             sys.executable,
-            "scripts/report_part1_agreement.py",
+            "scripts/report_agreement.py",
             "--gold", str(gold_out),
             "--rater-a", str(rater_files[0]),
             "--rater-b", str(rater_files[1]),
@@ -276,7 +284,9 @@ def validate_rerun(args) -> None:
     )
     rc |= _run(
         [sys.executable, "scripts/compute_ranking_stability.py",
-         "--scores", "results/scores_report.json", "--n-bootstrap", "10000",
+         "--scores", "results/scores_report.json",
+         "--raw", "results/raw_outputs",
+         "--n-bootstrap", "10000",
          "--output", "results/ranking_stability.json"],
         root,
     )
@@ -305,7 +315,7 @@ def validate_rerun(args) -> None:
         out_reports.mkdir(parents=True, exist_ok=True)
         resolve_dest = out_agreements / f"{exp_id}_heldout_disagreements.json"
         gold_dest = out_gold / "gold_labels.jsonl"
-        agree_dest = out_reports / "part1_agreement_report.json"
+        agree_dest = out_reports / "agreement_report.json"
         resolve_dest.write_bytes(resolve_out.read_bytes())
         gold_dest.write_bytes(gold_out.read_bytes())
         agree_dest.write_bytes(agreement_out.read_bytes())
@@ -344,10 +354,16 @@ def main() -> int:
                         help="Keep derived agreement/gold reports under experiment/.")
     args = parser.parse_args()
 
-    if not args.passphrase:
+    plaintext_auto = Path("experiment/sealed/labels/auto_labels.jsonl")
+    if not args.passphrase and not plaintext_auto.exists():
         # The reproduce pipeline is designed to FAIL CLOSED rather than
-        # fabricate these numbers when the passphrase is unavailable.
-        print("  Provide --passphrase to unseal the auto labels for the gold join.")
+        # fabricate these numbers when neither the passphrase nor the
+        # committed plaintext auto labels are available.
+        print(
+            "  Provide --passphrase to unseal the auto labels for the gold join, "
+            "or commit the plaintext auto labels "
+            "(experiment/sealed/labels/auto_labels.jsonl)."
+        )
         return 2
 
     try:

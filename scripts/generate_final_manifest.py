@@ -10,7 +10,7 @@ confirm nothing drifted.
 Usage:
     python3 scripts/generate_final_manifest.py \
         --output results/manifest.json \
-        --base-dir
+        --base-
 """
 
 from __future__ import annotations
@@ -67,7 +67,7 @@ def main() -> int:
         "experiment/sealed/labels/sealed_auto_labels.jsonl.enc",
         # Gold + agreement (reproducibility checkpoints)
         "experiment/gold/gold_labels.jsonl",
-        "experiment/reports/part1_agreement_report.json",
+        "experiment/reports/agreement_report.json",
         # Generated score outputs
         "results/scores_report.json",
         "results/ci_report.json",

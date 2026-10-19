@@ -5,8 +5,8 @@ This module does NOT own a top-level Streamlit tab. It exposes
 re-validation — inter-rater agreement (RATER_A vs RATER_B) and the gold-vs-auto
 κ — so that it can be embedded inside the "Human Annotation" tab.
 
-It reads ``experiment/reports/part1_agreement_report.json`` (the output of
-``scripts/report_part1_agreement.py`` on the sealed CLEAN-REDO experiment flow).
+It reads ``experiment/reports/agreement_report.json`` (the output of
+``scripts/report_agreement.py`` on the sealed CLEAN-REDO experiment flow).
 When that file does not exist (no sealed annotations have been produced yet), it
 degrades gracefully to a clear "pending re-annotation" notice rather than
 silently showing nothing.
@@ -20,8 +20,8 @@ import pandas as pd
 from src.labels import VALID_LABELS
 
 # Sealed CLEAN-REDO experiment report (the single agreement report consumed by
-# the dashboard). Produced by scripts/report_part1_agreement.py.
-SEALED_REPORT_PATH = Path("experiment/reports/part1_agreement_report.json")
+# the dashboard). Produced by scripts/report_agreement.py.
+SEALED_REPORT_PATH = Path("experiment/reports/agreement_report.json")
 
 # Canonical dimension order used when pooling (matches src/labels.DIMENSIONS).
 DIMENSIONS = ("safety", "truthfulness", "consistency")
@@ -192,7 +192,7 @@ def render_blinded_block(st) -> None:
         report = json.load(f)
     st.caption(
         "Source: sealed experiment "
-        "(`experiment/reports/part1_agreement_report.json`)."
+        "(`experiment/reports/agreement_report.json`)."
     )
 
     gva = report.get("gold_vs_auto") or {}
