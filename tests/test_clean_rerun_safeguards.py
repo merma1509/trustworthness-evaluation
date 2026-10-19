@@ -20,6 +20,7 @@ These tests protect the two properties that make a rerun scientifically usable:
 
 import copy
 import json
+from pathlib import Path
 
 import pytest
 
@@ -298,3 +299,142 @@ def test_validation_gate_gold_join_fails_closed(tmp_path):
     )
     with pytest.raises(SystemExit):
         _check_gold_join(p)
+
+
+# ── Reproducible gold from plaintext auto labels (reproducibility) ────────
+def _resolution_report_for_gold(tmp_path, n_scored=2):
+    """A resolutions report image the real held-out shape.
+
+    Emits `n_scored` A=B agreements, one per record_key ("dimension", "K_XXXX").
+    """
+    outcomes = []
+    for i in range(1, n_scored + 1):
+        ik = f"K_{i:04d}"
+        outcomes.append({
+            "record_key": ["safety", ik],
+            "gold_label": "REFUSE",
+            "outcome": "A=B_agreement",
+            "label_A": "REFUSE",
+            "label_B": "REFUSE",
+            "label_C": None,
+            "uncertain": {"RATER_A": False, "RATER_B": False, "ADJUDICATOR": False},
+        })
+    report = {
+        "n_recorded": n_scored,
+        "n_scored": n_scored,
+        "n_unresolvable": 0,
+        "n_excluded_response_invalid": 0,
+        "outcomes": outcomes,
+    }
+    p = tmp_path / "resolutions.json"
+    p.write_text(json.dumps(report), encoding="utf-8")
+    return p
+
+
+def _run_generate_gold_labels(auto_file, resolutions_file, tmp_path):
+    """Drive generate_gold_labels via its CLI and return (exit_code, gold path).
+
+    Uses a subprocess (not an in-process main() call) so the exact Makefile
+    invocation path is what the test guards.
+    """
+    import subprocess
+    import sys
+
+    out = tmp_path / "gold.jsonl"
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "scripts/generate_gold_labels.py",
+            "--resolutions", str(resolutions_file),
+            "--auto-labels", str(auto_file),
+            "--out", str(out),
+        ],
+        capture_output=True,
+        text=True,
+        cwd=str(Path(__file__).resolve().parent.parent),
+    )
+    return proc.returncode, out
+
+
+def test_gold_can_be_built_from_jsonl_plaintext_auto_labels(tmp_path):
+    """The reproducible (no-passphrase) path must accept JSONL auto labels.
+
+    A client (clone) without the sealed passphrase must be able to rebuild
+    gold labels from the committed plaintext auto labels file. This guards the
+    JSONL-reading branch in generate_gold_labels.
+    """
+    resolutions = _resolution_report_for_gold(tmp_path, n_scored=2)
+
+    # Plaintext auto labels in the committed JSONL form (one record per line).
+    auto_recs = [
+        {"internal_key": "K_0001", "auto_label": "COMPLY",
+         "model_id": "gemma3:4b", "attack_type": "benign",
+         "expected_behavior": "comply"},
+        {"internal_key": "K_0002", "auto_label": "REFUSE",
+         "model_id": "llama3.1:8b", "attack_type": "jailbreak",
+         "expected_behavior": "refuse"},
+    ]
+    auto_file = tmp_path / "auto_labels.jsonl"
+    with auto_file.open("w", encoding="utf-8") as f:
+        for r in auto_recs:
+            f.write(json.dumps(r, sort_keys=True) + "\n")
+
+    rc, gold = _run_generate_gold_labels(auto_file, resolutions, tmp_path)
+    assert rc == 0
+    lines = [json.loads(l) for l in gold.read_text(encoding="utf-8").splitlines()]
+    assert len(lines) == 2
+    by_key = {g["internal_key"]: g for g in lines}
+    # auto labels were joined through (represents the gold-vs-auto comparison).
+    assert by_key["K_0001"]["auto_label"] == "COMPLY"
+    assert by_key["K_0002"]["auto_label"] == "REFUSE"
+    assert by_key["K_0001"]["model_id"] == "gemma3:4b"
+    # gold human label from the resolution report is preserved.
+    assert by_key["K_0001"]["gold_human_label"] == "REFUSE"
+
+
+def test_gold_from_jsonl_matches_committed_plaintext(tmp_path):
+    """Rebuilding gold on a clone yields the same content as the committed gold.
+
+    Uses the REAL committed plaintext auto_labels.jsonl and the REAL held-out
+    resolution report, and asserts the rebuilt gold matches the committed
+    experiment/gold/gold_labels.jsonl (proves end-to-end reproducibility from
+    git without the passphrase).
+    """
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    repo_root = Path(__file__).resolve().parent.parent
+    exp_id = "trustworthiness-validation-2026-10-16-042935"
+    resolutions = (
+        repo_root / "experiment" / "agreements"
+        / f"{exp_id}_heldout_disagreements.json"
+    )
+    auto_file = repo_root / "experiment" / "sealed" / "labels" / "auto_labels.jsonl"
+    gold_committed = repo_root / "experiment" / "gold" / "gold_labels.jsonl"
+    if not (auto_file.exists() and resolutions.exists() and gold_committed.exists()):
+        import pytest
+        pytest.skip("committed reproducibility artifacts not present in this checkout")
+
+    out = tmp_path / "gold_rebuilt.jsonl"
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "scripts/generate_gold_labels.py",
+            "--resolutions", str(resolutions),
+            "--auto-labels", str(auto_file),
+            "--out", str(out),
+        ],
+        capture_output=True,
+        text=True,
+        cwd=str(repo_root),
+    )
+    assert proc.returncode == 0, proc.stderr
+
+    def _sorted(path):
+        return sorted(
+            json.dumps(json.loads(l), sort_keys=True)
+            for l in path.read_text(encoding="utf-8").splitlines() if l.strip()
+        )
+
+    assert _sorted(out) == _sorted(gold_committed)
