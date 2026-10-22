@@ -1,10 +1,9 @@
 {
   "pipeline": "clean-redo reproducibility",
   "generator": "scripts/generate_final_manifest.py",
-  "n_artifacts": 9,
+  "n_artifacts": 8,
   "checksums": {
     "experiment/sealed/manifests/sealing_manifest.json": "sha256:87f549473156b088",
-    "experiment/sealed/labels/sealed_auto_labels.jsonl.enc": "sha256:91931665e0edb21e",
     "experiment/gold/gold_labels.jsonl": "sha256:d8a4ef725dbca020",
     "experiment/reports/agreement_report.json": "sha256:e0fa5a4da1b658b4",
     "results/scores_report.json": "sha256:ceafc7ddebdf6562",
