@@ -7,6 +7,26 @@ here. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ### Changed
 
+- **Repository moved to a GitFlow branching model (3 long-lived branches).**
+  - `main` — production (default branch, protected: PR-only, no force push /
+    no deletion).
+  - `staging` — testing / QA (protected: PR + review, no force push).
+  - `develop` — development / draft (protected: PR-only, no force push).
+  - Feature / fix / docs branches are now created off `develop` and promoted
+    through `develop → staging → main` via pull requests.
+  - Old one-phase branches (`clean-rerun/validation-v2`,
+    `feat/sealed-randomization-repro`, `fix/truthfulness-scorer-rtti`,
+    `part1-correctness-fixes`, `v2.0-fixes`) were deleted locally and on the
+    remote — all of them were ancestors of `main` (their tip commits are
+    reachable from `origin/main`), so no work was lost.
+  - Added release tags: **`v2.0.0`** (Annotated, stable release) on `main`;
+    missing pre-release tags (`v2.0-pre-provenance`,
+    `v2.0-results-2026-08-08`) were also pushed to the remote.
+  - Added project governance docs: `CONTRIBUTING.md` (GitFlow workflow, branch
+    naming, commit conventions, reproducibility gates) and `SECURITY.md`
+    (supported versions, private vulnerability reporting, data-handling rules),
+    plus a shared pull-request template (`.github/PULL_REQUEST_TEMPLATE.md`).
+
 - **Held-out gold / agreement now reproducible from git without a passphrase.**
   - Added committed plaintext auto labels
     (`experiment/sealed/labels/auto_labels.jsonl`, deterministic canonical
@@ -115,7 +135,7 @@ here. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
-- **Added** `TruthfulnessScorer with reject-then-invent fix.\*\*
+- **Added** `TruthfulnessScorer` with reject-then-invent fix.
   - New `TruthfulnessScorer` class in `src/classifiers.py` implementing the v3
     response-classification rule: _"the final output is what matters"_.
   - `RTTI_MAX_DISTANCE = 150` position heuristic for reject-then-invent
