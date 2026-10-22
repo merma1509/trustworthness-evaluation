@@ -62,9 +62,14 @@ def main() -> int:
     base = Path(args.base_dir)
 
     DEFAULT_ARTIFACTS = [
-        # Immutable sealed inputs
+        # Immutable sealed inputs — NOTE: the encrypted sealed labels
+        # (sealed_auto_labels.jsonl.enc) are intentionally NOT listed here:
+        # they are private (gitignored, require the keeper passphrase) and are
+        # therefore unavailable in a clean clone. Their integrity is covered
+        # separately by scripts/verify_seal_integrity.py inside the
+        # experiment-validate-rerun gate (step 1/6). The manifest below only
+        # tracks artifacts that are reproducible/verifiable from git.
         "experiment/sealed/manifests/sealing_manifest.json",
-        "experiment/sealed/labels/sealed_auto_labels.jsonl.enc",
         # Gold + agreement (reproducibility checkpoints)
         "experiment/gold/gold_labels.jsonl",
         "experiment/reports/agreement_report.json",
