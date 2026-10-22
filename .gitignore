@@ -47,9 +47,11 @@ experiment/.sealed_keeper.*
 sealed_keeper.*
 
 # Sealed experiment artifacts — regenerable BUILD outputs (make experiment-seal):
-# keep the sealed templates and encrypted labels OUT of git (blind protocol).
+# keep the encrypted labels OUT of git (blind protocol). The blinded prompt
+# templates (prompt/response only, no auto/rater labels) ARE committed so that
+# 'make experiment-validate-rerun' (seal-integrity step 1/6) works from a fresh
+# clone without local secrets.
 experiment/.sealed_work/
-experiment/sealed/templates/
 # Ignore everything inside sealed/labels/ except the committed plaintext
 # auto-labels used for reproducible gold reconstruction: this committed file
 # lets 'make experiment-gold' rebuild gold from git without the passphrase
