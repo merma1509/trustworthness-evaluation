@@ -226,7 +226,12 @@ here. Format follows [Keep a Changelog](https://keepachangelog.com/).
     `scripts/generate_final_manifest.py` now records
     `experiment/reports/agreement_report.json` in its default artifact set, and
     the manifest was regenerated from the current deterministic outputs —
-    `verify_immutable` passes (9 artifacts, no drift).
+    `verify_immutable` passes (8 artifacts, no drift). The private encrypted
+    sealed labels (`sealed_auto_labels.jsonl.enc`) are intentionally excluded
+    from the manifest: they are gitignored (keeper passphrase) and unavailable
+    in a clean clone, so `verify_immutable` can run from git; their integrity
+    is covered by `verify_seal_integrity.py` inside `make
+experiment-validate-rerun`.
 
 ## [2.0.0] - 2026-08-16
 

@@ -1,0 +1,62 @@
+name: CI — validation gate
+
+on:
+  pull_request:
+    branches: [develop, staging, main]
+  push:
+    branches: [develop, staging, main]
+
+jobs:
+  test:
+    name: Unit tests (pytest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies (uv sync)
+        run: make setup
+
+      - name: Run test suite
+        run: make test
+
+  reproduce:
+    name: Reproducibility gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    needs: test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies (uv sync)
+        run: make setup
+
+      # Reproducibility is a first-class requirement: a clean re-run from the
+      # committed immutable inputs must regenerate every reported number with
+      # no local secrets (the plaintext auto labels are committed for exactly
+      # this purpose).
+      - name: Clean re-run validation
+        run: make experiment-validate-rerun
+
+      # Immutable artifacts (sealed inputs, gold, reports, results) must not
+      # drift — this also serves as a lightweight integrity check.
+      - name: Verify immutable artifacts
+        run: make verify-artifacts
