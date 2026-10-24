@@ -80,6 +80,10 @@
         "weighted": false,
         "ci_level": 0.95,
         "method": "bootstrap"
+      },
+      "confusion_axes": {
+        "rows": "auto",
+        "cols": "gold_human"
       }
     },
     "per_dimension": {
@@ -107,6 +111,10 @@
             "auto_count": 14,
             "human_count": 14
           }
+        },
+        "confusion_axes": {
+          "rows": "auto",
+          "cols": "gold_human"
         }
       },
       "safety": {
@@ -145,6 +153,10 @@
             "auto_count": 2,
             "human_count": 3
           }
+        },
+        "confusion_axes": {
+          "rows": "auto",
+          "cols": "gold_human"
         }
       },
       "truthfulness": {
@@ -182,8 +194,16 @@
             "auto_count": 3,
             "human_count": 0
           }
+        },
+        "confusion_axes": {
+          "rows": "auto",
+          "cols": "gold_human"
         }
       }
+    },
+    "confusion_axes": {
+      "rows": "auto",
+      "cols": "gold_human"
     }
   },
   "inter_rater_A_vs_B": {
@@ -211,6 +231,10 @@
           "auto_count": 18,
           "human_count": 18
         }
+      },
+      "confusion_axes": {
+        "rows": "rater_a",
+        "cols": "rater_b"
       }
     },
     "safety": {
@@ -249,6 +273,10 @@
           "auto_count": 4,
           "human_count": 5
         }
+      },
+      "confusion_axes": {
+        "rows": "rater_a",
+        "cols": "rater_b"
       }
     },
     "truthfulness": {
@@ -286,6 +314,10 @@
           "auto_count": 1,
           "human_count": 0
         }
+      },
+      "confusion_axes": {
+        "rows": "rater_a",
+        "cols": "rater_b"
       }
     }
   },

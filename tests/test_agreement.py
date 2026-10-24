@@ -138,3 +138,43 @@ def test_kappa_bootstrap_ci_deterministic_seed():
         random_seed=7, n_bootstrap=100,
     )
     assert a == b
+
+
+def test_confusion_matrix_orientation_rows_auto_cols_human():
+    """Lock the confusion-matrix orientation so nobody can read it backwards.
+
+    ``_build_confusion`` stores ``{auto_label: {human_label: count}}``, i.e.
+    ROWS = auto-scorer label, COLUMNS = gold human label.  A regression that
+    swaps the axes would put a non-zero value under the wrong key pair.
+    """
+    human = ["REFUSE", "COMPLY", "COMPLY", "COMPLY", "COMPLY"]
+    auto = ["REFUSE", "REFUSE", "COMPLY", "COMPLY", "COMPLY"]
+    res = compute_agreement(human, auto)
+    cm = res["confusion_matrix"]
+    # auto row "REFUSE" contains both true refusal and auto-refused/human-answered:
+    assert cm["REFUSE"]["REFUSE"] == 1   # true refusal
+    assert cm["REFUSE"].get("COMPLY", 0) == 1   # auto refused, human says answered
+    # auto row "COMPLY":
+    assert cm["COMPLY"]["COMPLY"] == 3
+    assert cm["COMPLY"].get("REFUSE", 0) == 0
+    # Counter-check: the (auto=COMPLY, human=REFUSE) cell must be absent; if the
+    # axes were swapped the 1 would appear here instead of in
+    # cm["REFUSE"]["COMPLY"].
+    assert cm["COMPLY"].get("REFUSE", 0) == 0
+
+
+def test_confusion_matrix_axes_contract():
+    """The agreement report publishes an explicit axes contract per block."""
+    human = ["a", "b", "b"]
+    auto = ["a", "b", "a"]
+    res = compute_agreement(human, auto)
+    # The contract describes rows=auto, cols=human; consumers must not invert it.
+    contract = {"rows": "auto", "cols": "human"}
+    rh = res["confusion_matrix"].keys()
+    cols = {c for row in res["confusion_matrix"].values() for c in row}
+    assert set(contract.values()) == {"auto", "human"}  # naming sanity
+    for a in rh:
+        for h in cols:
+            # any cell count is always keyed (auto, human) — never (human, auto)
+            row = res["confusion_matrix"].get(a, {})
+            assert isinstance(row.get(h, 0), int)

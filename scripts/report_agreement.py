@@ -71,6 +71,15 @@ def gold_vs_auto(gold_records: List[dict], with_ci: bool) -> Dict:
         "overall": overall,
         "per_dimension": per_dim,
     }
+    result["overall"]["confusion_axes"] = {"rows": "auto", "cols": "gold_human"}
+    # Spell out the confusion-matrix orientation so consumers (dashboard, report
+    # text, verify scripts) cannot read it backwards.  Built in
+    # src/agreement._build_confusion as {auto_label: {human_label: count}},
+    # i.e. ROWS = auto-scorer label, COLS = gold human label.
+    result["confusion_axes"] = {"rows": "auto", "cols": "gold_human"}
+    for dim_block in result["per_dimension"].values():
+        if isinstance(dim_block, dict):
+            dim_block["confusion_axes"] = {"rows": "auto", "cols": "gold_human"}
     if with_ci:
         hs = [r for r in gold_records if r.get("gold_human_label") and r.get("auto_label")]
         result["overall"]["kappa_ci"] = kappa_bootstrap_ci(
@@ -118,6 +127,8 @@ def inter_rater(a_path: Path, b_path: Path) -> Dict:
         as_ = [p[1] for p in by_dim[dim]]
         result[dim] = compute_agreement(hs, as_)
         result[dim]["n"] = len(hs)
+        # Rows = RATER_A, cols = RATER_B (built as {A: {B: count}}).
+        result[dim]["confusion_axes"] = {"rows": "rater_a", "cols": "rater_b"}
     return result
 
 
@@ -198,3 +209,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+
