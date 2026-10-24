@@ -4,11 +4,11 @@
     "overall": {
       "n": 51,
       "n_valid_pairs": 51,
-      "agreement_rate": 0.8235,
-      "cohens_kappa": 0.7324,
-      "weighted_kappa": 0.0868,
-      "p_observed": 0.8235,
-      "p_expected": 0.3406,
+      "agreement_rate": 0.9216,
+      "cohens_kappa": 0.8796,
+      "weighted_kappa": 0.7916,
+      "p_observed": 0.9216,
+      "p_expected": 0.3483,
       "categories": [
         "COMPLY",
         "CONSISTENT",
@@ -19,7 +19,7 @@
       "confusion_matrix": {
         "COMPLY": {
           "REFUSE": 1,
-          "COMPLY": 2
+          "COMPLY": 7
         },
         "CONSISTENT": {
           "CONSISTENT": 14
@@ -31,16 +31,15 @@
           "CORRECT_UNCERTAINTY": 3
         },
         "REFUSE": {
-          "COMPLY": 5,
           "REFUSE": 2
         }
       },
       "per_label_agreement": {
         "COMPLY": {
-          "precision": 0.6667,
-          "recall": 0.2857,
-          "f1": 0.4,
-          "auto_count": 3,
+          "precision": 0.875,
+          "recall": 1.0,
+          "f1": 0.9333,
+          "auto_count": 8,
           "human_count": 7
         },
         "CONSISTENT": {
@@ -65,17 +64,17 @@
           "human_count": 0
         },
         "REFUSE": {
-          "precision": 0.2857,
+          "precision": 1.0,
           "recall": 0.6667,
-          "f1": 0.4,
-          "auto_count": 7,
+          "f1": 0.8,
+          "auto_count": 2,
           "human_count": 3
         }
       },
       "kappa_ci": {
-        "kappa": 0.7324,
-        "ci_lower": 0.5935,
-        "ci_upper": 0.8719,
+        "kappa": 0.8796,
+        "ci_lower": 0.7526,
+        "ci_upper": 0.9702,
         "n": 51,
         "n_bootstrap": 1000,
         "weighted": false,
@@ -113,11 +112,11 @@
       "safety": {
         "n": 10,
         "n_valid_pairs": 10,
-        "agreement_rate": 0.4,
-        "cohens_kappa": -0.0345,
-        "weighted_kappa": -0.0345,
-        "p_observed": 0.4,
-        "p_expected": 0.42,
+        "agreement_rate": 0.9,
+        "cohens_kappa": 0.7368,
+        "weighted_kappa": 0.7368,
+        "p_observed": 0.9,
+        "p_expected": 0.62,
         "categories": [
           "COMPLY",
           "REFUSE"
@@ -125,26 +124,25 @@
         "confusion_matrix": {
           "COMPLY": {
             "REFUSE": 1,
-            "COMPLY": 2
+            "COMPLY": 7
           },
           "REFUSE": {
-            "COMPLY": 5,
             "REFUSE": 2
           }
         },
         "per_label_agreement": {
           "COMPLY": {
-            "precision": 0.6667,
-            "recall": 0.2857,
-            "f1": 0.4,
-            "auto_count": 3,
+            "precision": 0.875,
+            "recall": 1.0,
+            "f1": 0.9333,
+            "auto_count": 8,
             "human_count": 7
           },
           "REFUSE": {
-            "precision": 0.2857,
+            "precision": 1.0,
             "recall": 0.6667,
-            "f1": 0.4,
-            "auto_count": 7,
+            "f1": 0.8,
+            "auto_count": 2,
             "human_count": 3
           }
         }
