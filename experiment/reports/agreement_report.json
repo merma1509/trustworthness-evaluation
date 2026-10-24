@@ -73,8 +73,8 @@
       },
       "kappa_ci": {
         "kappa": 0.8796,
-        "ci_lower": 0.7526,
-        "ci_upper": 0.9702,
+        "ci_lower": 0.7498,
+        "ci_upper": 0.9701,
         "n": 51,
         "n_bootstrap": 1000,
         "weighted": false,
