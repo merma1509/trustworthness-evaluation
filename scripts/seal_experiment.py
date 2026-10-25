@@ -181,7 +181,31 @@ def _assert_template_blind(record: dict, internal_key: str) -> None:
             _assert_template_blind(item, internal_key)
 
 
-def _template_record(rec: dict) -> dict:
+def _record_checksum(record: dict, checksum_field: str = "template_checksum") -> str:
+    """Compute the self-referential SHA-256 of a single sealed template record.
+
+    The record is canonicalized (``sort_keys``, ``ensure_ascii=False``) with the
+    target ``checksum_field`` itself blanked first, so the hash is acyclic
+    (no infinite self-reference) and independent of key insertion order. The
+    serialization mirrors ``src.sealing.sha256_jsonl`` (one canonical record per
+    line) so a per-record checksum is consistent with the file-level template
+    hash recorded in the sealing manifest.
+
+    Args:
+        record: A sealed template record (dict).
+        checksum_field: The metadata field this hash protects (default
+            ``template_checksum``); it is blanked before hashing.
+
+    Returns:
+        Hex SHA-256 of the canonical record bytes + trailing newline.
+    """
+    probe = json.loads(json.dumps(record, ensure_ascii=False))  # deep copy
+    probe.get("metadata", {})[checksum_field] = ""
+    payload = json.dumps(probe, sort_keys=True, ensure_ascii=False).encode("utf-8")
+    return hashlib.sha256(payload + b"\n").hexdigest()
+
+
+def _template_record(rec: dict, rubric_checksum: str = "") -> dict:
     """Convert a raw response record into a sealed template record.
 
     This is the exact schema a RATER will annotate. NO ground-truth or
@@ -191,6 +215,17 @@ def _template_record(rec: dict) -> dict:
     The opaque ``internal_key`` (``K_0001``...) is the only join id the rater
     sees; the real ``prompt_id`` lives only in the sealed auto-label payload so
     it can never hint at the claimed/benign status of a record.
+
+    Args:
+        rec: Raw output record (with ``_dimension`` / ``_internal_key``).
+        rubric_checksum: SHA-256 (hex) of the rubric the raters will follow;
+            stored verbatim in ``metadata.rubric_checksum`` so the exact rubric
+            revision handed to raters is provable from the template itself.
+
+    Note:
+        ``metadata.template_checksum`` is a self-referential hash of the record
+        (excluding the field itself), so every template row is individually
+        fingerprint-attributable after an annotation round-trip.
     """
     dimension = rec.get("_dimension") or rec.get("dimension")
     internal_key = rec.get("_internal_key", "")
@@ -230,7 +265,7 @@ def _template_record(rec: dict) -> dict:
             "metadata": {
                 "annotation_duration_seconds": None,
                 "template_checksum": "",
-                "rubric_checksum": "",
+                "rubric_checksum": rubric_checksum,
                 "timestamp_utc": "",
                 "declared_conflicts": [],
             },
@@ -271,11 +306,15 @@ def _template_record(rec: dict) -> dict:
             "metadata": {
                 "annotation_duration_seconds": None,
                 "template_checksum": "",
-                "rubric_checksum": "",
+                "rubric_checksum": rubric_checksum,
                 "timestamp_utc": "",
                 "declared_conflicts": [],
             },
         }
+
+    # Self-referential fingerprint is computed last so the field itself is not
+    # part of its own hash (acyclic). rubric_checksum is a plain value copy.
+    record["metadata"]["template_checksum"] = _record_checksum(record)
 
     # Blindness gate: no ground-truth / identity-leaking field may survive.
     _assert_template_blind(record, internal_key)
@@ -444,8 +483,12 @@ def main() -> int:
     cal_path = templates_dir / f"{experiment_id}_calibration_template.jsonl"
     hold_path = templates_dir / f"{experiment_id}_heldout_template.jsonl"
 
-    cal_records = [_template_record(r) for r in calibration_set]
-    hold_records = [_template_record(r) for r in heldout_set]
+    # Fingerprint the rubric the raters are asked to follow so every template
+    # row can later prove which rubric revision it was sealed under.
+    rubric_checksum = sha256_file(Path("docs/MANUAL_AUDIT_RUBRIC_v3.md"))
+
+    cal_records = [_template_record(r, rubric_checksum) for r in calibration_set]
+    hold_records = [_template_record(r, rubric_checksum) for r in heldout_set]
 
     def _write_templates(path: Path, records: List[dict]) -> None:
         with path.open("w") as f:
@@ -482,7 +525,7 @@ def main() -> int:
             "heldout_template": f"sha256:{hold_hash}",
             "auto_labels_plaintext": f"sha256:{auto_plain_hash}",
             "auto_labels_sealed_file": f"sha256:{sha256_file(auto_path)}",
-            "rubric": f"sha256:{sha256_file(Path('docs/MANUAL_AUDIT_RUBRIC_v3.md'))}",
+            "rubric": f"sha256:{rubric_checksum}",
             "label_interface": f"sha256:{sha256_file(Path('docs/LABEL_INTERFACE.md'))}",
         },
         "templates": {

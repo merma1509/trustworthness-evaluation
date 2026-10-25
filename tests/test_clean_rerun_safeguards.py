@@ -120,6 +120,43 @@ def test_assert_template_blind_rejects_injected_leaks():
         _assert_template_blind(leaky2, "K_0042")
 
 
+def test_template_checksums_are_filled():
+    """Every sealed template must carry a rubric + self-referential checksum.
+
+    Guards ("Rubric checksums were empty"): a freshly sealed template
+    must embed both the rubric revision the rater will follow and a per-record
+    fingerprint so the rubric handed out — and the exact template a rater
+    annotated — are provable from the record itself.
+    """
+    from scripts.seal_experiment import _record_checksum
+
+    t = _template_record(_raw_rec(), rubric_checksum="abc123def456")
+
+    md = t["metadata"]
+    assert md["rubric_checksum"] == "abc123def456", "rubric checksum must propagate"
+    tc = md["template_checksum"]
+    assert len(tc) == 64, "template_checksum must be a full sha256 hex digest"
+    # Self-referential: blanking the field then re-hashing reproduces the value,
+    # so the fingerprint is acyclic and stable against the field itself.
+    assert _record_checksum(t) == tc
+
+
+def test_template_checksums_nonempty_when_rubric_file_hashed():
+    """The default rubric-checksum path (from the real rubric file) is non-empty."""
+    from pathlib import Path
+
+    from src.sealing import sha256_file
+
+    rubric_path = Path("docs/MANUAL_AUDIT_RUBRIC_v3.md")
+    if not rubric_path.exists():
+        pytest.skip("rubric file not present in this checkout")
+    rubric_checksum = sha256_file(rubric_path)
+
+    t = _template_record(_raw_rec(), rubric_checksum=rubric_checksum)
+    assert t["metadata"]["rubric_checksum"] == rubric_checksum
+    assert t["metadata"]["template_checksum"] != ""
+
+
 # ── No silent dropping ────────────────────────────────────────────────────
 def _ann(internal_key, dim, label, uncertain=False, response_invalid=False):
     """One rater annotation record in the sealed-template schema."""
