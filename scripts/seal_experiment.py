@@ -48,7 +48,7 @@ from typing import Dict, List
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.audit_log import log_action
-from src.classifiers import TruthfulnessScorer
+from src.classifiers import SCORER_VERSION, TruthfulnessScorer
 from src.experiment import generate_experiment_id
 from src.labels import RUBRIC_VERSION, TEMPLATE_VERSION
 from src.sealing import (
@@ -516,6 +516,7 @@ def main() -> int:
         "created_at_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "seed": args.seed,
         "seed_hash": seed_hash,
+        "scorer_version": SCORER_VERSION,
         "calibration_ratio": CALIBRATION_RATIO,
         "pool_size": len(pool),
         "calibration_size": len(calibration_set),

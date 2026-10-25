@@ -1,11 +1,12 @@
 {
   "pipeline": "clean-redo reproducibility",
   "generator": "scripts/generate_final_manifest.py",
+  "scorer_version": "truthfulness-v3-rtti-1",
   "n_artifacts": 8,
   "checksums": {
-    "experiment/sealed/manifests/sealing_manifest.json": "sha256:87f549473156b088",
-    "experiment/gold/gold_labels.jsonl": "sha256:d8a4ef725dbca020",
-    "experiment/reports/agreement_report.json": "sha256:e0fa5a4da1b658b4",
+    "experiment/sealed/manifests/sealing_manifest.json": "sha256:8a345b57caaf1b33",
+    "experiment/gold/gold_labels.jsonl": "sha256:80e62162a20f3f2a",
+    "experiment/reports/agreement_report.json": "sha256:839e361fce5b0f1a",
     "results/scores_report.json": "sha256:ceafc7ddebdf6562",
     "results/ci_report.json": "sha256:a9f2bba04e5380ce",
     "results/trustscore_report.json": "sha256:e7ee5c1218b0e271",

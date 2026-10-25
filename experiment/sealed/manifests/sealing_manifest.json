@@ -3,6 +3,7 @@
   "created_at_utc": "2026-10-16T04:29:36.072304Z",
   "seed": "42",
   "seed_hash": "617cd999dd42cc3df62cde34aba3c33dd1adbd7d31ec84a7ddf45609e2045f52",
+  "scorer_version": "truthfulness-v3-rtti-1",
   "calibration_ratio": 0.7,
   "pool_size": 210,
   "calibration_size": 147,

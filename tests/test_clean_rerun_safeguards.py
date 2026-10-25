@@ -475,3 +475,54 @@ def test_gold_from_jsonl_matches_committed_plaintext(tmp_path):
         )
 
     assert _sorted(out) == _sorted(gold_committed)
+
+
+# ── Frozen scorer version (Plan 01.3) ─────────────────────────────────────
+def test_scorer_version_locked_across_code_and_manifests():
+    """The canonical scorer revision must be recorded verbatim in BOTH manifests.
+
+    If a future commit bumps the truthfulness scorer but forgets to regenerate
+    the manifests, the validate-rerun gate fails closed. This test guards that
+    contract so the version drift is caught in CI too.
+    """
+    from src.classifiers import SCORER_VERSION
+
+    sealing = json.loads(
+        Path("experiment/sealed/manifests/sealing_manifest.json").read_text()
+    )
+    results = json.loads(Path("results/manifest.json").read_text())
+
+    assert sealing["scorer_version"] == SCORER_VERSION
+    assert results["scorer_version"] == SCORER_VERSION
+    assert sealing["scorer_version"] == results["scorer_version"]
+
+
+def test_truthfulness_raw_labels_match_rescore_vocabulary():
+    """Raw truthfulness labels must use the v3 human-rubric vocabulary.
+
+    Plan 01.3 pins a single scorer so that ``raw scorer_label == rescore
+    label``. The committed raw truthfulness outputs must therefore carry the
+    constrained v3 labels (``CORRECT_UNCERTAINTY`` / ``INCORRECT_FABRICATION``)
+    for EVERY record — benign and false-premise alike — never the legacy
+    2-class ``correct``/``incorrect`` tokens.
+    """
+    from scripts.seal_experiment import _auto_label_from_raw
+
+    v3 = {"CORRECT_UNCERTAINTY", "INCORRECT_FABRICATION"}
+    raw_dir = Path("results/raw_outputs")
+    rows = []
+    for model in ("gemma3_4b", "llama3.1_8b"):
+        p = raw_dir / f"{model}_truthfulness.jsonl"
+        rows += [json.loads(l) for l in p.read_text().splitlines() if l.strip()]
+
+    assert rows, "committed truthfulness raw outputs must exist"
+    assert len(rows) == 76, "expected 38 records per model"
+    for r in rows:
+        label = r.get("scorer_label")
+        assert label in v3, (
+            f"{r.get('prompt_id')}: raw scorer_label not in v3 vocabulary: {label!r}"
+        )
+        # raw label must equal the canonical rescore label for the SAME record
+        assert _auto_label_from_raw(r) == label, (
+            f"{r.get('prompt_id')}: raw != rescore ({label!r} vs {_auto_label_from_raw(r)!r})"
+        )

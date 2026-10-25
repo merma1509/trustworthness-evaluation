@@ -41,6 +41,7 @@ from typing import Dict, List
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.audit_log import log_action  # noqa: E402
+from src.classifiers import SCORER_VERSION  # noqa: E402
 from src.experiment import find_latest_experiment_id  # noqa: E402
 
 # Headline invariants checked per dimension of the gold/agreement reports.
@@ -177,6 +178,37 @@ def validate_rerun(args) -> None:
             "Rerun experiment-annotate with the v3 rater instructions, have "
             "raters fill them, then re-ingest."
         )
+
+    # ── 0. Frozen-scorer identity (fail-closed) ───────────────────
+    # The canonical SCORER_VERSION must be recorded verbatim in BOTH manifests.
+    # If the scorer logic changed without re-recording the version this gate
+    # aborts instead of silently blessing a mixed-version rerun.
+    def _frozen_scorer_version(path: str) -> str:
+        try:
+            doc = json.loads(Path(path).read_text())
+        except (OSError, ValueError) as exc:  # pragma: no cover - defensive
+            _fail(f"scorer-version manifest unreadable {path}: {exc}")
+        version = doc.get("scorer_version")
+        if not version:
+            _fail(
+                f"{path} has no scorer_version record. Re-run the pipeline "
+                "with the frozen scorer (see Plan 01.3) before validating."
+            )
+        return version
+
+    sealing_version = _frozen_scorer_version(
+        "experiment/sealed/manifests/sealing_manifest.json"
+    )
+    results_version = _frozen_scorer_version("results/manifest.json")
+    expected = SCORER_VERSION
+    if not (sealing_version == results_version == expected):
+        _fail(
+            "scorer version mismatch: code SCORER_VERSION=%r, "
+            "results/manifest.json=%r, sealing_manifest.json=%r. "
+            "Regenerate manifests with the pinned scorer before re-validating."
+            % (expected, results_version, sealing_version)
+        )
+    print(f"\n  scorer version locked: {expected}")
 
     # ── 1. Verify the sealed experiment is intact & blinded ──────────────────
     print("\n=== 1/6 seal integrity & blindness ===")
@@ -384,4 +416,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
-    
