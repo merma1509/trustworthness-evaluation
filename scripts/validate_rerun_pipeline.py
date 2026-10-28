@@ -85,8 +85,18 @@ def _check_coverage(resolve_report: Dict) -> None:
         )
 
 
-def _check_agreement(agreement_path: Path) -> None:
-    """Validate κ/agreement-rate/CI bounds from the held-out agreement report."""
+def _check_agreement(
+    agreement_path: Path,
+    require_resolution_coverage: bool = False,
+) -> None:
+    """Validate κ/agreement-rate/CI bounds from the held-out agreement report.
+
+    When ``require_resolution_coverage`` is True (the real validation flow
+    passes ``--resolutions`` so it should hold), the report must expose the
+    transparency block and it must be internally consistent:
+    ``scored + unresolvable == recorded``. Without it, agreement computed over
+    ``n_scored`` could silently overstate adjudication coverage — fail closed.
+    """
     if not agreement_path.exists():
         _fail(f"agreement report not found: {agreement_path}")
     report = json.loads(agreement_path.read_text())
@@ -117,6 +127,22 @@ def _check_agreement(agreement_path: Path) -> None:
         a = stats.get("agreement_rate")
         if a is not None and not (0 <= a <= 1):
             _fail(f"inter_rater/{dim} agreement_rate out of bounds: {a}")
+
+    # Resolution coverage must be self-consistent: every
+    # recorded held-out record is either scored or explicitly unresolved, and
+    # the report must say how many were dropped so agreement (computed over
+    # n_scored) can never silently overstate adjudication coverage.
+    if require_resolution_coverage:
+        rc = report.get("resolution_coverage") or {}
+        n_rec = rc.get("n_recorded")
+        n_sc = rc.get("n_scored")
+        n_unres = rc.get("n_unresolvable")
+        if None in (n_rec, n_sc, n_unres):
+            _fail("resolution_coverage missing n_recorded/n_scored/n_unresolvable "
+                  "(transparency block)")
+        if n_sc + n_unres != n_rec:
+            _fail(f"resolution_coverage inconsistent: scored({n_sc}) + "
+                  f"unresolvable({n_unres}) != recorded({n_rec})")
 
 
 def _check_gold_join(gold_path: Path) -> None:
@@ -360,13 +386,14 @@ def validate_rerun(args) -> None:
             "--rater-a", str(rater_files[0]),
             "--rater-b", str(rater_files[1]),
             "--out", str(agreement_out),
+            "--resolutions", str(resolve_out),
             "--with-ci",
         ],
         root,
     )
     if rc != 0:
         _fail("agreement report generation failed")
-    _check_agreement(agreement_out)
+    _check_agreement(agreement_out, require_resolution_coverage=True)
 
     # ── 4. Regenerate every reported NUMBER from immutable raw outputs ───────
     print("\n=== 4/6 reproduce dimension scores + TrustScore ===")

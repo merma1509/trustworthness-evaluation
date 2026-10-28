@@ -316,6 +316,61 @@ def test_validation_gate_agreement_fails_closed(tmp_path):
         _check_agreement(p)
 
 
+def test_validation_gate_resolution_coverage_ok(tmp_path):
+    """A consistent resolution_coverage block passes the gate."""
+    p = tmp_path / "agreement.json"
+    p.write_text(json.dumps({
+        "gold_vs_auto": {
+            "overall": {"n": 51, "cohens_kappa": 0.6, "agreement_rate": 0.8},
+            "per_dimension": {},
+        },
+        "inter_rater_A_vs_B": {},
+        "resolution_coverage": {
+            "n_recorded": 63,
+            "n_scored": 51,
+            "n_unresolvable": 12,
+            "n_excluded_response_invalid": 0,
+            "outcome_counts": {"A=B_agreement": 51, "unresolvable": 12},
+            "unresolved_keys": [["safety", "K_0001"]],
+        },
+    }))
+    _check_agreement(p, require_resolution_coverage=True)
+
+
+def test_validation_gate_resolution_coverage_fails_closed(tmp_path):
+    """Unreported unresolved records (scored+unresolved != recorded) must abort."""
+    p = tmp_path / "agreement.json"
+    p.write_text(json.dumps({
+        "gold_vs_auto": {
+            "overall": {"n": 51, "cohens_kappa": 0.6, "agreement_rate": 0.8},
+            "per_dimension": {},
+        },
+        "inter_rater_A_vs_B": {},
+        "resolution_coverage": {
+            "n_recorded": 63,
+            "n_scored": 51,
+            "n_unresolvable": 5,
+            "n_excluded_response_invalid": 0,
+        },
+    }))
+    with pytest.raises(SystemExit):
+        _check_agreement(p, require_resolution_coverage=True)
+
+
+def test_validation_gate_resolution_coverage_missing_fails_closed(tmp_path):
+    """Missing transparency block fails closed when coverage is required."""
+    p = tmp_path / "agreement.json"
+    p.write_text(json.dumps({
+        "gold_vs_auto": {
+            "overall": {"n": 51, "cohens_kappa": 0.6, "agreement_rate": 0.8},
+            "per_dimension": {},
+        },
+        "inter_rater_A_vs_B": {},
+    }))
+    with pytest.raises(SystemExit):
+        _check_agreement(p, require_resolution_coverage=True)
+
+
 def test_validation_gate_gold_join_ok(tmp_path):
     """Gold records all carrying an auto label pass the join-completeness gate."""
     p = tmp_path / "gold.jsonl"
@@ -421,16 +476,16 @@ def test_gold_can_be_built_from_jsonl_plaintext_auto_labels(tmp_path):
     lines = [json.loads(l) for l in gold.read_text(encoding="utf-8").splitlines()]
     assert len(lines) == 2
     by_key = {g["internal_key"]: g for g in lines}
-    # auto labels were joined through (represents the gold-vs-auto comparison).
+    # auto labels were joined through (represents the gold-vs-auto comparison)
     assert by_key["K_0001"]["auto_label"] == "COMPLY"
     assert by_key["K_0002"]["auto_label"] == "REFUSE"
     assert by_key["K_0001"]["model_id"] == "gemma3:4b"
-    # gold human label from the resolution report is preserved.
+    # gold human label from the resolution report is preserved
     assert by_key["K_0001"]["gold_human_label"] == "REFUSE"
 
 
 def test_gold_from_jsonl_matches_committed_plaintext(tmp_path):
-    """Rebuilding gold on a clone yields the same content as the committed gold.
+    """Rebuilding gold on a clone yields the same content as the committed gold
 
     Uses the REAL committed plaintext auto_labels.jsonl and the REAL held-out
     resolution report, and asserts the rebuilt gold matches the committed
