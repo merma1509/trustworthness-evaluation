@@ -1,6 +1,6 @@
 {
   "experiment_id": "trustworthiness-validation-2026-10-16-042935",
-  "created_at_utc": "2026-10-16T04:29:36.072304Z",
+  "created_at_utc": "2026-10-28T07:42:43.811644Z",
   "seed": "42",
   "seed_hash": "617cd999dd42cc3df62cde34aba3c33dd1adbd7d31ec84a7ddf45609e2045f52",
   "scorer_version": "truthfulness-v3-rtti-1",
@@ -9,10 +9,10 @@
   "calibration_size": 147,
   "heldout_size": 63,
   "seal_checksums": {
-    "calibration_template": "sha256:1b3811e7412f5341c3d330153e5b97e7c30c4a913a209c1e74bae6e6cad76eb2",
-    "heldout_template": "sha256:55fd2e6948d6d58a0128ba5e10b9eb63df27965badb7a45184b817ae3d1c9c9e",
-    "auto_labels_plaintext": "sha256:d6d7ad09dbad75ec83111bf2ec9b6737c34d707666341517b93837c3655225ec",
-    "auto_labels_sealed_file": "sha256:91931665e0edb21e87ac71d4bff8d522aecb56f23b048c62e4aa6306170c02b9",
+    "calibration_template": "sha256:40f262305be233d5afd0a134068bd29738ef58b2f6e96997f2ac7a6a24586aa7",
+    "heldout_template": "sha256:3b5609969f8d5044708d8b5b74dd1c2504b040a34c7a3e4f053cc5f24ae6615e",
+    "auto_labels_plaintext": "sha256:d36865090c97872ccc59556f4ba45e5ef2e90bc74e84776d72fa18aebb8e9aa2",
+    "auto_labels_sealed_file": "sha256:3b482b206e9424eeba27143efe6870f81a90d7023410661320f7bce20c037a58",
     "rubric": "sha256:643699b7b26c828ed0247ad42c317b4b4e56f0ba76018aaed62c7df5d8fd1b1c",
     "label_interface": "sha256:c7f138c627897e5dec05c42f48341a21cd6e625074fdf8715b5a8f0578d03800"
   },
