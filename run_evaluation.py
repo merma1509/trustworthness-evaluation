@@ -565,6 +565,10 @@ def main():
                 f"{model.replace(':', '_')}_consistency.jsonl"
             ),
             similarity_threshold=similarity_threshold,
+            # the shared prompt pool is evaluated per model, so each
+            # model's run must tag its own consistency records with the model id
+            # (keeps gemma's and llama's groups from merging downstream).
+            model_id=model,
         )
         cost_tracker.stop("consistency", n_prompts=n_prompts["consistency"],
                           extra={"model": model})
