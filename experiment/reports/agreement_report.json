@@ -4,57 +4,68 @@
     "overall": {
       "n": 51,
       "n_valid_pairs": 51,
-      "agreement_rate": 0.9216,
-      "cohens_kappa": 0.8796,
-      "weighted_kappa": 0.7916,
-      "p_observed": 0.9216,
-      "p_expected": 0.3483,
+      "agreement_rate": 0.8235,
+      "cohens_kappa": 0.7516,
+      "weighted_kappa": 0.5259,
+      "p_observed": 0.8235,
+      "p_expected": 0.2895,
       "categories": [
         "COMPLY",
         "CONSISTENT",
         "CORRECT_UNCERTAINTY",
+        "INCONSISTENT",
         "INCORRECT_FABRICATION",
         "REFUSE"
       ],
       "confusion_matrix": {
         "COMPLY": {
-          "REFUSE": 1,
-          "COMPLY": 7
+          "REFUSE": 2,
+          "COMPLY": 5
         },
         "CONSISTENT": {
-          "CONSISTENT": 14
+          "CONSISTENT": 15
         },
         "CORRECT_UNCERTAINTY": {
-          "CORRECT_UNCERTAINTY": 24
+          "CORRECT_UNCERTAINTY": 19
+        },
+        "INCONSISTENT": {
+          "CONSISTENT": 4
         },
         "INCORRECT_FABRICATION": {
           "CORRECT_UNCERTAINTY": 3
         },
         "REFUSE": {
-          "REFUSE": 2
+          "REFUSE": 3
         }
       },
       "per_label_agreement": {
         "COMPLY": {
-          "precision": 0.875,
+          "precision": 0.7143,
           "recall": 1.0,
-          "f1": 0.9333,
-          "auto_count": 8,
-          "human_count": 7
+          "f1": 0.8333,
+          "auto_count": 7,
+          "human_count": 5
         },
         "CONSISTENT": {
           "precision": 1.0,
-          "recall": 1.0,
-          "f1": 1.0,
-          "auto_count": 14,
-          "human_count": 14
+          "recall": 0.7895,
+          "f1": 0.8824,
+          "auto_count": 15,
+          "human_count": 19
         },
         "CORRECT_UNCERTAINTY": {
           "precision": 1.0,
-          "recall": 0.8889,
-          "f1": 0.9412,
-          "auto_count": 24,
-          "human_count": 27
+          "recall": 0.8636,
+          "f1": 0.9268,
+          "auto_count": 19,
+          "human_count": 22
+        },
+        "INCONSISTENT": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "auto_count": 4,
+          "human_count": 0
         },
         "INCORRECT_FABRICATION": {
           "precision": 0.0,
@@ -65,16 +76,16 @@
         },
         "REFUSE": {
           "precision": 1.0,
-          "recall": 0.6667,
-          "f1": 0.8,
-          "auto_count": 2,
-          "human_count": 3
+          "recall": 0.6,
+          "f1": 0.75,
+          "auto_count": 3,
+          "human_count": 5
         }
       },
       "kappa_ci": {
-        "kappa": 0.8796,
-        "ci_lower": 0.7498,
-        "ci_upper": 0.9701,
+        "kappa": 0.7516,
+        "ci_lower": 0.6196,
+        "ci_upper": 0.8837,
         "n": 51,
         "n_bootstrap": 1000,
         "weighted": false,
@@ -88,30 +99,42 @@
     },
     "per_dimension": {
       "consistency": {
-        "n": 14,
-        "n_valid_pairs": 14,
-        "agreement_rate": 1.0,
-        "cohens_kappa": 1.0,
-        "weighted_kappa": 1.0,
-        "p_observed": 1.0,
-        "p_expected": 0.0,
+        "n": 19,
+        "n_valid_pairs": 19,
+        "agreement_rate": 0.7895,
+        "cohens_kappa": 0.0,
+        "weighted_kappa": 0.0,
+        "p_observed": 0.7895,
+        "p_expected": 0.7895,
         "categories": [
-          "CONSISTENT"
+          "CONSISTENT",
+          "INCONSISTENT"
         ],
         "confusion_matrix": {
           "CONSISTENT": {
-            "CONSISTENT": 14
+            "CONSISTENT": 15
+          },
+          "INCONSISTENT": {
+            "CONSISTENT": 4
           }
         },
         "per_label_agreement": {
           "CONSISTENT": {
             "precision": 1.0,
-            "recall": 1.0,
-            "f1": 1.0,
-            "auto_count": 14,
-            "human_count": 14
+            "recall": 0.7895,
+            "f1": 0.8824,
+            "auto_count": 15,
+            "human_count": 19
+          },
+          "INCONSISTENT": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "auto_count": 4,
+            "human_count": 0
           }
         },
+        "single_class_caveat": "All held-out consistency records were judged CONSISTENT, so Cohen's Kappa is exactly 1.0 by construction (a single observed category makes κ tautological). Report consistency as raw group-agreement with CIs — see 'consistency_group_agreement' — and treat this κ as a sample-configuration artifact, not as evidence of trustworthy consistency.",
         "confusion_axes": {
           "rows": "auto",
           "cols": "gold_human"
@@ -120,38 +143,38 @@
       "safety": {
         "n": 10,
         "n_valid_pairs": 10,
-        "agreement_rate": 0.9,
-        "cohens_kappa": 0.7368,
-        "weighted_kappa": 0.7368,
-        "p_observed": 0.9,
-        "p_expected": 0.62,
+        "agreement_rate": 0.8,
+        "cohens_kappa": 0.6,
+        "weighted_kappa": 0.6,
+        "p_observed": 0.8,
+        "p_expected": 0.5,
         "categories": [
           "COMPLY",
           "REFUSE"
         ],
         "confusion_matrix": {
           "COMPLY": {
-            "REFUSE": 1,
-            "COMPLY": 7
+            "REFUSE": 2,
+            "COMPLY": 5
           },
           "REFUSE": {
-            "REFUSE": 2
+            "REFUSE": 3
           }
         },
         "per_label_agreement": {
           "COMPLY": {
-            "precision": 0.875,
+            "precision": 0.7143,
             "recall": 1.0,
-            "f1": 0.9333,
-            "auto_count": 8,
-            "human_count": 7
+            "f1": 0.8333,
+            "auto_count": 7,
+            "human_count": 5
           },
           "REFUSE": {
             "precision": 1.0,
-            "recall": 0.6667,
-            "f1": 0.8,
-            "auto_count": 2,
-            "human_count": 3
+            "recall": 0.6,
+            "f1": 0.75,
+            "auto_count": 3,
+            "human_count": 5
           }
         },
         "confusion_axes": {
@@ -160,20 +183,20 @@
         }
       },
       "truthfulness": {
-        "n": 27,
-        "n_valid_pairs": 27,
-        "agreement_rate": 0.8889,
+        "n": 22,
+        "n_valid_pairs": 22,
+        "agreement_rate": 0.8636,
         "cohens_kappa": 0.0,
         "weighted_kappa": 0.0,
-        "p_observed": 0.8889,
-        "p_expected": 0.8889,
+        "p_observed": 0.8636,
+        "p_expected": 0.8636,
         "categories": [
           "CORRECT_UNCERTAINTY",
           "INCORRECT_FABRICATION"
         ],
         "confusion_matrix": {
           "CORRECT_UNCERTAINTY": {
-            "CORRECT_UNCERTAINTY": 24
+            "CORRECT_UNCERTAINTY": 19
           },
           "INCORRECT_FABRICATION": {
             "CORRECT_UNCERTAINTY": 3
@@ -182,10 +205,10 @@
         "per_label_agreement": {
           "CORRECT_UNCERTAINTY": {
             "precision": 1.0,
-            "recall": 0.8889,
-            "f1": 0.9412,
-            "auto_count": 24,
-            "human_count": 27
+            "recall": 0.8636,
+            "f1": 0.9268,
+            "auto_count": 19,
+            "human_count": 22
           },
           "INCORRECT_FABRICATION": {
             "precision": 0.0,
@@ -206,30 +229,50 @@
       "cols": "gold_human"
     }
   },
+  "consistency_group_agreement": {
+    "units": "model-scoped cluster (group_id, model_id)",
+    "n_groups": 0,
+    "n_consistent_groups": 0,
+    "agreement_rate": 0.0,
+    "agreement_ci": null,
+    "per_group": [],
+    "single_class_caveat": "All covered gold consistency groups were judged CONSISTENT, so Cohen's Kappa is exactly 1.0 by construction (a single observed category makes κ tautological). The group-agreement rate above is the meaningful, non-degenerate statistic; treat the κ=1.0 from the per-dimension block as a sample-configuration artifact, not as evidence of trustworthy consistency. Real INCONSISTENT probes are needed for a defensible 2-class measure."
+  },
   "inter_rater_A_vs_B": {
     "consistency": {
-      "n": 18,
-      "n_valid_pairs": 18,
-      "agreement_rate": 1.0,
-      "cohens_kappa": 1.0,
-      "weighted_kappa": 1.0,
-      "p_observed": 1.0,
-      "p_expected": 0.0,
+      "n": 22,
+      "n_valid_pairs": 22,
+      "agreement_rate": 0.9545,
+      "cohens_kappa": 0.0,
+      "weighted_kappa": 0.0,
+      "p_observed": 0.9545,
+      "p_expected": 0.9545,
       "categories": [
-        "CONSISTENT"
+        "CONSISTENT",
+        "INCONSISTENT"
       ],
       "confusion_matrix": {
         "CONSISTENT": {
-          "CONSISTENT": 18
+          "CONSISTENT": 21
+        },
+        "INCONSISTENT": {
+          "CONSISTENT": 1
         }
       },
       "per_label_agreement": {
         "CONSISTENT": {
           "precision": 1.0,
-          "recall": 1.0,
-          "f1": 1.0,
-          "auto_count": 18,
-          "human_count": 18
+          "recall": 0.9545,
+          "f1": 0.9767,
+          "auto_count": 21,
+          "human_count": 22
+        },
+        "INCONSISTENT": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "auto_count": 1,
+          "human_count": 0
         }
       },
       "confusion_axes": {
@@ -238,40 +281,40 @@
       }
     },
     "safety": {
-      "n": 17,
-      "n_valid_pairs": 17,
-      "agreement_rate": 0.9412,
-      "cohens_kappa": 0.8496,
-      "weighted_kappa": 0.8496,
-      "p_observed": 0.9412,
-      "p_expected": 0.609,
+      "n": 16,
+      "n_valid_pairs": 16,
+      "agreement_rate": 0.9375,
+      "cohens_kappa": 0.871,
+      "weighted_kappa": 0.871,
+      "p_observed": 0.9375,
+      "p_expected": 0.5156,
       "categories": [
         "COMPLY",
         "REFUSE"
       ],
       "confusion_matrix": {
         "COMPLY": {
-          "COMPLY": 12,
+          "COMPLY": 9,
           "REFUSE": 1
         },
         "REFUSE": {
-          "REFUSE": 4
+          "REFUSE": 6
         }
       },
       "per_label_agreement": {
         "COMPLY": {
-          "precision": 0.9231,
+          "precision": 0.9,
           "recall": 1.0,
-          "f1": 0.96,
-          "auto_count": 13,
-          "human_count": 12
+          "f1": 0.9474,
+          "auto_count": 10,
+          "human_count": 9
         },
         "REFUSE": {
           "precision": 1.0,
-          "recall": 0.8,
-          "f1": 0.8889,
-          "auto_count": 4,
-          "human_count": 5
+          "recall": 0.8571,
+          "f1": 0.9231,
+          "auto_count": 6,
+          "human_count": 7
         }
       },
       "confusion_axes": {
@@ -280,20 +323,20 @@
       }
     },
     "truthfulness": {
-      "n": 28,
-      "n_valid_pairs": 28,
-      "agreement_rate": 0.9643,
+      "n": 23,
+      "n_valid_pairs": 23,
+      "agreement_rate": 0.9565,
       "cohens_kappa": 0.0,
       "weighted_kappa": 0.0,
-      "p_observed": 0.9643,
-      "p_expected": 0.9643,
+      "p_observed": 0.9565,
+      "p_expected": 0.9565,
       "categories": [
         "CORRECT_UNCERTAINTY",
         "INCORRECT_FABRICATION"
       ],
       "confusion_matrix": {
         "CORRECT_UNCERTAINTY": {
-          "CORRECT_UNCERTAINTY": 27
+          "CORRECT_UNCERTAINTY": 22
         },
         "INCORRECT_FABRICATION": {
           "CORRECT_UNCERTAINTY": 1
@@ -302,10 +345,10 @@
       "per_label_agreement": {
         "CORRECT_UNCERTAINTY": {
           "precision": 1.0,
-          "recall": 0.9643,
-          "f1": 0.9818,
-          "auto_count": 27,
-          "human_count": 28
+          "recall": 0.9565,
+          "f1": 0.9778,
+          "auto_count": 22,
+          "human_count": 23
         },
         "INCORRECT_FABRICATION": {
           "precision": 0.0,
@@ -321,5 +364,5 @@
       }
     }
   },
-  "note": "Labels use the constrained vocabulary (REFUSE/COMPLY, ...). gold_vs_auto compares the adjudicated human label to the sealed auto-scorer label; inter_rater compares RATER_A to RATER_B."
+  "note": "Labels use the constrained vocabulary (REFUSE/COMPLY, ...). gold_vs_auto compares the adjudicated human label to the sealed auto-scorer label; inter_rater compares RATER_A to RATER_B. consistency_group_agreement reports raw group-level agreement for consistency (single-class κ is degenerate)."
 }
