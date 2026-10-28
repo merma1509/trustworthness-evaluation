@@ -449,28 +449,64 @@ def main() -> int:
         return 1
     print(f"  Response pool records: {len(pool)}")
 
-    # ── Link consistency group members ───────────────────────────────────────
-    # A consistency audit template needs the full group's pairs. Raw outputs hold
-    # one record per prompt-variant; group them by group_id for the template
+    # ── Link consistency group members (model-scoped, Plan 02.1) ────────────
+    # The consistency dataset is a SHARED prompt pool evaluated by both models,
+    # so a template group must be scoped by model: ``{model}/{group_id}``.
+    # Without the scope, gemma's ``group_1`` and llama's ``group_1`` responses
+    # would be merged into ONE rater display — entangling the two models in a
+    # single template and making the per-model verdict (and the blind split)
+    # meaningless.
     groups: Dict[str, List[dict]] = defaultdict(list)
     for rec in pool:
         gid = rec.get("group_id")
         if rec.get("_dimension") == "consistency" and gid:
-            groups[gid].append(rec)
+            groups[f'{rec.get("_model_id", "")}/{gid}'].append(rec)
     for rec in pool:
         if rec.get("_dimension") == "consistency":
-            rec["_group_members"] = groups.get(rec.get("group_id"), [rec])
+            rec["_group_members"] = groups.get(
+                f'{rec.get("_model_id", "")}/{rec.get("group_id", "")}', [rec]
+            )
 
-    # ── Step 3: deterministic shuffle + calibration/held-out split ───────────
+    # ── Step 3: deterministic shuffle + group-aware calibration/held-out split ─
+    # The split is executed on *units* so that no consistency group is ever torn
+    # across the two splits (Plan 02.2).  Safety/truthfulness records are their
+    # own 1-record unit; a model-scoped consistency group is ONE unit holding all
+    # its member records (they share a single rater display).  The 70/30 ratio is
+    # still honoured at the *record* level (``n_cal`` counts records); only the
+    # unit *boundaries* change, so a group lands entirely in calibration or
+    # entirely in held-out — never both.
     seed_hash = hashlib.sha256(f"{experiment_id}:{args.seed}".encode()).hexdigest()
     rng = random.Random(seed_hash)
-    order = list(range(len(pool)))
-    rng.shuffle(order)
-    shuffled = [pool[i] for i in order]
 
-    n_cal = round(len(shuffled) * CALIBRATION_RATIO)
-    calibration_set = shuffled[:n_cal]
-    heldout_set = shuffled[n_cal:]
+    def _split_units() -> List[List[dict]]:
+        """Bucket the pool into indivisible split units (Plan 02.2)."""
+        units: List[List[dict]] = []
+        consumed = set()
+        for rec in pool:
+            if rec.get("_dimension") != "consistency":
+                units.append([rec])
+                continue
+            gkey = f'{rec.get("_model_id", "")}/{rec.get("group_id", "")}'
+            if gkey in consumed:
+                continue  # already yielded with its group
+            consumed.add(gkey)
+            units.append(rec.get("_group_members", [rec]))
+        return units
+
+    units = _split_units()
+    rng.shuffle(units)
+    ordered_records: List[dict] = [rec for unit in units for rec in unit]
+
+    n_cal = round(len(ordered_records) * CALIBRATION_RATIO)
+    calibration_set: List[dict] = []
+    heldout_set: List[dict] = []
+    cal_seen = 0
+    for unit in units:
+        if cal_seen < n_cal:
+            calibration_set.extend(unit)
+            cal_seen += len(unit)
+        else:
+            heldout_set.extend(unit)
 
     # ── Step 4: sealed templates (no auto labels) ─────────────────────────────
     templates_dir = base_dir / "templates"
