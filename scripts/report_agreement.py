@@ -34,10 +34,26 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.agreement import compute_agreement, kappa_bootstrap_ci  # noqa: E402
 from src.audit_log import log_action  # noqa: E402
+from src.stats import compute_confidence_intervals  # noqa: E402
 
 
 def _load_gold(path: Path) -> List[dict]:
     return [json.loads(line) for line in path.open() if line.strip()]
+
+
+def _load_auto_labels(gold_path: Path) -> List[dict]:
+    """Load the sealed auto labels co-located with the gold file.
+
+    The gold labels live at ``experiment/gold/gold_labels.jsonl`` while the
+    sealed auto labels live at ``experiment/sealed/labels/auto_labels.jsonl``.
+    We derive the path relative to the gold file so group-agreement
+    block can map each gold K-record back to its (group_id, model_id) — the
+    raw consistency outputs don't carry the K-keys, only the sealed labels do.
+    """
+    sealed = gold_path.parent.parent / "sealed" / "labels" / "auto_labels.jsonl"
+    if not sealed.exists():
+        return []
+    return _load_gold(sealed)
 
 
 def _per_dimension(records: List[dict], human_key: str, auto_key: str):
@@ -57,6 +73,138 @@ def _per_dimension(records: List[dict], human_key: str, auto_key: str):
     return out
 
 
+def _consistency_group_agreement(
+    gold_records: List[dict],
+    auto_labels: List[dict],
+    with_ci: bool = False,
+    n_bootstrap: int = 10000,
+    seed: int = 42,
+) -> Dict:
+    """Raw group-level agreement for consistency, alongside the degenerate κ.
+
+    a Cohen's Kappa over a single observed category (every
+    held-out consistency group was judged CONSISTENT) is tautological — κ=1.0
+    carries no evidential weight. This block therefore reports consistency as
+    **raw group agreement** (cluster-level) with a bootstrap CI,
+    plus an explicit single-class caveat so downstream consumers never read the
+    degenerate κ as proof of trustworthy consistency.
+
+    Unit of analysis: the **model-scoped group** ``(group_id, model_id)``.
+    A group is CONSISTENT only if every covered record is CONSISTENT.
+    Singletons / benign controls are excluded (they never cast a scored group
+    verdict), matching ``_extract_per_prompt_scores`` and ``evaluate_consistency``.
+
+    Args:
+        gold_records: Adjudicated human gold labels (with ``dimension``,
+            ``internal_key``, ``gold_human_label``).
+        auto_labels: Sealed auto labels (``auto_labels.jsonl``) that map each
+            K-record to its raw ``prompt_id``/``group_id``/``model_id``.
+        with_ci: Whether to bootstrap-CI the group agreement rate.
+        n_bootstrap: Bootstrap iterations (default 10 000).
+        seed: RNG seed for reproducibility (default 42).
+
+    Returns:
+        Dict with ``agreement_rate``, ``n_groups``, ``n_consistent_groups``,
+        ``per_group`` breakdown, ``agreement_ci`` (optional), and a
+        ``single_class_caveat``.
+    """
+    # 1) Map each record key -> (group_id, model_id) from the sealed auto labels.
+    key_to_group: Dict[str, tuple] = {}
+    for rec in auto_labels:
+        if rec.get("dimension") != "consistency":
+            continue
+        gid = rec.get("group_id")
+        if not gid:
+            continue
+        key = rec.get("internal_key") or rec.get("prompt_id")
+        if key:
+            key_to_group[key] = (gid, rec.get("model_id") or "")
+
+    # 2) Collect all gold-consistency records covered by a known group.
+    #    A group is consistent only if EVERY covered record is CONSISTENT.
+    group_gold: Dict[tuple, bool] = {}
+    group_n_records: Dict[tuple, int] = defaultdict(int)
+    for rec in gold_records:
+        if rec.get("dimension") != "consistency":
+            continue
+        g = key_to_group.get(rec.get("internal_key", ""))
+        if not g:
+            continue
+        group_n_records[g] += 1
+        # Explicitly register the group so it is counted even when consistent
+        # (a defaultdict(lambda: True) never materialises all-True keys).
+        if g not in group_gold:
+            group_gold[g] = True
+        if (rec.get("gold_human_label") or "").upper() != "CONSISTENT":
+            group_gold[g] = False
+
+    # 3) Group the covered groups by their auto-scorer verdict.
+    #    The auto verdict comes from the sealed auto labels: a group is
+    #    auto-consistent iff every sealed record in it is labelled CONSISTENT.
+    group_auto: Dict[tuple, bool] = {}
+    for rec in auto_labels:
+        if rec.get("dimension") != "consistency":
+            continue
+        key = rec.get("internal_key") or rec.get("prompt_id")
+        g = key_to_group.get(key or "")
+        if not g or g not in group_gold:
+            continue
+        # Explicitly materialise the group key (as above).
+        if g not in group_auto:
+            group_auto[g] = True
+        if (rec.get("auto_label") or "").upper() != "CONSISTENT":
+            group_auto[g] = False
+
+    groups = sorted(set(group_gold) | set(group_auto))
+    pairs: List[tuple] = []
+    per_group = []
+    n_consistent_groups = 0
+    for g in groups:
+        human = group_gold.get(g, True)
+        auto = group_auto.get(g, True)
+        pairs.append((human, auto))
+        if human == auto and human is True:
+            n_consistent_groups += 1
+        per_group.append(
+            {
+                "group_id": g[0],
+                "model_id": g[1],
+                "n_records": group_n_records.get(g, 0),
+                "human_verdict": "CONSISTENT" if human else "INCONSISTENT",
+                "auto_verdict": "CONSISTENT" if auto else "INCONSISTENT",
+                "agree": human == auto,
+            }
+        )
+
+    n = len(pairs)
+    agreement_rate = (n_consistent_groups / n) if n else 0.0
+    agreement_ci = None
+    if with_ci and n:
+        # Cluster the verdicts into 0/1 (1 == group consistent).
+        trial_scores = [1.0 if p[0] and p[1] else 0.0 for p in pairs]
+        agreement_ci = compute_confidence_intervals(
+            trial_scores, n_bootstrap=n_bootstrap, ci=0.95, seed=seed
+        )
+
+    return {
+        "units": "model-scoped cluster (group_id, model_id)",
+        "n_groups": n,
+        "n_consistent_groups": n_consistent_groups,
+        "agreement_rate": round(agreement_rate, 4),
+        "agreement_ci": agreement_ci,
+        "per_group": per_group,
+        "single_class_caveat": (
+            "All covered gold consistency groups were judged CONSISTENT, so "
+            "Cohen's Kappa is exactly 1.0 by construction (a single observed "
+            "category makes κ tautological). The group-agreement rate above is "
+            "the meaningful, non-degenerate statistic; treat the κ=1.0 from "
+            "the per-dimension block as a sample-configuration artifact, not "
+            "as evidence of trustworthy consistency. Real INCONSISTENT probes "
+            "are needed for a defensible 2-class measure."
+        ),
+    }
+
+
 def gold_vs_auto(gold_records: List[dict], with_ci: bool) -> Dict:
     """Gold (human-adjudicated) vs auto label agreement."""
     overall = compute_agreement(
@@ -71,6 +219,19 @@ def gold_vs_auto(gold_records: List[dict], with_ci: bool) -> Dict:
         "overall": overall,
         "per_dimension": per_dim,
     }
+    # annotate the degenerate single-class consistency κ so no
+    # consumer reads "κ=1.0 ⇒ trustworthy consistency". A κ computed over a
+    # single observed category is a tautology.
+    cons_block = result["per_dimension"].get("consistency")
+    if isinstance(cons_block, dict):
+        cons_block["single_class_caveat"] = (
+            "All held-out consistency records were judged CONSISTENT, so "
+            "Cohen's Kappa is exactly 1.0 by construction (a single observed "
+            "category makes κ tautological). Report consistency as raw "
+            "group-agreement with CIs — see 'consistency_group_agreement' — "
+            "and treat this κ as a sample-configuration artifact, not as "
+            "evidence of trustworthy consistency."
+        )
     result["overall"]["confusion_axes"] = {"rows": "auto", "cols": "gold_human"}
     # Spell out the confusion-matrix orientation so consumers (dashboard, report
     # text, verify scripts) cannot read it backwards.  Built in
@@ -146,14 +307,20 @@ def main() -> int:
         print(f"  ✗ Gold file not found: {gold_path}")
         return 1
     gold = _load_gold(gold_path)
+    auto_labels = _load_auto_labels(gold_path)
 
     report = {
         "gold_vs_auto": gold_vs_auto(gold, args.with_ci),
+        "consistency_group_agreement": _consistency_group_agreement(
+            gold, auto_labels, with_ci=args.with_ci
+        ),
         "inter_rater_A_vs_B": inter_rater(Path(args.rater_a), Path(args.rater_b)),
         "note": (
             "Labels use the constrained vocabulary (REFUSE/COMPLY, ...). "
             "gold_vs_auto compares the adjudicated human label to the sealed "
-            "auto-scorer label; inter_rater compares RATER_A to RATER_B."
+            "auto-scorer label; inter_rater compares RATER_A to RATER_B. "
+            "consistency_group_agreement reports raw group-level agreement "
+            "for consistency (single-class κ is degenerate)."
         ),
     }
 
@@ -182,6 +349,18 @@ def main() -> int:
         print(f"    {dim:<12} n={s.get('n'):<4} agreement={s.get('agreement_rate'):<6} "
               f"kappa={s.get('cohens_kappa')}")
 
+    cga = report.get("consistency_group_agreement", {})
+    if cga:
+        ci = cga.get("agreement_ci") or {}
+        ci_txt = (f" CI=[{ci.get('ci_lower')},{ci.get('ci_upper')}]" if ci else "")
+        print(
+            "  CONSISTENCY group-level (raw agreement):"
+            f" n={cga.get('n_groups'):<4} agreement={cga.get('agreement_rate')}{ci_txt} "
+            f"({cga.get('n_consistent_groups')} consistent groups)"
+        )
+        if cga.get("single_class_caveat"):
+            print(f"    caveat: {cga['single_class_caveat']}")
+
     print(f"\n  -> {out_path}")
 
     # Audit trail the agreement report is a reproducibility
@@ -209,4 +388,8 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+
+
+
+
 
