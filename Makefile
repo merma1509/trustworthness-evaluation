@@ -243,6 +243,7 @@ experiment-agreement:
 		--rater-a $(RATER_A_FILE) \
 		--rater-b $(RATER_B_FILE) \
 		--out experiment/reports/agreement_report.json \
+		--resolutions experiment/agreements/$${EXP_ID}_heldout_disagreements.json \
 		--with-ci
 
 # Verify a sealed experiment is intact & fully blinded
@@ -292,6 +293,7 @@ experiment-reproduce: verify-artifacts
 			--rater-a "experiment/annotations/$${EXP_ID}_RATER_A_heldout.jsonl" \
 			--rater-b "experiment/annotations/$${EXP_ID}_RATER_B_heldout.jsonl" \
 			--out experiment/reports/agreement_report.json \
+			--resolutions "experiment/agreements/$${EXP_ID}_heldout_disagreements.json" \
 			--with-ci; \
 	else \
 		echo "  note: no held-out disagreement-resolution file found; held-out κ not regenerated."; \
