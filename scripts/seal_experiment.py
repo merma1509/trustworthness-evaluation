@@ -40,6 +40,7 @@ import hashlib
 import json
 import os
 import random
+import re
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -64,6 +65,105 @@ MODEL_FILES = {
     "llama3.1:8b": "llama3.1_8b",
 }
 CALIBRATION_RATIO = 0.70
+
+
+# ── Content-aware split key ────────────────────────────────────
+# The family-level unit is (model_id, normalised prompt_text); consistency
+# groups are additional indivisible units keyed by (model_id, group_id).  The
+# normalisation collapses "2+2?" / "2 + 2 ?" / "2+2" to one stimulus key so
+# that trivially-equivalent wordings never slip across the calibration /
+# held-out boundary unnoticed.
+_WS_RE = re.compile(r"\s+")
+_SPACE_AROUND_OP = re.compile(r"\s*([+\-*/^=%])\s*")
+# Drop punctuation but PRESERVE arithmetic operators so "2+2" != "2-2".
+_PUNCT_RE = re.compile(r"[^\w\s+\-*/^=%]|_+")
+
+
+def _normalise_stimulus(text: str) -> str:
+    """Collapse "2+2?" / "2 + 2 ?" / "2+2  ?" to the same stimulus key ...
+
+    while KEEPING genuinely different operators distinct (``2+2`` != ``2-2``).
+
+    Lower-case, remove whitespace around arithmetic operators/punctuation
+    (so the *expression* is the identity, not the spacing), then drop the rest
+    of the punctuation and collapse internal whitespace.
+    """
+    t = (text or "").lower()
+    t = _SPACE_AROUND_OP.sub(r"\1", t)  # "2 + 2" -> "2+2", "2 - 2" -> "2-2"
+    t = _PUNCT_RE.sub("", t)            # drop remaining punctuation
+    return _WS_RE.sub(" ", t).strip()
+
+
+def _family_unit_key(rec: dict, model_id: str) -> str:
+    """The indivisible content-aware split unit for a raw record.
+
+    For consistency we key on the **canonical set of member prompt texts**
+    (model_id + sorted normalised member texts), NOT on ``group_id``.  Two
+    groups that reuse the same stimulus (e.g. ``group_1`` and ``group_11`` both
+    showing "What is 2+2?") must collapse into ONE unit so the stimulus can
+    never leak across the split under a different group label.
+    """
+    dim = rec.get("_dimension") or rec.get("dimension")
+    if dim == "consistency":
+        members = rec.get("_group_members") or [rec]
+        texts = sorted({_normalise_stimulus(m.get("prompt_text", ""))
+                        for m in members})
+        texts = [t for t in texts if t]
+        return f"{model_id}//consistency://{'|'.join(texts) or rec.get('group_id', '')}"
+    return f"{model_id}//{_normalise_stimulus(rec.get('prompt_text', ''))}"
+
+
+def build_split_units(pool: List[dict], content_aware: bool) -> List[List[dict]]:
+    """Bucket the response pool into indivisible split units.
+
+    ``content_aware=False`` (default): a model-scoped consistency group
+    is one unit (all member records share a rater display); every safety /
+    truthfulness record is its own unit.
+
+    ``content_aware=True``: additionally merge all records sharing
+    the same (model_id, normalised prompt_text) into ONE family unit, so no
+    stimulus text can leak across the calibration/held-out boundary even if it
+    appears under different internal keys.
+
+    Consistency groups are never torn in either mode — they must be judged
+    together and must land in exactly one split.
+    """
+    if not content_aware:
+        units: List[List[dict]] = []
+        consumed: set = set()
+        for rec in pool:
+            if rec.get("_dimension") != "consistency":
+                units.append([rec])
+                continue
+            gkey = f'{rec.get("_model_id", "")}/{rec.get("group_id", "")}'
+            if gkey in consumed:
+                continue  # already yielded with its group
+            consumed.add(gkey)
+            members = rec.get("_group_members", [rec])
+            units.append(members if members else [rec])
+        return units
+
+    # family units: bucket EVERY record by
+    # (model_id, normalised prompt_text); consistency additionally keeps the
+    # (model_id, group_id) members together (their key already includes group_id
+    # through _family_unit_key).
+    # Guard: if callers did not pre-link _group_members, link them here so the
+    # content-aware key sees the full group's texts, never a single member.
+    by_group: Dict[str, List[dict]] = defaultdict(list)
+    for rec in pool:
+        if rec.get("_dimension") == "consistency":
+            gkey = f'{rec.get("_model_id", "")}/{rec.get("group_id", "")}'
+            by_group[gkey].append(rec)
+    for rec in pool:
+        if rec.get("_dimension") == "consistency" and not rec.get("_group_members"):
+            gkey = f'{rec.get("_model_id", "")}/{rec.get("group_id", "")}'
+            rec["_group_members"] = by_group.get(gkey, [rec])
+
+    family: Dict[str, List[dict]] = defaultdict(list)
+    for rec in pool:
+        key = _family_unit_key(rec, rec.get("_model_id", ""))
+        family[key].append(rec)
+    return [members for members in family.values()]
 
 
 def _load_raw(path: Path) -> List[dict]:
@@ -236,6 +336,10 @@ def _template_record(rec: dict, rubric_checksum: str = "") -> dict:
             {"prompt": p.get("prompt_text", ""), "response": p.get("response", "")}
             for p in rec.get("_group_members", [])
         ]
+        # Model-scoping: every member of a display belongs to ONE
+        # model. We keep the model id ONLY as traceable metadata, never in the
+        # visible pairs[]/prompt_record — a rater must stay blind to the model.
+        display_model = rec.get("_model_id", "")
         record = {
             "annotation_id": "",
             "rater_id": "",
@@ -268,6 +372,11 @@ def _template_record(rec: dict, rubric_checksum: str = "") -> dict:
                 "rubric_checksum": rubric_checksum,
                 "timestamp_utc": "",
                 "declared_conflicts": [],
+                # Traceable but rater-blind: the single model backing this
+                # display. Stored here (never in visible pairs[]) so a later
+                # audit can prove the display is model-scoped without leaking
+                # the model identity to the annotator.
+                "display_model": display_model,
             },
             "pairs": pairs,
             "prompts": [p["prompt"] for p in pairs],
@@ -406,6 +515,12 @@ def main() -> int:
     parser.add_argument("--keeper", default="sealed_keeper.txt.enc",
                         help="Where to write the generated passphrase (encrypted-only "
                              "hint; the passphrase itself is returned on stdout).")
+    parser.add_argument("--content-aware", action="store_true",
+                        help="Use a family-level split: the indivisible unit is "
+                             "(model, normalised prompt_text) so no prompt text "
+                             "can cross the calibration/held-out boundary"
+                             " . Off by default for backward "
+                             "compatibility with sealed experiments.")
     parser.add_argument("--experiment-id", default=None,
                         help="Explicit experiment id (default: auto-generated).")
     args = parser.parse_args()
@@ -449,7 +564,7 @@ def main() -> int:
         return 1
     print(f"  Response pool records: {len(pool)}")
 
-    # ── Link consistency group members (model-scoped, Plan 02.1) ────────────
+    # ── Link consistency group members (model-scoped) ────────────
     # The consistency dataset is a SHARED prompt pool evaluated by both models,
     # so a template group must be scoped by model: ``{model}/{group_id}``.
     # Without the scope, gemma's ``group_1`` and llama's ``group_1`` responses
@@ -467,33 +582,24 @@ def main() -> int:
                 f'{rec.get("_model_id", "")}/{rec.get("group_id", "")}', [rec]
             )
 
-    # ── Step 3: deterministic shuffle + group-aware calibration/held-out split ─
-    # The split is executed on *units* so that no consistency group is ever torn
-    # across the two splits (Plan 02.2).  Safety/truthfulness records are their
-    # own 1-record unit; a model-scoped consistency group is ONE unit holding all
-    # its member records (they share a single rater display).  The 70/30 ratio is
-    # still honoured at the *record* level (``n_cal`` counts records); only the
-    # unit *boundaries* change, so a group lands entirely in calibration or
-    # entirely in held-out — never both.
+    # ── Step 3: deterministic shuffle + group-aware / content-aware split ──
+    # The split is executed on *units* so that no consistency group is ever
+    # torn across the two splits.  The default unit is a
+    # model-scoped consistency group (one display); a single safety/truthfulness
+    # record is its own 1-record unit.  With ``--content-aware``
+    # the unit is enlarged to the *family level*: (model, normalised prompt
+    # text) so that no stimulus text can cross the calibration/held-out
+    # boundary, even if it appears under different internal keys.
+    #
+    # The 70/30 ratio is still honoured at the *record* level (``n_cal`` counts
+    # records); only the unit *boundaries* change, so a group lands entirely in
+    # calibration or entirely in held-out — never both.  All consistency members
+    # of one display share a unit regardless of the mode (they must never be
+    # judged in two different splits).
     seed_hash = hashlib.sha256(f"{experiment_id}:{args.seed}".encode()).hexdigest()
     rng = random.Random(seed_hash)
 
-    def _split_units() -> List[List[dict]]:
-        """Bucket the pool into indivisible split units (Plan 02.2)."""
-        units: List[List[dict]] = []
-        consumed = set()
-        for rec in pool:
-            if rec.get("_dimension") != "consistency":
-                units.append([rec])
-                continue
-            gkey = f'{rec.get("_model_id", "")}/{rec.get("group_id", "")}'
-            if gkey in consumed:
-                continue  # already yielded with its group
-            consumed.add(gkey)
-            units.append(rec.get("_group_members", [rec]))
-        return units
-
-    units = _split_units()
+    units = build_split_units(pool, args.content_aware)
     rng.shuffle(units)
     ordered_records: List[dict] = [rec for unit in units for rec in unit]
 
