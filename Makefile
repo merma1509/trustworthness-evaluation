@@ -171,6 +171,20 @@ experiment-seal:
 		$(if $(PASSPHRASE),--passphrase "$(PASSPHRASE)",--generate-passphrase --keeper experiment/.sealed_keeper.json)
 	@echo "  Sealed experiment ready. NEXT: make experiment-annotate"
 
+# Clean design re-do: seal with the family-level (content-aware) split
+# required by the design review. Use a NEW EXPERIMENT_ID so the
+# freshly sealed keys never ambiguously map onto old annotations.
+experiment-seal-content-aware:
+	@test -n "$(SEED)" || (echo "Set SEED=..."; exit 1)
+	$(PY) scripts/seal_experiment.py \
+		--raw "$(RESULTS)/raw_outputs" \
+		--experiment-dir experiment/sealed \
+		--seed "$(SEED)" \
+		--content-aware \
+		$(if $(EXPERIMENT_ID),--experiment-id "$(EXPERIMENT_ID)",) \
+		$(if $(PASSPHRASE),--passphrase "$(PASSPHRASE)",--generate-passphrase --keeper experiment/.sealed_keeper.json)
+	@echo "  Content-aware sealed experiment ready. NEXT: make diagnose-design (expect 0 family overlap), then make experiment-annotate"
+
 # Emit blank rater templates + declaration forms
 experiment-annotate:
 	$(PY) scripts/onboard_raters.py \
@@ -355,6 +369,15 @@ verify-artifacts:
 	@echo "Verifying immutable artifacts..."
 	$(PY) scripts/verify_immutable.py --manifest "$(RESULTS)/manifest.json" --base-dir .
 	@echo "All artifacts verified."
+
+# Design diagnosis: textual overlap, inconsistent probes,
+# model-scoped displays, content-aware family split. Exit 1 on any blocker.
+diagnose-design:
+	$(PY) scripts/diagnose_design.py \
+		--raw "$(RESULTS)/raw_outputs" \
+		--templates experiment/sealed/templates \
+		--split-seed "diagnosis" \
+		--json experiment/reports/design_diagnosis.json
 
 # Recompute per-model/per-dimension scores + TrustScore from raw outputs
 compute-scores:
