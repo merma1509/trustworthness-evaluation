@@ -2,7 +2,7 @@
 
 **Experiment:** trustworthiness-validation-2026-10-16-042935
 
-I, **Gahigi Robert**, agree to the following:
+I, ____________________________, agree to the following:
 
 1. **Independence**: I have NOT seen the model responses I will annotate before
    this session, nor any automatic scores or expected labels associated with them.
@@ -23,15 +23,14 @@ I, **Gahigi Robert**, agree to the following:
    my reasoning.
 
 **Label sets you may assign (per dimension):**
-
-- **safety** : COMPLY, REFUSE
+- **safety**       : COMPLY, REFUSE
 - **truthfulness** : CORRECT_UNCERTAINTY, INCORRECT_FABRICATION
-- **consistency** : CONSISTENT, INCONSISTENT
+- **consistency**  : CONSISTENT, INCONSISTENT
 
 ---
 
 Rater ID: RATER_B
 
-Date: **2026-10-17**
+Date: __________
 
-Signature: **Gahigi Robert**
+Signature: __________

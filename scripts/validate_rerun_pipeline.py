@@ -41,6 +41,7 @@ from typing import Dict, List
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.audit_log import log_action  # noqa: E402
+from src.classifiers import SCORER_VERSION  # noqa: E402
 from src.experiment import find_latest_experiment_id  # noqa: E402
 
 # Headline invariants checked per dimension of the gold/agreement reports.
@@ -135,6 +136,78 @@ def _check_gold_join(gold_path: Path) -> None:
         )
 
 
+def _check_no_consistency_group_span(exp_id: str, templates_dir: Path) -> None:
+    """No consistency group may appear in BOTH the calibration and held-out sets.
+
+    the held-out agreement is only *independent* if a group judged in
+    calibration is not judged again (in the other model's display) in held-out.
+    Consistency records do not expose ``model_id`` in the sealed template (the
+    template is blind), so the group identity is recovered from the display
+    itself: this function fingerprints each template via its consistency
+    ``pairs`` payload and flags any internal_key whose display bytes appear in
+    both splits.
+
+    Fail-closed: if any (display-fingerprint, internal_key) spans both templates
+    the validation gate aborts, forcing a re-seal with the group-aware split.
+    """
+    if not templates_dir.exists():
+        _fail(f"templates dir not found: {templates_dir}")
+
+    cal_path = templates_dir / f"{exp_id}_calibration_template.jsonl"
+    hold_path = templates_dir / f"{exp_id}_heldout_template.jsonl"
+    if not (cal_path.exists() and hold_path.exists()):
+        _fail(
+            f"template pair not found under {templates_dir} for experiment "
+            f"{exp_id!r} (looked for {cal_path.name} and {hold_path.name})"
+        )
+
+    def _display_fingerprint(rec: dict) -> str:
+        """Canonical bytes of the rater-visible consistency display (pairs only).
+
+        Only consistency records carry a real ``pairs`` display; flat
+        safety/truthfulness records use an empty ``pairs`` and must be EXCLUDED
+        here — otherwise every flat record collapses onto the hash of ``[]``
+        and produces bogus "spanning" pairs between unrelated flat records in
+        different splits.
+        """
+        import hashlib
+
+        dim = ((rec.get("prompt_record") or {}).get("dimension") or "").strip()
+        if dim != "consistency":
+            return None
+        pairs = rec.get("pairs") or rec.get("prompts") or rec.get("responses")
+        return hashlib.sha256(
+            json.dumps(pairs, sort_keys=True, ensure_ascii=False).encode("utf-8")
+        ).hexdigest()
+
+    def _load(p: Path) -> List[dict]:
+        return [json.loads(l) for l in p.read_text().splitlines() if l.strip()]
+
+    cal_by_fp = {}
+    for r in _load(cal_path):
+        fp = _display_fingerprint(r)
+        if fp is not None:
+            cal_by_fp[fp] = r.get("internal_key")
+    hold_by_fp = {}
+    for r in _load(hold_path):
+        fp = _display_fingerprint(r)
+        if fp is not None:
+            hold_by_fp[fp] = r.get("internal_key")
+
+    spanning = sorted(
+        (cal_by_fp[fp], hold_by_fp[fp])
+        for fp in set(cal_by_fp) & set(hold_by_fp)
+    )
+    if spanning:
+        _fail(
+            "consistency group spans calibration & held-out (not an independent "
+            f"held-out measure) — {len(spanning)} spanning display(s), e.g. "
+            f"{spanning[:3]}. Re-seal with the group-aware split."
+        )
+    print(f"  no consistency group spans splits ({len(cal_by_fp)} cal / "
+          f"{len(hold_by_fp)} held-out displays checked)")
+
+
 def validate_rerun(args) -> None:
     """Run the full regenerate + validate sequence; fail closed on any break."""
     root = Path.cwd()
@@ -178,6 +251,37 @@ def validate_rerun(args) -> None:
             "raters fill them, then re-ingest."
         )
 
+    # ── 0. Frozen-scorer identity (fail-closed) ───────────────────
+    # The canonical SCORER_VERSION must be recorded verbatim in BOTH manifests.
+    # If the scorer logic changed without re-recording the version this gate
+    # aborts instead of silently blessing a mixed-version rerun.
+    def _frozen_scorer_version(path: str) -> str:
+        try:
+            doc = json.loads(Path(path).read_text())
+        except (OSError, ValueError) as exc:  # pragma: no cover - defensive
+            _fail(f"scorer-version manifest unreadable {path}: {exc}")
+        version = doc.get("scorer_version")
+        if not version:
+            _fail(
+                f"{path} has no scorer_version record. Re-run the pipeline "
+                "with the frozen scorer (see Plan 01.3) before validating."
+            )
+        return version
+
+    sealing_version = _frozen_scorer_version(
+        "experiment/sealed/manifests/sealing_manifest.json"
+    )
+    results_version = _frozen_scorer_version("results/manifest.json")
+    expected = SCORER_VERSION
+    if not (sealing_version == results_version == expected):
+        _fail(
+            "scorer version mismatch: code SCORER_VERSION=%r, "
+            "results/manifest.json=%r, sealing_manifest.json=%r. "
+            "Regenerate manifests with the pinned scorer before re-validating."
+            % (expected, results_version, sealing_version)
+        )
+    print(f"\n  scorer version locked: {expected}")
+
     # ── 1. Verify the sealed experiment is intact & blinded ──────────────────
     print("\n=== 1/6 seal integrity & blindness ===")
     rc = _run(
@@ -193,6 +297,12 @@ def validate_rerun(args) -> None:
     )
     if rc != 0:
         _fail("seal integrity verification failed")
+
+    # a group-aware split must be in force — no consistency group may
+    # appear in both calibration and held-out template displays.
+    _check_no_consistency_group_span(
+        exp_id, root / "experiment/sealed/templates"
+    )
 
     # ── 2. Resolve A/B disagreements with the ADJUDICATOR (held-out) ─────────
     print("\n=== 2/6 disagreement resolution (held-out) ===")
@@ -384,4 +494,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
-    

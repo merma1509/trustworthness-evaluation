@@ -7,6 +7,17 @@ here. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ### Changed
 
+- **Sealed templates now embed a rubric + self-referential template checksum.**
+  - `scripts/seal_experiment.py` fills `metadata.rubric_checksum` (SHA-256 of
+    `docs/MANUAL_AUDIT_RUBRIC_v3.md` at seal time) and
+    `metadata.template_checksum` (acyclic SHA-256 of the record with that field
+    blanked) on every sealed template record, so the rubric revision handed to
+    raters and the exact template each rater annotated are provable from the
+    record itself — closing the "rubric checksums were empty" gap (plan-01 §4).
+  - `tests/test_clean_rerun_safeguards.py` locks the new contract: checksums are
+    non-empty, the template checksum is self-referential (recomputable with the
+    field blanked), and the rubric checksum propagates verbatim.
+
 - **Repository moved to a GitFlow branching model (3 long-lived branches).**
   - `main` — production (default branch, protected: PR-only, no force push /
     no deletion).

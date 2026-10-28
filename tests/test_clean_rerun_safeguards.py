@@ -120,6 +120,43 @@ def test_assert_template_blind_rejects_injected_leaks():
         _assert_template_blind(leaky2, "K_0042")
 
 
+def test_template_checksums_are_filled():
+    """Every sealed template must carry a rubric + self-referential checksum.
+
+    Guards ("Rubric checksums were empty"): a freshly sealed template
+    must embed both the rubric revision the rater will follow and a per-record
+    fingerprint so the rubric handed out — and the exact template a rater
+    annotated — are provable from the record itself.
+    """
+    from scripts.seal_experiment import _record_checksum
+
+    t = _template_record(_raw_rec(), rubric_checksum="abc123def456")
+
+    md = t["metadata"]
+    assert md["rubric_checksum"] == "abc123def456", "rubric checksum must propagate"
+    tc = md["template_checksum"]
+    assert len(tc) == 64, "template_checksum must be a full sha256 hex digest"
+    # Self-referential: blanking the field then re-hashing reproduces the value,
+    # so the fingerprint is acyclic and stable against the field itself.
+    assert _record_checksum(t) == tc
+
+
+def test_template_checksums_nonempty_when_rubric_file_hashed():
+    """The default rubric-checksum path (from the real rubric file) is non-empty."""
+    from pathlib import Path
+
+    from src.sealing import sha256_file
+
+    rubric_path = Path("docs/MANUAL_AUDIT_RUBRIC_v3.md")
+    if not rubric_path.exists():
+        pytest.skip("rubric file not present in this checkout")
+    rubric_checksum = sha256_file(rubric_path)
+
+    t = _template_record(_raw_rec(), rubric_checksum=rubric_checksum)
+    assert t["metadata"]["rubric_checksum"] == rubric_checksum
+    assert t["metadata"]["template_checksum"] != ""
+
+
 # ── No silent dropping ────────────────────────────────────────────────────
 def _ann(internal_key, dim, label, uncertain=False, response_invalid=False):
     """One rater annotation record in the sealed-template schema."""
@@ -438,3 +475,281 @@ def test_gold_from_jsonl_matches_committed_plaintext(tmp_path):
         )
 
     assert _sorted(out) == _sorted(gold_committed)
+
+
+# ── Frozen scorer version (Plan 01.3) ─────────────────────────────────────
+def test_scorer_version_locked_across_code_and_manifests():
+    """The canonical scorer revision must be recorded verbatim in BOTH manifests.
+
+    If a future commit bumps the truthfulness scorer but forgets to regenerate
+    the manifests, the validate-rerun gate fails closed. This test guards that
+    contract so the version drift is caught in CI too.
+    """
+    from src.classifiers import SCORER_VERSION
+
+    sealing = json.loads(
+        Path("experiment/sealed/manifests/sealing_manifest.json").read_text()
+    )
+    results = json.loads(Path("results/manifest.json").read_text())
+
+    assert sealing["scorer_version"] == SCORER_VERSION
+    assert results["scorer_version"] == SCORER_VERSION
+    assert sealing["scorer_version"] == results["scorer_version"]
+
+
+def test_truthfulness_raw_labels_match_rescore_vocabulary():
+    """Raw truthfulness labels must use the v3 human-rubric vocabulary.
+
+    Plan 01.3 pins a single scorer so that ``raw scorer_label == rescore
+    label``. The committed raw truthfulness outputs must therefore carry the
+    constrained v3 labels (``CORRECT_UNCERTAINTY`` / ``INCORRECT_FABRICATION``)
+    for EVERY record — benign and false-premise alike — never the legacy
+    2-class ``correct``/``incorrect`` tokens.
+    """
+    from scripts.seal_experiment import _auto_label_from_raw
+
+    v3 = {"CORRECT_UNCERTAINTY", "INCORRECT_FABRICATION"}
+    raw_dir = Path("results/raw_outputs")
+    rows = []
+    for model in ("gemma3_4b", "llama3.1_8b"):
+        p = raw_dir / f"{model}_truthfulness.jsonl"
+        rows += [json.loads(l) for l in p.read_text().splitlines() if l.strip()]
+
+    assert rows, "committed truthfulness raw outputs must exist"
+    assert len(rows) == 76, "expected 38 records per model"
+    for r in rows:
+        label = r.get("scorer_label")
+        assert label in v3, (
+            f"{r.get('prompt_id')}: raw scorer_label not in v3 vocabulary: {label!r}"
+        )
+        # raw label must equal the canonical rescore label for the SAME record
+        assert _auto_label_from_raw(r) == label, (
+            f"{r.get('prompt_id')}: raw != rescore ({label!r} vs {_auto_label_from_raw(r)!r})"
+        )
+
+
+# ── Plan 02.1 / 02.2: model-scoped consistency + group-aware split ────────
+def test_consistency_group_members_are_model_scoped():
+    """A consistency template must never mix two models' responses.
+
+    Plan 02.1: gemma's ``group_1`` and llama's ``group_1`` are DIFFERENT
+    clusters (the dataset is a shared prompt pool evaluated by both models), so
+    the template builder must scope group membership per model. Without this,
+    a rater would judge a display with both models' answers entangled.
+    """
+    from scripts.seal_experiment import _template_record
+
+    gemma_members = [
+        {"prompt_text": "G1", "response": "g-r1"},
+        {"prompt_text": "G2", "response": "g-r2"},
+    ]
+    llama_members = [
+        {"prompt_text": "L1", "response": "l-r1"},
+        {"prompt_text": "L2", "response": "l-r2"},
+    ]
+
+    gemma_rec = {
+        "_dimension": "consistency",
+        "_internal_key": "K_0010",
+        "_model_id": "gemma3:4b",
+        "group_id": "group_1",
+        "_group_members": gemma_members,
+        "group_consistent": True,
+        "auto_label": "CONSISTENT",
+    }
+    llama_rec = {
+        "_dimension": "consistency",
+        "_internal_key": "K_0011",
+        "_model_id": "llama3.1:8b",
+        "group_id": "group_1",  # same descriptive id, different model
+        "_group_members": llama_members,
+        "group_consistent": False,
+        "auto_label": "INCONSISTENT",
+    }
+
+    gemma_t = _template_record(gemma_rec)
+    llama_t = _template_record(llama_rec)
+
+    # Each template exposes only ITS model's pairs.
+    assert gemma_t["responses"] == ["g-r1", "g-r2"]
+    assert llama_t["responses"] == ["l-r1", "l-r2"]
+    # The shared descriptive group_id must never leak the entanglement.
+    assert not _has_nonempty_field(gemma_t, "model_id")
+    assert not _has_nonempty_field(gemma_t, "auto_label")
+
+
+def test_consistency_group_members_are_model_scoped_in_pool(tmp_path):
+    """``_build_response_pool`` + the member-link pass keep models separate."""
+    import scripts.seal_experiment as seal
+
+    # Two tiny model files with the same shared group_ids.
+    raw = tmp_path / "raw"
+    raw.mkdir()
+    (raw / "gemma3_4b_consistency.jsonl").write_text(
+        "\n".join([
+            json.dumps({"prompt_id": "G1", "group_id": "group_1",
+                        "prompt_text": "G1", "response": "g-r1"}),
+            json.dumps({"prompt_id": "G2", "group_id": "group_1",
+                        "prompt_text": "G2", "response": "g-r2"}),
+        ])
+    )
+    (raw / "llama3.1_8b_consistency.jsonl").write_text(
+        "\n".join([
+            json.dumps({"prompt_id": "L1", "group_id": "group_1",
+                        "prompt_text": "L1", "response": "l-r1"}),
+            json.dumps({"prompt_id": "L2", "group_id": "group_1",
+                        "prompt_text": "L2", "response": "l-r2"}),
+        ])
+    )
+
+    pool = seal._build_response_pool(raw)
+    # Link group members exactly as main() does (model-scoped).
+    from collections import defaultdict
+
+    groups = defaultdict(list)
+    for rec in pool:
+        if rec.get("_dimension") == "consistency" and rec.get("group_id"):
+            groups[f'{rec.get("_model_id", "")}/{rec.get("group_id")}'].append(rec)
+    for rec in pool:
+        if rec.get("_dimension") == "consistency":
+            rec["_group_members"] = groups.get(
+                f'{rec.get("_model_id", "")}/{rec.get("group_id", "")}', [rec]
+            )
+
+    by_model = {}
+    for rec in pool:
+        by_model.setdefault(rec["_model_id"], []).append(rec)
+
+    gemma_members = [r["prompt_text"] for r in by_model["gemma3:4b"][0]["_group_members"]]
+    llama_members = [r["prompt_text"] for r in by_model["llama3.1:8b"][0]["_group_members"]]
+    assert gemma_members == ["G1", "G2"], "gemma group must contain only gemma records"
+    assert llama_members == ["L1", "L2"], "llama group must contain only llama records"
+
+
+def test_group_aware_split_never_spans_splits(tmp_path):
+    """A consistency group must land entirely in calibration OR held-out.
+
+    Plan 02.2: the split is executed on *units* (a model-scoped consistency
+    group is one unit), so no template display is ever judged twice — once in
+    calibration and again in held-out. This test mimics the sealing sequence on
+    a tiny pool and asserts no (model, group) spans both splits.
+    """
+    import hashlib
+
+    import scripts.seal_experiment as seal
+
+    raw = tmp_path / "raw"
+    raw.mkdir()
+
+    def _write(model_stem, dim, rows):
+        (raw / f"{model_stem}_{dim}.jsonl").write_text(
+            "\n".join(json.dumps(r) for r in rows)
+        )
+
+    # Two models, each with 2 consistency groups (2 members each) and no
+    # safety/truthfulness, so the whole pool is group-structured.
+    _write("gemma3_4b", "consistency", [
+        {"prompt_id": f"G{i}", "group_id": f"group_{g}", "prompt_text": f"g{i}",
+         "response": f"g-r{i}", "attack_type": "repetition", "actual_behavior": "comply"}
+        for g in (1, 2) for i in (1, 2)
+    ])
+    _write("llama3.1_8b", "consistency", [
+        {"prompt_id": f"L{i}", "group_id": f"group_{g}", "prompt_text": f"l{i}",
+         "response": f"l-r{i}", "attack_type": "repetition", "actual_behavior": "comply"}
+        for g in (1, 2) for i in (1, 2)
+    ])
+
+    pool = seal._build_response_pool(raw)
+    # Link group members exactly as main() does.
+    from collections import defaultdict
+
+    groups = defaultdict(list)
+    for rec in pool:
+        if rec.get("_dimension") == "consistency":
+            groups[f'{rec["_model_id"]}/{rec["group_id"]}'].append(rec)
+    for rec in pool:
+        if rec.get("_dimension") == "consistency":
+            rec["_group_members"] = groups[f'{rec["_model_id"]}/{rec["group_id"]}']
+
+    # Emulate the group-aware split across a few seeds: each (model, group)
+    # display must appear in exactly ONE split, never both.
+    import random
+
+    for seed in ("s1", "s2", "s3"):
+        rng = random.Random(hashlib.sha256(f"exp:{seed}".encode()).hexdigest())
+        units = []
+        consumed = set()
+        for rec in pool:
+            gkey = f'{rec["_model_id"]}/{rec["group_id"]}'
+            if gkey in consumed:
+                continue
+            consumed.add(gkey)
+            units.append(rec["_group_members"])
+
+        rng.shuffle(units)
+        ordered = [r for u in units for r in u]
+        n_cal = round(len(ordered) * 0.7)
+        cal_keys, hold_keys = set(), set()
+        cal_seen = 0
+        for unit in units:
+            keys = {f'{r["_model_id"]}/{r["group_id"]}' for r in unit}
+            if cal_seen < n_cal:
+                cal_keys |= keys
+                cal_seen += len(unit)
+            else:
+                hold_keys |= keys
+        assert not (cal_keys & hold_keys), (
+            f"seed {seed}: a consistency group spans both splits"
+        )
+
+
+def test_validate_rerun_no_span_check_fails_on_spanning_templates(tmp_path):
+    """The validation gate must fail closed when a group spans both templates.
+
+    Plan 02.2: ``_check_no_consistency_group_span`` fingerprints each sealed
+    template's rater-visible display and aborts if the same display appears in
+    both the calibration and held-out files.
+    """
+    from scripts.validate_rerun_pipeline import _check_no_consistency_group_span
+
+    exp_id = "exp-1"
+    tdir = tmp_path / "templates"
+    tdir.mkdir()
+
+    display = {"prompt_record": {"dimension": "consistency"},
+               "pairs": [
+        {"prompt": "P1", "response": "R1"},
+        {"prompt": "P2", "response": "R2"},
+    ]}
+    # Same display in BOTH splits -> must fail.
+    for name in (f"{exp_id}_calibration_template.jsonl", f"{exp_id}_heldout_template.jsonl"):
+        rec = dict(display)
+        rec["internal_key"] = f"K_{name[0]}"
+        (tdir / name).write_text(json.dumps(rec) + "\n")
+
+    with pytest.raises(SystemExit):
+        _check_no_consistency_group_span(exp_id, tdir)
+
+
+def test_validate_rerun_no_span_check_passes_on_disjoint_templates(tmp_path):
+    """Distinct displays in each template must pass the no-span gate."""
+    from scripts.validate_rerun_pipeline import _check_no_consistency_group_span
+
+    exp_id = "exp-2"
+    tdir = tmp_path / "templates"
+    tdir.mkdir()
+    (tdir / f"{exp_id}_calibration_template.jsonl").write_text(
+        json.dumps({"internal_key": "K_C",
+                    "prompt_record": {"dimension": "consistency"},
+                    "pairs": [{"prompt": "C", "response": "C1"}]}) + "\n"
+    )
+    (tdir / f"{exp_id}_heldout_template.jsonl").write_text(
+        json.dumps({"internal_key": "K_H",
+                    "prompt_record": {"dimension": "consistency"},
+                    "pairs": [{"prompt": "H", "response": "H1"}]}) + "\n"
+    )
+    _check_no_consistency_group_span(exp_id, tdir)  # must not raise
+
+
+
+

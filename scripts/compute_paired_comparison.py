@@ -125,7 +125,7 @@ def compute_paired_comparison(raw_dir: Path, output_path: Path, seed: int = 42) 
         if dim == "consistency":
             g1 = _consistency_group_map(r1) if r1 else {}
             g2 = _consistency_group_map(r2) if r2 else {}
-            res = compute_clustered_consistency_ci(g1, g2, n_bootstrap=10000, ci=0.95)
+            res = compute_clustered_consistency_ci(g1, g2, n_bootstrap=10000, ci=0.95, seed=seed)
             dimensions[dim] = {
                 "mean_difference": res["mean_difference"],
                 "ci_lower": res["ci_lower"],
@@ -137,7 +137,7 @@ def compute_paired_comparison(raw_dir: Path, output_path: Path, seed: int = 42) 
         else:
             t1 = _per_prompt_trials(dim, r1) if r1 else []
             t2 = _per_prompt_trials(dim, r2) if r2 else []
-            res = compute_paired_difference_ci(t1, t2, n_bootstrap=10000, ci=0.95)
+            res = compute_paired_difference_ci(t1, t2, n_bootstrap=10000, ci=0.95, seed=seed)
             dimensions[dim] = {
                 "mean_difference": res["mean_difference"],
                 "ci_lower": res["ci_lower"],
