@@ -293,12 +293,55 @@ def inter_rater(a_path: Path, b_path: Path) -> Dict:
     return result
 
 
+def _load_resolution_coverage(resolutions_path) -> Dict:
+    """Read the held-out disagreement-resolution file to expose how many
+    records were actually scored vs left unresolved.
+
+    (report transparency): the agreement figures are computed over
+    ``n_scored`` gold labels; the records that no one could adjudicate
+    (``unresolvable``) are silently dropped from gold. This block makes that
+    leak explicit so the report can never overstate adjudication coverage.
+    """
+    if not resolutions_path:
+        return {}
+    resolutions_path = Path(resolutions_path)
+    if not resolutions_path.exists():
+        return {}
+    data = json.loads(resolutions_path.read_text())
+    outcomes = data.get("outcomes") or []
+    unresolved = sorted(
+        o.get("record_key")
+        for o in outcomes
+        if o.get("outcome") == "unresolvable"
+    )
+    return {
+        "n_recorded": data.get("n_recorded"),
+        "n_scored": data.get("n_scored"),
+        "n_unresolvable": data.get("n_unresolvable"),
+        "n_excluded_response_invalid": data.get("n_excluded_response_invalid"),
+        "outcome_counts": data.get("outcome_counts"),
+        "unresolved_keys": unresolved,
+        "note": (
+            "Records marked 'unresolvable' were excluded from gold: the "
+            "adjudicator could not cast a valid vote. They are NOT part of "
+            "the n above and are listed in full (blind protocol: keys only, "
+            "no prompt text)."
+        ),
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--gold", required=True)
     parser.add_argument("--rater-a", required=True)
     parser.add_argument("--rater-b", required=True)
     parser.add_argument("--out", required=True)
+    parser.add_argument(
+        "--resolutions",
+        default=None,
+        help="Path to the held-out disagreement-resolutions JSON (for "
+             "reporting n_recorded/n_scored/n_unresolvable).",
+    )
     parser.add_argument("--with-ci", action="store_true")
     args = parser.parse_args()
 
@@ -315,12 +358,16 @@ def main() -> int:
             gold, auto_labels, with_ci=args.with_ci
         ),
         "inter_rater_A_vs_B": inter_rater(Path(args.rater_a), Path(args.rater_b)),
+        "resolution_coverage": _load_resolution_coverage(args.resolutions),
         "note": (
             "Labels use the constrained vocabulary (REFUSE/COMPLY, ...). "
             "gold_vs_auto compares the adjudicated human label to the sealed "
-            "auto-scorer label; inter_rater compares RATER_A to RATER_B. "
+            "auto-scorer label over the n_scored gold records; "
+            "inter_rater compares RATER_A to RATER_B. "
             "consistency_group_agreement reports raw group-level agreement "
-            "for consistency (single-class κ is degenerate)."
+            "for consistency (single-class κ is degenerate). "
+            "resolution_coverage exposes any records dropped from gold as "
+            "unresolvable."
         ),
     }
 
@@ -361,6 +408,15 @@ def main() -> int:
         if cga.get("single_class_caveat"):
             print(f"    caveat: {cga['single_class_caveat']}")
 
+    rc = report.get("resolution_coverage") or {}
+    if rc:
+        print("  HELD-OUT RESOLUTION COVERAGE:")
+        print(f"    recorded={rc.get('n_recorded')} scored={rc.get('n_scored')} "
+              f"unresolvable={rc.get('n_unresolvable')}")
+        ukeys = rc.get("unresolved_keys") or []
+        if ukeys:
+            print(f"    unresolved keys ({len(ukeys)}): {ukeys}")
+
     print(f"\n  -> {out_path}")
 
     # Audit trail the agreement report is a reproducibility
@@ -388,8 +444,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
-
-
-
-
-
