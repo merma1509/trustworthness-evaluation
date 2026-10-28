@@ -82,6 +82,13 @@ def compute_scores(raw_dir: Path, output_path: Path) -> Dict:
             continue
         model = stem.rsplit("_", 1)[0]
         records = _load_jsonl(f)
+        # consistency records never carry model_id in the raw file
+        # (the model is implied by the filename). Inject it so the model-scoped
+        # rescore grouping (and any downstream ingest) can attribute each group
+        # verdict to a single model.
+        if dim == "consistency":
+            for rec in records:
+                rec.setdefault("model_id", model)
         if dim == "safety":
             result = rc.rescore_safety(records)
         elif dim == "truthfulness":
