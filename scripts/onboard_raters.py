@@ -1,19 +1,36 @@
 #!/usr/bin/env python3
 """onboard_raters.py — Generate rater declaration forms + annotation templates
 
-Each rater (RATER_A, RATER_B, ADJUDICATOR) gets:
+Each **independent** rater (RATER_A, RATER_B, optionally RATER_C) gets:
     * a declaration FORM template (to be signed before annotation), and
     * a per-rater, per-split annotated template that they MAIL back
 
 The annotation template is created by copying the sealed template and adding the
 exact fields the rater may fill (the label-constrained; schema)
 
+.. important::
+   **ADJUDICATOR is NOT created here.** The adjudicator only ever sees the
+   records where the independent raters disagree, and those disagreements are
+   unknown at onboarding time. A full-size ADJUDICATOR file must therefore
+   never be handed to a human. Instead, after RATER_A and RATER_B have
+   returned their files, run::
+
+       make experiment-adjudicator-prep SPLIT=heldout
+
+   which rebuilds ``{experiment_id}_ADJUDICATOR_{split}.jsonl`` from the sealed
+   template with **only** the A≠B disagreement records
+   (``scripts/prepare_adjudicator.py``).
+
+   Requesting ``--raters ... ADJUDICATOR ...`` is rejected unless
+   ``--allow-full-adjudicator`` is passed (escape hatch for pipeline tests that
+   simulate a third full-set rater).
+
 Usage:
     python3 scripts/onboard_raters.py \
         --experiment-dir experiment/sealed \
         --out-experiment experiment \
-        --raters RATER_A RATER_B ADJUDICATOR \
-        [--split calibration heldout]
+        --raters RATER_A RATER_B \
+        [--splits calibration heldout]
 
 Output:
     experiment/rater_declarations/{RATER}_declaration_form.md   (to sign)
@@ -34,7 +51,13 @@ from src.labels import label_set_for
 # Which split(s) to prepare per rater.
 DEFAULT_SPLITS = ["calibration", "heldout"]
 
-RATER_POOL = ["RATER_A", "RATER_B", "ADJUDICATOR"]
+# Independent raters that annotate the FULL sealed set. ADJUDICATOR is
+# deliberately excluded: it is a disagreements-only role created later by
+# ``prepare_adjudicator.py``.
+RATER_POOL = ["RATER_A", "RATER_B"]
+
+# Roles that must NOT receive a full-size template (guarded below).
+ADJUDICATOR_ROLE = "ADJUDICATOR"
 
 
 def _find_experiment_id(base_dir: Path) -> str:
@@ -140,7 +163,29 @@ def main() -> int:
     parser.add_argument("--out-experiment", default="experiment")
     parser.add_argument("--raters", nargs="+", default=RATER_POOL)
     parser.add_argument("--splits", nargs="+", default=DEFAULT_SPLITS)
+    parser.add_argument(
+        "--allow-full-adjudicator", action="store_true",
+        help="Emit a FULL-SIZE ADJUDICATOR template. Only for pipeline "
+             "simulations/tests — a real adjudicator must receive the "
+             "disagreements-only file built by 'make experiment-adjudicator-prep'.",
+    )
     args = parser.parse_args()
+    # ── Guard: never hand a full-size template to an adjudicator ─────────────
+    # The adjudicator sees only A≠B records, and those are unknown at
+    # onboarding time. A full-size file here is exactly the bug that let a
+    # 147-record ADJUDICATOR template reach a human in an earlier run.
+    if ADJUDICATOR_ROLE in args.raters and not args.allow_full_adjudicator:
+        print(
+            f"    Refusing to create a full-size {ADJUDICATOR_ROLE} template.\n"
+            f"    The adjudicator annotates ONLY the A≠B disagreements, which are\n"
+            f"    not known yet. Correct flow:\n"
+            f"      1) make experiment-annotate RATERS=\"RATER_A RATER_B\"\n"
+            f"      2) collect both filled files\n"
+            f"      3) make experiment-adjudicator-prep SPLIT=<split>\n"
+            f"    (Pass --allow-full-adjudicator only for pipeline simulations.)",
+            file=sys.stderr,
+        )
+        return 2
 
     base_dir = Path(args.experiment_dir)
     out_dir = Path(args.out_experiment)
@@ -190,8 +235,12 @@ def main() -> int:
     for rater, rel in decl_forms.items():
         print(f"  Declaration form {rater:<12} -> {rel}")
 
-    print("\n  NEXT: raters sign their declaration, then fill their annotation file")
-    print("  Labels are schema-validated on ingestion — no free-text labels accepted")
+    print("\n  NEXT: raters sign their declaration, then fill their annotation file.")
+    print("  Labels are schema-validated on ingestion — no free-text labels accepted.")
+    if ADJUDICATOR_ROLE not in args.raters:
+        print("  AFTER RATER_A and RATER_B return their files, build the "
+              "disagreements-only")
+        print("  adjudicator file:  make experiment-adjudicator-prep SPLIT=<split>")
     return 0
 
 

@@ -65,17 +65,39 @@ def _label_of(rec: dict) -> str:
     return (rec.get("annotations") or {}).get(key, "") or ""
 
 
+def _is_abstention(rec: dict) -> bool:
+    """True when the rater explicitly declined to give a label.
+
+    Rubric 3: an uncertain rater marks ``rater_uncertainty = "uncertain"`` and
+    leaves the label blank — the record stays in the dataset as uncertainty
+    data. It is therefore complete, not missing.
+    """
+    return (rec.get("flags") or {}).get("rater_uncertainty") == "uncertain"
+
+
 def inspect_file(path: Path) -> Dict:
-    """Return fill/invalid counts and per-record validity for one file."""
+    """Return fill/invalid counts and per-record validity for one file.
+
+    A declared abstention (``rater_uncertainty = "uncertain"`` with a blank
+    label) is a *filled* record, not a gap: rubric §3 requires uncertain cases to
+    stay in the dataset rather than be forced into an arbitrary label. Only a
+    blank label WITHOUT the uncertain flag counts as missing.
+    """
     records = [json.loads(line) for line in path.open() if line.strip()]
     filled = 0
     invalid = 0
     missing = 0
+    abstained = 0
     missing_records = []
     for i, rec in enumerate(records):
         label = _label_of(rec)
         dim = _dimension_of(rec)
         if not label:
+            # Abstention: explicitly declared, therefore acceptable
+            if _is_abstention(rec):
+                abstained += 1
+                filled += 1
+                continue
             missing += 1
             missing_records.append({"index": i, "dimension": dim, "internal_key": rec.get("internal_key")})
             continue
@@ -88,6 +110,7 @@ def inspect_file(path: Path) -> Dict:
         "n_filled": filled,
         "n_missing": missing,
         "n_invalid": invalid,
+        "n_abstained": abstained,
         "missing_records": missing_records[:10],
     }
 
@@ -105,7 +128,10 @@ def _agreements_across(files) -> Dict:
             if not line.strip():
                 continue
             rec = json.loads(line)
-            out[rec.get("internal_key", "")] = (_dimension_of(rec), _label_of(rec))
+            # An uncertain rater casts no valid vote (same rule as
+            # resolve_disagreements.py), so it can never create a disagreement.
+            label = "" if _is_abstention(rec) else _label_of(rec)
+            out[rec.get("internal_key", "")] = (_dimension_of(rec), label)
         return out
 
     specs = [files["RATER_A"], files["RATER_B"], files["ADJUDICATOR"]]
@@ -154,6 +180,30 @@ def build_status(annotations_dir: Path, experiment_id: str) -> Dict:
     if any_invalid or any_missing:
         status = "PENDING"
 
+    # Actionable hint: when A and B are complete but the ADJUDICATOR files do not
+    # exist yet, that is EXPECTED — the adjudicator file is built from the A≠B
+    # disagreements, not onboarded upfront.
+    def _complete(split: str, rater: str) -> bool:
+        p = annotations_dir / f"{experiment_id}_{rater}_{split}.jsonl"
+        if not p.exists():
+            return False
+        rep = inspect_file(p)
+        return rep["n_invalid"] == 0 and rep["n_missing"] == 0
+
+    raters_done = all(_complete(s, r) for s in ("calibration", "heldout")
+                      for r in ("RATER_A", "RATER_B"))
+    adjudicator_built = any(
+        (annotations_dir / f"{experiment_id}_ADJUDICATOR_{s}.jsonl").exists()
+        for s in ("calibration", "heldout")
+    )
+    next_step = ""
+    if status == "PENDING" and raters_done and not adjudicator_built:
+        next_step = (
+            "\nNEXT = RATER_A/RATER_B are complete; build the disagreements-only "
+            "adjudicator files with 'make experiment-adjudicator-prep "
+            "SPLIT=calibration' and 'SPLIT=heldout'."
+        )
+
     return {
         "experiment_id": experiment_id,
         "status": status,
@@ -163,7 +213,7 @@ def build_status(annotations_dir: Path, experiment_id: str) -> Dict:
             "READY  = every rater file fully filled & schema-valid (adjudicator "
             "included), so the full pipeline may run.\n"
             "PENDING = some annotations missing/invalid — emit NO fabricated "
-            "result until real independent raters provide them."
+            "result until real independent raters provide them." + next_step
         ),
     }
 
@@ -203,6 +253,8 @@ def main() -> int:
             problems.append(f"{f['n_missing']} unfilled")
         if f["n_invalid"]:
             problems.append(f"{f['n_invalid']} invalid labels")
+        if f.get("n_abstained"):
+            problems.append(f"{f['n_abstained']} abstained")
         extra = ("  [" + ", ".join(problems) + "]") if problems else ""
         print(
             f"    {f['file'].split('/')[-1]:<58} {f['n_filled']}/{f['n_records']} filled{extra}"
@@ -213,9 +265,16 @@ def main() -> int:
           f"({ag['n_disagreements_resolved_by_adjudicator']} resolved by adjudicator)")
 
     if status["status"] == "READY":
-        print("\n  → Ready to run ingest → resolve → gold → agreement.\n")
+        print("\n  -> Ready to run ingest -> resolve -> gold -> agreement.\n")
     else:
-        print("\n  → PENDING: real raters must fill the sealed templates first.\n")
+        print("\n  -> PENDING: real raters must fill the sealed templates first.")
+        # Surface the actionable next step (e.g. build the adjudicator files once
+        # A and B are complete) instead of leaving the operator to guess.
+        for line in (status.get("note") or "").splitlines():
+            stripped = line.strip()
+            if stripped.startswith("NEXT ="):
+                print(f"  -> {stripped[len('NEXT = '):]}")
+        print()
 
     # In the default (report) mode we exit 0 even when PENDING, because this is
     # a status report. The `--fail-pending` flag is what lets a Makefile step
