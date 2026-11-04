@@ -26,9 +26,9 @@ import argparse
 import json
 import re
 import sys
+from collections import defaultdict
 from pathlib import Path
 from typing import Dict, List, Set
-from collections import defaultdict
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -49,7 +49,7 @@ SENSITIVE_KEYS = {
 
 
 def _load_jsonl(path: Path) -> List[dict]:
-    return [json.loads(l) for l in path.open() if l.strip()]
+    return [json.loads(line) for line in path.open() if line.strip()]
 
 
 def _nonempty_sensitive(record: dict) -> List[str]:
