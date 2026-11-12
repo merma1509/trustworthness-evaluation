@@ -6,23 +6,26 @@ Thanks for your interest in contributing! This project is a reproducible, held-o
 
 ## 1. Branching model (GitFlow-lite)
 
-The repository uses three long-lived branches with a clear promotion path:
+The repository uses two long-lived branches with a clear promotion path:
 
 ```bash
 main      (protected) — production. Only receives merged,
-                        tested releases via pull request from staging.
-staging   (protected) — testing / QA. Integration branch where changes
-                        from develop are published and validated before
-                        they reach main.
-develop   (protected) — development / draft. Default base branch for
-                        feature and fix branches.
+                        tested releases via pull request from develop.
+develop   (protected) — development / draft. Integration branch and the
+                        release source. Default base branch for feature
+                        and fix branches.
 ```
 
 - **Feature / fix branches** branch off `develop` and are merged back via a
   pull request.
 - **Hotfixes** for issues in production branch off `main`, are reviewed
-  against `staging` (or `main` for truly critical fixes), and are then
-  merged back into both `main` and `develop`.
+  against `main` and `develop`, and are then merged back into both.
+
+> **No staging branch.** There is no separate QA branch: `develop` is both the
+> integration branch and the release source. Release candidates are validated
+> by the quality gates on the `develop → main` pull request itself (tests, lint,
+> `validate-rerun`, `verify-artifacts`), so promoting `develop` straight to
+> `main` never skips a gate.
 
 Branch naming convention:
 
@@ -135,11 +138,11 @@ Products must never over-claim measurement:
 ## 6. Merge / release flow
 
 1. Merge feature/fix PRs into **`develop`** (squash merge recommended).
-2. Promote `develop` → **`staging`** with a pull request.
-   Run the QA checklist on `staging` (tests + validate-rerun + verify-artifacts).
-3. When a release is ready, open a PR **`staging` → `main`**.
+2. When a release is ready, open a PR **`develop` → `main`**.
+   The PR runs the full quality gate (tests + lint + validate-rerun +
+   verify-artifacts) on the exact merged tree, which is the QA step.
    Only maintainers merge to `main`; `main` is protected.
-4. Tag releases on `main` (e.g. `v2.0.0`).
+3. Tag releases on `main` (e.g. `v2.0.0`).
 
 ---
 

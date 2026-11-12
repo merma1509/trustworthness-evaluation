@@ -1,7 +1,7 @@
 name: CD — release
 
 # Release path (CONTRIBUTING.md §6): a tag such as v2.0.0 is pushed on `main`
-# after `staging → main` has merged. This workflow re-runs the full quality
+# after `develop → main` has merged. This workflow re-runs the full quality
 # gate on the tagged commit and only then publishes the release.
 #
 # There is no deploy target (this is a research codebase — the "artifact" is

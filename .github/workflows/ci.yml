@@ -9,7 +9,7 @@ name: CI — validation gate
 on:
   workflow_call:
   push:
-    branches: [develop, staging, main]
+    branches: [develop, main]
 
 permissions:
   contents: read

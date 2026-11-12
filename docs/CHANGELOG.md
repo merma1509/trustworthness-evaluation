@@ -7,6 +7,21 @@ here. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ### Changed
 
+- **`staging` branch retired — `develop` promotes directly to `main`.**
+  - The QA role of `staging` was redundant: `develop → main` pull requests run
+    the identical quality gate (pytest, ruff, `validate-rerun`,
+    `verify-artifacts`), so the extra hop added a branch to keep in sync
+    without adding a check. `staging` held no commit that was not already on
+    `develop`.
+  - `.github/workflows/pr.yml` now accepts `develop → main` as the release
+    promotion; `hotfix/*` may still target `main`. The `staging` case was removed
+    from the branch-policy guard.
+  - `.github/workflows/ci.yml` and `pr.yml` no longer trigger on `staging`.
+  - `CONTRIBUTING.md` §1 and §6, `SECURITY.md`, and `cd.yml` updated to the
+    two-long-lived-branch model.
+  - Stale promotion PRs (#25 `develop → main`, #26 `staging → main`) were
+    closed.
+
 - **Sealed templates now embed a rubric + self-referential template checksum.**
   - `scripts/seal_experiment.py` fills `metadata.rubric_checksum` (SHA-256 of
     `docs/MANUAL_AUDIT_RUBRIC_v3.md` at seal time) and

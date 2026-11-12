@@ -6,7 +6,7 @@ name: PR checks
 on:
   pull_request:
     types: [opened, edited, reopened, synchronize]
-    branches: [develop, staging, main]
+    branches: [develop, main]
 
 permissions:
   contents: read
@@ -19,8 +19,10 @@ concurrency:
 jobs:
   # ── GitFlow guardrail ─────────────────────────────────────────────────────
   # CONTRIBUTING.md §6 defines one promotion path:
-  #   feature/fix → develop → staging → main
+  #   feature/fix → develop → main
   # Anything else (e.g. feature → main) bypasses QA, so flag it early.
+  # There is no staging branch: `develop` is the integration branch AND the
+  # release source, so `develop → main` is a valid promotion.
   branch-policy:
     name: Branch policy (GitFlow)
     runs-on: ubuntu-latest
@@ -47,21 +49,13 @@ jobs:
               # Feature/fix/docs/chore branches land here — anything is fine.
               echo "✓ target is develop (default integration branch)."
               ;;
-            staging)
-              if [ "$HEAD" != "develop" ]; then
-                echo "::error::Only 'develop' may be promoted to 'staging' (got '$HEAD')."
-                echo "Promotion path: develop → staging → main (CONTRIBUTING.md §6)."
-                exit 1
-              fi
-              echo "✓ develop → staging promotion."
-              ;;
             main)
-              if [ "$HEAD" != "staging" ]; then
-                echo "::error::Only 'staging' may be promoted to 'main' (got '$HEAD')."
+              if [ "$HEAD" != "develop" ]; then
+                echo "::error::Only 'develop' may be promoted to 'main' (got '$HEAD')."
                 echo "Use a hotfix/* branch for urgent production fixes."
                 exit 1
               fi
-              echo "✓ staging → main release promotion."
+              echo "✓ develop → main release promotion."
               ;;
             *)
               echo "::warning::Unexpected target branch '$BASE'."
