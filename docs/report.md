@@ -252,19 +252,21 @@ Labour saved by auto: **0.71 h**.
 > and **re-sealed the production experiment with `--content-aware`**. The
 > current sealed data now passes **all four checks** (`make diagnose-design`):
 
-| Check                                | Current data                                                | Status                 |
-| ------------------------------------ | ----------------------------------------------------------- | ---------------------- |
-| Textual overlap calibration↔held-out | **0 family-level overlaps** (content-aware split)           | ✅ no blockers         |
-| True inconsistent consistency probes | True probes present                                         | ⚠️ present; strengthen |
-| Consistency display model-scoping    | 64 displays, 64 with `display_model` metadata (rater-blind) | ✅ no blockers         |
-| Family-level (content-aware) split   | 0 family overlaps (same model+text in both splits)          | ✅ no blockers         |
+| Check                                | Current data                                                        | Status                 |
+| ------------------------------------ | ------------------------------------------------------------------- | ---------------------- |
+| Textual overlap calibration↔held-out | **0 family-level overlaps** (content-aware split)                   | ✅ no blockers         |
+| True inconsistent consistency probes | True probes present                                                 | ⚠️ present; strengthen |
+| Consistency display model-scoping    | 64 displays, all pairs resolved to one model; 0 mixed, 0 mismatched | ✅ no blockers         |
+| Family-level (content-aware) split   | 0 family overlaps (same model+text in both splits)                  | ✅ no blockers         |
 
 Key migration facts (re-seal kept `experiment-id`, `seed`, and all 210
 internal keys `K_0001`..`K_0210`; only the calibration/held-out assignment of
 74 keys changed):
 
 - Existing rater annotations were **preserved** and re-bucketed to the new
-  split by `internal_key` (A/B/ADJUDICATOR cover 210/210 keys).
+  split by `internal_key` (RATER_A and RATER_B cover 210/210 keys; the
+  ADJUDICATOR covers only the 6 calibration disagreements, which is a subset of
+  the A/B keys by design — the adjudicator never saw the full sealed set).
 - `verify_seal_integrity` → **PASS** (blinding intact, 0 non-empty sensitive
   values, no consistency group spans both splits).
 - `experiment-validate-rerun` → **VALIDATION PASSED** (every reported number
@@ -277,3 +279,17 @@ textual overlap** (identical prompt text in both splits under _different_
 models) — allowed by a family-level split but a residual concern for a 'fresh'
 held-out set (see `experiment/reports/design_diagnosis.json` →
 `n_cross_model_text_overlap_pairs`).
+
+**Scale of the residual overlap (explicit, not hidden).** The held-out split has
+41 distinct prompt texts, of which **34 (82.9%)** also occur in calibration
+under the other model. The split unit is `(model, text)`, so this is correct by
+construction: no `(model, text)` pair crosses the boundary
+(`n_family_overlap_pairs = 0`, the blocking check). But a claim that held-out
+uses _entirely fresh stimuli_ would be false — what is fresh is each
+`(model, text)` family, not the text itself. The consequence is bounded: a
+rater who saw "What year did World War II end?" while scoring gemma may
+recognise it while scoring llama, which could inflate self-agreement across
+models. This affects the **cross-model comparison** (§3 ranking), not the
+per-model per-dimension scores. Closing it fully requires a stimulus-level
+split (disjoint text pools per model), which would shrink each model's
+held-out set below a usable size given the 210-record pool.
