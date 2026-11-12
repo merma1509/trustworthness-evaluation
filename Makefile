@@ -21,9 +21,22 @@ endif
 # Id of the last-sealed experiment (fallback when EXPERIMENT_ID is unset).
 LATEST_EXPERIMENT_ID := $(shell $(PY) -c "import sys; sys.path.insert(0,'.'); from src.experiment import find_latest_experiment_id; print(find_latest_experiment_id() or '')" 2>/dev/null)
 
+# Experiment id used by the annotation-file defaults: an explicit EXPERIMENT_ID=
+# wins, otherwise the last-sealed experiment.
+EXPERIMENT_ID_RESOLVED := $(if $(EXPERIMENT_ID),$(EXPERIMENT_ID),$(LATEST_EXPERIMENT_ID))
+
 # Independent raters that annotate the full sealed set (ADJUDICATOR is excluded
 # by design — it is onboarded later, on the A≠B disagreements only).
 RATERS ?= RATER_A RATER_B
+
+# Annotation file paths for the adjudicator targets. Derived from the experiment
+# id and SPLIT so the documented invocation (`make experiment-adjudicator-prep
+# SPLIT=calibration`) works without hand-typed paths; override to point at other
+# files.
+ANN_DIR ?= experiment/annotations
+RATER_A_FILE ?= $(ANN_DIR)/$(EXPERIMENT_ID_RESOLVED)_RATER_A_$(SPLIT).jsonl
+RATER_B_FILE ?= $(ANN_DIR)/$(EXPERIMENT_ID_RESOLVED)_RATER_B_$(SPLIT).jsonl
+ADJUDICATOR_FILE ?= $(ANN_DIR)/$(EXPERIMENT_ID_RESOLVED)_ADJUDICATOR_$(SPLIT).jsonl
 
 
 # Shared recipe: build an audit dataset (AUDIT_* target-specific vars)
@@ -206,14 +219,17 @@ experiment-annotate:
 # Run AFTER RATER_A and RATER_B are fully annotated, BEFORE ADJUDICATOR starts.
 #     SPLIT=heldout RATER_A_FILE=... RATER_B_FILE=... ADJUDICATOR_FILE=...
 experiment-adjudicator-prep:
-	@EXP_ID="$(EXPERIMENT_ID)"; \
-	if [ -z "$$EXP_ID" ]; then EXP_ID="$(LATEST_EXPERIMENT_ID)"; fi; \
+	@EXP_ID="$(EXPERIMENT_ID_RESOLVED)"; \
 	if [ -z "$$EXP_ID" ]; then echo "  ✗ No experiment id found (set EXPERIMENT_ID=... or seal one first)."; exit 1; fi; \
+	if [ -z "$(SPLIT)" ]; then echo "  ✗ Set SPLIT=calibration or SPLIT=heldout."; exit 1; fi; \
+	for f in "$(RATER_A_FILE)" "$(RATER_B_FILE)"; do \
+		if [ ! -f "$$f" ]; then echo "  ✗ Missing rater file: $$f"; exit 1; fi; \
+	done; \
 	$(PY) scripts/prepare_adjudicator.py \
-		--rater-a $(RATER_A_FILE) \
-		--rater-b $(RATER_B_FILE) \
+		--rater-a "$(RATER_A_FILE)" \
+		--rater-b "$(RATER_B_FILE)" \
 		--sealed "experiment/sealed/templates/$${EXP_ID}_$(SPLIT)_template.jsonl" \
-		--out $(ADJUDICATOR_FILE) \
+		--out "$(ADJUDICATOR_FILE)" \
 		--experiment-id "$$EXP_ID" \
 		--split $(SPLIT)
 	@echo "  Adjudicator file prepared (only A≠B disagreements, double-blind)."

@@ -270,22 +270,71 @@ def diagnose_inconsistent_probes(raw_dir: Path) -> Dict:
 
 
 # ── 3. Model scoping inside consistency template displays ───────────────────
-def diagnose_model_scoping(templates_dir: Path) -> Dict:
+def _build_pair_model_index(raw_dir: Optional[Path]) -> Dict[Tuple[str, str], Set[str]]:
+    """Map (prompt_text, response) -> set of model_ids from the raw pool.
+
+    The template's ``pairs[]`` is deliberately anonymous (the rater must stay
+    blind to model identity), so it carries no ``model_id`` — but the raw
+    outputs the sealer drew from do. Re-indexing by the exact (prompt, response)
+    text lets an auditor PROVE which model(s) back a display without ever
+    exposing that information to the rater.
+
+    A pair that resolves to >1 model would mean two models produced byte-identical
+    text; that is still reported as a set so the check stays honest.
+    """
+    index: Dict[Tuple[str, str], Set[str]] = {}
+    if raw_dir is None or not Path(raw_dir).exists():
+        return index
+    for fp in sorted(Path(raw_dir).glob("*consistency*.jsonl")):
+        for r in load_jsonl(fp):
+            mid = r.get("model_id") or r.get("model") or ""
+            prompt = r.get("prompt_text", "")
+            response = r.get("response", "")
+            if not prompt or not response:
+                continue
+            index.setdefault((prompt, response), set()).add(mid)
+    return index
+
+
+def diagnose_model_scoping(
+    templates_dir: Path,
+    raw_dir: Optional[Path] = None,
+) -> Dict:
     """Every consistency display must be single-model (model-scoped).
 
     The visible ``pairs[]`` intentionally carries NO ``model_id`` (rater is
     blind to model identity, Plan 02.1).  The single backing model is recorded
     under ``metadata.display_model`` so an auditor can prove the display is not
-    mixing two models' responses.  A display is a blocker if it mixes models
-    (more than one distinct ``display_model``) or if it has no traceable model.
+    mixing two models' responses.
+
+    This check is EVIDENCE-BASED, not a tautology: each pair is resolved back to
+    its source model via ``raw_dir`` and the resulting model set is compared with
+    ``metadata.display_model``. A display is a blocker when:
+
+      * it has no ``pairs`` or no ``display_model``            -> unscoped
+      * its pairs resolve to more than one distinct model       -> mixed
+      * the resolved model disagrees with ``display_model``     -> mismatch
+      * a pair cannot be resolved in the raw pool at all         -> unresolved
+        (fail closed: single-model scoping cannot be *proven*)
+
+    Without ``raw_dir`` the evidence checks are skipped and the result says so
+    via ``evidence_available: false`` rather than silently reporting zeros.
     """
     files = sorted(templates_dir.glob("*_template.jsonl"))
     if not files:
         return {"ok": True, "note": "no templates present"}
 
+    pair_models = _build_pair_model_index(raw_dir)
+    evidence_available = bool(pair_models)
+
     n_displays = 0
     n_mixed = 0          # displays whose (visible) pairs span >1 model
     n_unscoped = 0       # displays with no traceable display_model metadata
+    n_mismatch = 0       # display_model contradicts the resolved source model
+    n_unresolved = 0     # pairs that cannot be traced to the raw pool
+    mixed_examples: List[Dict] = []
+    mismatch_examples: List[Dict] = []
+
     for f in files:
         if "_calibration_template.jsonl" not in f.name and \
            "_heldout_template.jsonl" not in f.name:
@@ -294,29 +343,62 @@ def diagnose_model_scoping(templates_dir: Path) -> Dict:
             pr = rec.get("prompt_record") or {}
             if (pr.get("dimension") or "") != "consistency":
                 continue
-            if not rec.get("pairs"):
-                n_unscoped += 1
-                n_displays += 1
-                continue
             n_displays += 1
-            dm = (rec.get("metadata") or {}).get("display_model")
-            if not dm:
+            dm = (rec.get("metadata") or {}).get("display_model") or ""
+            pairs = rec.get("pairs") or []
+            if not pairs or not dm:
                 n_unscoped += 1
-            # Note: the rater-facing pairs[] is intentionally anonymous, so
-            # model mixing cannot be re-derived from the template — it is
-            # enforced at seal time and audited via metadata.display_model.
+            if not evidence_available:
+                continue
 
-    ok = n_mixed == 0 and n_unscoped == 0
+            resolved: Set[str] = set()
+            for p in pairs:
+                models = pair_models.get((p.get("prompt", ""), p.get("response", "")))
+                if not models:
+                    n_unresolved += 1
+                    continue
+                resolved |= {m for m in models if m}
+
+            if len(resolved) > 1:
+                n_mixed += 1
+                if len(mixed_examples) < 5:
+                    mixed_examples.append({
+                        "internal_key": rec.get("internal_key", ""),
+                        "display_model": dm,
+                        "resolved_models": sorted(resolved),
+                    })
+            elif resolved and dm and resolved != {dm}:
+                n_mismatch += 1
+                if len(mismatch_examples) < 5:
+                    mismatch_examples.append({
+                        "internal_key": rec.get("internal_key", ""),
+                        "display_model": dm,
+                        "resolved_models": sorted(resolved),
+                    })
+
+    ok = (
+        n_mixed == 0
+        and n_unscoped == 0
+        and n_mismatch == 0
+        and n_unresolved == 0
+    )
     return {
         "ok": ok,
+        "evidence_available": evidence_available,
         "n_consistency_displays": n_displays,
         "n_displays_unscoped": n_unscoped,
         "n_displays_mixing_models": n_mixed,
+        "n_displays_display_model_mismatch": n_mismatch,
+        "n_unresolved_pairs": n_unresolved,
+        "mixed_examples": mixed_examples,
+        "mismatch_examples": mismatch_examples,
         "caveat": (
             "Every consistency display must be backed by exactly ONE model "
             "(recorded under metadata.display_model; never shown to the rater). "
             "A display that mixes two models' responses makes a per-model "
-            "consistency verdict meaningless."
+            "consistency verdict meaningless. Pairs are resolved back to their "
+            "source model via the raw outputs, so this is a real proof rather "
+            "than a re-read of the metadata being checked."
         ),
     }
 
@@ -448,7 +530,7 @@ def main() -> int:
             tpl_dir, tpl_dir, auto_labels if auto_labels.exists() else None
         ),
         "inconsistent_probes": diagnose_inconsistent_probes(raw_dir),
-        "model_scoping": diagnose_model_scoping(tpl_dir),
+        "model_scoping": diagnose_model_scoping(tpl_dir, raw_dir),
         "family_split_enforcement": diagnose_family_split(
             raw_dir, args.split_seed
         ),
@@ -505,7 +587,8 @@ _FIXES = {
         "genuinely different responses, and tag the group inconsistent."
     ),
     "model_scoping": (
-        "Attach model_id to every pair in consistency template displays."
+        "Seal each consistency display from a single model's group members; the "
+        "resolved pair models must match metadata.display_model exactly."
     ),
     "family_split_enforcement": (
         "Enforce content-aware split units in the sealing pipeline."
