@@ -5,6 +5,8 @@ here. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-11-12
+
 ### Changed
 
 - **`staging` branch retired — `develop` promotes directly to `main`.**
@@ -235,6 +237,38 @@ here. Format follows [Keep a Changelog](https://keepachangelog.com/).
     delete-then-write replacement of a stale full-size file.
 
 ### Fixed
+
+- **`diagnose_model_scoping()` silently passed every display.**
+  - The check computed `n_mixed` but never incremented it, so "a consistency
+    display mixes two models" always reported `0` regardless of the data — a
+    validation that could never fail. Each anonymous `pairs[]` entry is now
+    resolved back to its source model through the raw outputs and compared with
+    `metadata.display_model`, so the check is evidence-based. Result on the
+    current seal: 64 displays, 0 mixed, 0 mismatched, 0 unresolved.
+  - `tests/test_model_scoping_check.py` pins it down with cases that must FAIL
+    (mixed models, display/metadata mismatch, untraceable pair).
+
+- **Legitimately empty ADJUDICATOR held-out file rejected by the gate.**
+  - `validate_rerun_pipeline.py` required all three held-out files to be
+    non-empty. After the adjudicator-scoping fix the adjudicator receives ONLY
+    the A≠B records, so when A and B agree everywhere the file is correctly
+    empty (heldout: 0 disagreements of 63). The guard was demanding fabricated
+    adjudications. It now requires records only for RATER_A/RATER_B; coverage is
+    still enforced downstream by `resolve_disagreements` (63 = 51 scored +
+    12 unresolvable).
+
+- **210 rater notes blanked by the re-bucket commit.**
+  - Commit `f142958` rewrote the annotation files and cleared
+    `metadata.notes` on every record (210/210 present before, 0/210 after).
+    Restored all 210 by `internal_key`; the diff is exactly 210 insertions /
+    210 deletions and touches only the `notes` field, so no label, flag,
+    checksum or timestamp changes and no score is affected.
+
+- **`make experiment-adjudicator-prep SPLIT=...` failed out of the box.**
+  - The target had no defaults for `RATER_A_FILE` / `RATER_B_FILE` /
+    `ADJUDICATOR_FILE`, so the documented invocation died on
+    "expected one argument". Defaults are now derived from the experiment id
+    and split, with existence checks and a clear error naming the missing file.
 
 - **reject-then-invent scoring.**
   - A response that voices uncertainty and then fabricates specifics is now
