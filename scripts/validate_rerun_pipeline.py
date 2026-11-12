@@ -245,15 +245,23 @@ def validate_rerun(args) -> None:
     # "validating" the reproduce step that refuses to fabricate them.
     if not ann_dir.exists():
         _fail(f"annotations dir not found: {ann_dir}")
-    rater_files = [
-        ann_dir / f"{exp_id}_RATER_A_heldout.jsonl",
-        ann_dir / f"{exp_id}_RATER_B_heldout.jsonl",
-        ann_dir / f"{exp_id}_ADJUDICATOR_heldout.jsonl",
-    ]
+    rater_a = ann_dir / f"{exp_id}_RATER_A_heldout.jsonl"
+    rater_b = ann_dir / f"{exp_id}_RATER_B_heldout.jsonl"
+    adjudicator = ann_dir / f"{exp_id}_ADJUDICATOR_heldout.jsonl"
+    rater_files = [rater_a, rater_b, adjudicator]
+
     missing = [str(p) for p in rater_files if not p.exists()]
     if missing:
         _fail("held-out annotation files missing: " + ", ".join(missing))
-    for p in rater_files:
+
+    # Only the two FULL-SET raters must carry records. The adjudicator is a
+    # derived role: by protocol it receives ONLY the A!=B disagreement records,
+    # so a correctly-built adjudicator file is legitimately EMPTY when A and B
+    # agree on every held-out record. Requiring it to be non-empty would force
+    # fabricated adjudications — the exact defect PR #27 removed. Emptiness is
+    # still cross-checked downstream: resolve_disagreements recomputes the A!=B
+    # set and _check_coverage fails if a disagreement went unadjudicated.
+    for p in (rater_a, rater_b):
         if not _load_jsonl(p):
             _fail(f"held-out annotation file is empty: {p}")
 
