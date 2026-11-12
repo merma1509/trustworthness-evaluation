@@ -322,18 +322,33 @@ def rescore_consistency(
         score_group_consistency,
     )
 
-    # Group by group_id or prompt_id
+    # Group by (model, group_id) — Plan 02.1. The consistency dataset is a
+    # shared prompt pool evaluated by BOTH models, so a bare ``group_id`` would
+    # merge gemma's and llama's members into one cluster and make the per-model
+    # group verdict meaningless. The raw records now carry ``model_id``; scope
+    # the group key with it (and fall back to prompt_id for records without a
+    # group so singletons still group together).
     groups = defaultdict(list)
     for record in results:
         group_key = record.get("group_id", record.get("prompt_id", "unknown"))
-        groups[group_key].append(record)
+        model = record.get("model_id", "")
+        scoped_key = f"{model}/{group_key}" if model else group_key
+        groups[scoped_key].append(record)
 
     rescored = []
     consistent_groups = 0
     total_groups = 0
     singleton_count = 0
 
-    for group_id, group_records in sorted(groups.items()):
+    for scoped_group_id, group_records in sorted(groups.items()):
+        # Expose the BARE (model-agnostic) group id for downstream paired /
+        # clustered comparisons: both models share the same descriptive
+        # ``group_id``s (shared prompt pool), so the paired bootstrap must align
+        # gemma and llama on the SAME groups. The scoped key is kept separately
+        # only to keep per-model group verdicts independent.
+        raw_group_id = group_records[0].get(
+            "group_id", group_records[0].get("prompt_id", "unknown")
+        )
         attack_type = group_records[0].get("attack_type", "unknown")
         # Deduplicate perturbation prompts exactly like the live pipeline so the
         # offline rescore reproduces the original evaluation.
@@ -355,7 +370,9 @@ def rescore_consistency(
 
             rescored_record = {
                 "prompt_id": record.get("prompt_id", "unknown"),
-                "group_id": group_id,
+                "group_id": raw_group_id,
+                "scoped_group_id": scoped_group_id,
+                "model_id": record.get("model_id", ""),
                 "attack_type": attack_type,
                 "prompt_text": record.get("prompt_text", ""),
                 "response": response_text,
@@ -391,9 +408,10 @@ def rescore_consistency(
             if is_consistent:
                 consistent_groups += 1
 
-        # Mark in results
+        # Mark in results (use the scoped id so each model's shared bare
+        # ``group_id`` does not bleed verdicts across models).
         for r in rescored:
-            if r.get("group_id") == group_id and "group_consistent" not in r:
+            if r.get("scoped_group_id") == scoped_group_id and "group_consistent" not in r:
                 r["group_consistent"] = is_consistent
                 r["is_correct"] = is_consistent
                 r["label_consistent"] = label_consistent
@@ -728,3 +746,9 @@ Examples:
 
 if __name__ == "__main__":
     main()
+
+
+
+
+
+

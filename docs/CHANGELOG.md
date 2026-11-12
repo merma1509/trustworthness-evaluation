@@ -5,7 +5,35 @@ here. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-11-12
+
 ### Changed
+
+- **`staging` branch retired — `develop` promotes directly to `main`.**
+  - The QA role of `staging` was redundant: `develop → main` pull requests run
+    the identical quality gate (pytest, ruff, `validate-rerun`,
+    `verify-artifacts`), so the extra hop added a branch to keep in sync
+    without adding a check. `staging` held no commit that was not already on
+    `develop`.
+  - `.github/workflows/pr.yml` now accepts `develop → main` as the release
+    promotion; `hotfix/*` may still target `main`. The `staging` case was removed
+    from the branch-policy guard.
+  - `.github/workflows/ci.yml` and `pr.yml` no longer trigger on `staging`.
+  - `CONTRIBUTING.md` §1 and §6, `SECURITY.md`, and `cd.yml` updated to the
+    two-long-lived-branch model.
+  - Stale promotion PRs (#25 `develop → main`, #26 `staging → main`) were
+    closed.
+
+- **Sealed templates now embed a rubric + self-referential template checksum.**
+  - `scripts/seal_experiment.py` fills `metadata.rubric_checksum` (SHA-256 of
+    `docs/MANUAL_AUDIT_RUBRIC_v3.md` at seal time) and
+    `metadata.template_checksum` (acyclic SHA-256 of the record with that field
+    blanked) on every sealed template record, so the rubric revision handed to
+    raters and the exact template each rater annotated are provable from the
+    record itself — closing the "rubric checksums were empty" gap (plan-01 §4).
+  - `tests/test_clean_rerun_safeguards.py` locks the new contract: checksums are
+    non-empty, the template checksum is self-referential (recomputable with the
+    field blanked), and the rubric checksum propagates verbatim.
 
 - **Repository moved to a GitFlow branching model (3 long-lived branches).**
   - `main` — production (default branch, protected: PR-only, no force push /
@@ -209,6 +237,38 @@ here. Format follows [Keep a Changelog](https://keepachangelog.com/).
     delete-then-write replacement of a stale full-size file.
 
 ### Fixed
+
+- **`diagnose_model_scoping()` silently passed every display.**
+  - The check computed `n_mixed` but never incremented it, so "a consistency
+    display mixes two models" always reported `0` regardless of the data — a
+    validation that could never fail. Each anonymous `pairs[]` entry is now
+    resolved back to its source model through the raw outputs and compared with
+    `metadata.display_model`, so the check is evidence-based. Result on the
+    current seal: 64 displays, 0 mixed, 0 mismatched, 0 unresolved.
+  - `tests/test_model_scoping_check.py` pins it down with cases that must FAIL
+    (mixed models, display/metadata mismatch, untraceable pair).
+
+- **Legitimately empty ADJUDICATOR held-out file rejected by the gate.**
+  - `validate_rerun_pipeline.py` required all three held-out files to be
+    non-empty. After the adjudicator-scoping fix the adjudicator receives ONLY
+    the A≠B records, so when A and B agree everywhere the file is correctly
+    empty (heldout: 0 disagreements of 63). The guard was demanding fabricated
+    adjudications. It now requires records only for RATER_A/RATER_B; coverage is
+    still enforced downstream by `resolve_disagreements` (63 = 51 scored +
+    12 unresolvable).
+
+- **210 rater notes blanked by the re-bucket commit.**
+  - Commit `f142958` rewrote the annotation files and cleared
+    `metadata.notes` on every record (210/210 present before, 0/210 after).
+    Restored all 210 by `internal_key`; the diff is exactly 210 insertions /
+    210 deletions and touches only the `notes` field, so no label, flag,
+    checksum or timestamp changes and no score is affected.
+
+- **`make experiment-adjudicator-prep SPLIT=...` failed out of the box.**
+  - The target had no defaults for `RATER_A_FILE` / `RATER_B_FILE` /
+    `ADJUDICATOR_FILE`, so the documented invocation died on
+    "expected one argument". Defaults are now derived from the experiment id
+    and split, with existence checks and a clear error naming the missing file.
 
 - **reject-then-invent scoring.**
   - A response that voices uncertainty and then fabricates specifics is now

@@ -62,19 +62,24 @@ def _extract_per_prompt_scores() -> dict:
     for dim in DIMENSIONS:
         seen = set()
         for model_file in RAW_OUTPUTS_DIR.glob(f"*_{dim}.jsonl"):
+            # Inject the model id from the filename: the raw
+            # consistency records never carry it, and the unit must be scoped
+            # per model so gemma's and llama's groups stay independent.
+            model = model_file.stem.rsplit("_", 1)[0]
             with open(model_file) as f:
                 for line in f:
                     if not line.strip():
                         continue
                     r = json.loads(line)
                     if dim == "consistency":
-                        # Unit = group. Skip singletons (never scored).
+                        # Unit = (model, group). Skip singletons (never scored).
                         gid = r.get("group_id")
                         if gid is None or r.get("is_singleton"):
                             continue
-                        if gid in seen:
+                        unit_key = (model, gid)
+                        if unit_key in seen:
                             continue
-                        seen.add(gid)
+                        seen.add(unit_key)
                         dims[dim].append(1.0 if r.get("group_consistent") else 0.0)
                     else:
                         # Unit = unique prompt.

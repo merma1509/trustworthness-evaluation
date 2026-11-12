@@ -10,12 +10,11 @@ evaluation seriously.
 
 ## Supported versions
 
-| Version | Branch          | Supported          |
-| ------- | --------------- | ------------------ |
-| Latest  | `main`          | :white_check_mark: |
-| dev     | `develop`       | :white_check_mark: (active development) |
-| staging | `staging`       | :white_check_mark: (QA only)            |
-| Older   | other branches  | :x:                 |
+| Version | Branch         | Supported                               |
+| ------- | -------------- | --------------------------------------- |
+| Latest  | `main`         | :white_check_mark:                      |
+| dev     | `develop`      | :white_check_mark: (active development) |
+| Older   | other branches | :x:                                     |
 
 Security fixes are backported to the latest released (tagged) version on
 `main`. `develop` always carries the newest fixes.
@@ -29,7 +28,7 @@ Security fixes are backported to the latest released (tagged) version on
 Report it privately instead:
 
 - **Email:** open a GitHub **private security advisory** via
-  *Security → Report a vulnerability*, or
+  _Security → Report a vulnerability_, or
 - **Ping a maintainer** privately on the development channel.
 
 Please include:
@@ -76,7 +75,7 @@ plan (fix / mitigations) within **10 business days**.
 ## Security best practices for contributors
 
 - Use a private GitHub repository (or protected branches) for this
-  experiment; `main`, `staging`, and `develop` should be protected.
+  experiment; `main` and `develop` should be protected.
 - Require pull-request reviews before merging changes that touch sealed
   data, scoring, or reproducibility artifacts.
 - Do not add secrets to `pyproject.toml`, `.env`, logs, or commit messages.

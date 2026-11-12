@@ -21,6 +21,23 @@ endif
 # Id of the last-sealed experiment (fallback when EXPERIMENT_ID is unset).
 LATEST_EXPERIMENT_ID := $(shell $(PY) -c "import sys; sys.path.insert(0,'.'); from src.experiment import find_latest_experiment_id; print(find_latest_experiment_id() or '')" 2>/dev/null)
 
+# Experiment id used by the annotation-file defaults: an explicit EXPERIMENT_ID=
+# wins, otherwise the last-sealed experiment.
+EXPERIMENT_ID_RESOLVED := $(if $(EXPERIMENT_ID),$(EXPERIMENT_ID),$(LATEST_EXPERIMENT_ID))
+
+# Independent raters that annotate the full sealed set (ADJUDICATOR is excluded
+# by design — it is onboarded later, on the A≠B disagreements only).
+RATERS ?= RATER_A RATER_B
+
+# Annotation file paths for the adjudicator targets. Derived from the experiment
+# id and SPLIT so the documented invocation (`make experiment-adjudicator-prep
+# SPLIT=calibration`) works without hand-typed paths; override to point at other
+# files.
+ANN_DIR ?= experiment/annotations
+RATER_A_FILE ?= $(ANN_DIR)/$(EXPERIMENT_ID_RESOLVED)_RATER_A_$(SPLIT).jsonl
+RATER_B_FILE ?= $(ANN_DIR)/$(EXPERIMENT_ID_RESOLVED)_RATER_B_$(SPLIT).jsonl
+ADJUDICATOR_FILE ?= $(ANN_DIR)/$(EXPERIMENT_ID_RESOLVED)_ADJUDICATOR_$(SPLIT).jsonl
+
 
 # Shared recipe: build an audit dataset (AUDIT_* target-specific vars)
 define AUDIT_SAMPLES
@@ -60,8 +77,9 @@ help:
 	@echo "  make experiment-seal                   Seal a NEW experiment (templates + encrypted labels)"
 	@echo "                                           SEED=... [EXPERIMENT_ID=...] [PASSPHRASE=...]"
 	@echo "                                           (EXPERIMENT_ID optional — auto-derived from run datetime)"
-	@echo "  make experiment-annotate               Emit blank rater templates + declaration forms"
-	@echo "                                           RATERS=\"raterA raterB\""
+	@echo "  make experiment-annotate               Emit blank templates for the INDEPENDENT raters"
+	@echo "                                           RATERS=\"RATER_A RATER_B\" (default). ADJUDICATOR is NOT"
+	@echo "                                           onboarded here — it only sees A≠B disagreements."
 	@echo "  make experiment-adjudicator-prep       Build ADJUDICATOR file from ONLY A/B disagreements"
 	@echo "                                           (double-blind; run AFTER A/B, BEFORE adjudicator)"
 	@echo "                                           SPLIT=..., RATER_A_FILE=..., RATER_B_FILE=... ADJUDICATOR_FILE=..."
@@ -171,26 +189,47 @@ experiment-seal:
 		$(if $(PASSPHRASE),--passphrase "$(PASSPHRASE)",--generate-passphrase --keeper experiment/.sealed_keeper.json)
 	@echo "  Sealed experiment ready. NEXT: make experiment-annotate"
 
-# Emit blank rater templates + declaration forms
+# Clean design re-do: seal with the family-level (content-aware) split
+# required by the design review. Use a NEW EXPERIMENT_ID so the
+# freshly sealed keys never ambiguously map onto old annotations.
+experiment-seal-content-aware:
+	@test -n "$(SEED)" || (echo "Set SEED=..."; exit 1)
+	$(PY) scripts/seal_experiment.py \
+		--raw "$(RESULTS)/raw_outputs" \
+		--experiment-dir experiment/sealed \
+		--seed "$(SEED)" \
+		--content-aware \
+		$(if $(EXPERIMENT_ID),--experiment-id "$(EXPERIMENT_ID)",) \
+		$(if $(PASSPHRASE),--passphrase "$(PASSPHRASE)",--generate-passphrase --keeper experiment/.sealed_keeper.json)
+	@echo "  Content-aware sealed experiment ready. NEXT: make diagnose-design (expect 0 family overlap), then make experiment-annotate"
+
+# Emit blank rater templates + declaration forms for the INDEPENDENT raters only.
+# The ADJUDICATOR is intentionally NOT onboarded here: it annotates only the
+# A≠B disagreements, which are unknown until both raters return their files.
+# Run `make experiment-adjudicator-prep SPLIT=...` afterwards for that role.
 experiment-annotate:
+	@test -n "$(RATERS)" || (echo "  ✗ Set RATERS=\"RATER_A RATER_B\" (independent raters only; the adjudicator is created later)"; exit 1)
 	$(PY) scripts/onboard_raters.py \
 		--experiment-dir experiment/sealed \
 		--out-experiment experiment \
-		--raters $(RATERS) ADJUDICATOR
+		--raters $(RATERS)
 
 # Build the ADJUDICATOR file from ONLY the A/B disagreement records
 # (double-blind: rebuilt from the sealed template, never from A/B files).
 # Run AFTER RATER_A and RATER_B are fully annotated, BEFORE ADJUDICATOR starts.
 #     SPLIT=heldout RATER_A_FILE=... RATER_B_FILE=... ADJUDICATOR_FILE=...
 experiment-adjudicator-prep:
-	@EXP_ID="$(EXPERIMENT_ID)"; \
-	if [ -z "$$EXP_ID" ]; then EXP_ID="$(LATEST_EXPERIMENT_ID)"; fi; \
+	@EXP_ID="$(EXPERIMENT_ID_RESOLVED)"; \
 	if [ -z "$$EXP_ID" ]; then echo "  ✗ No experiment id found (set EXPERIMENT_ID=... or seal one first)."; exit 1; fi; \
+	if [ -z "$(SPLIT)" ]; then echo "  ✗ Set SPLIT=calibration or SPLIT=heldout."; exit 1; fi; \
+	for f in "$(RATER_A_FILE)" "$(RATER_B_FILE)"; do \
+		if [ ! -f "$$f" ]; then echo "  ✗ Missing rater file: $$f"; exit 1; fi; \
+	done; \
 	$(PY) scripts/prepare_adjudicator.py \
-		--rater-a $(RATER_A_FILE) \
-		--rater-b $(RATER_B_FILE) \
+		--rater-a "$(RATER_A_FILE)" \
+		--rater-b "$(RATER_B_FILE)" \
 		--sealed "experiment/sealed/templates/$${EXP_ID}_$(SPLIT)_template.jsonl" \
-		--out $(ADJUDICATOR_FILE) \
+		--out "$(ADJUDICATOR_FILE)" \
 		--experiment-id "$$EXP_ID" \
 		--split $(SPLIT)
 	@echo "  Adjudicator file prepared (only A≠B disagreements, double-blind)."
@@ -243,6 +282,7 @@ experiment-agreement:
 		--rater-a $(RATER_A_FILE) \
 		--rater-b $(RATER_B_FILE) \
 		--out experiment/reports/agreement_report.json \
+		--resolutions experiment/agreements/$${EXP_ID}_heldout_disagreements.json \
 		--with-ci
 
 # Verify a sealed experiment is intact & fully blinded
@@ -292,6 +332,7 @@ experiment-reproduce: verify-artifacts
 			--rater-a "experiment/annotations/$${EXP_ID}_RATER_A_heldout.jsonl" \
 			--rater-b "experiment/annotations/$${EXP_ID}_RATER_B_heldout.jsonl" \
 			--out experiment/reports/agreement_report.json \
+			--resolutions "experiment/agreements/$${EXP_ID}_heldout_disagreements.json" \
 			--with-ci; \
 	else \
 		echo "  note: no held-out disagreement-resolution file found; held-out κ not regenerated."; \
@@ -353,6 +394,15 @@ verify-artifacts:
 	@echo "Verifying immutable artifacts..."
 	$(PY) scripts/verify_immutable.py --manifest "$(RESULTS)/manifest.json" --base-dir .
 	@echo "All artifacts verified."
+
+# Design diagnosis: textual overlap, inconsistent probes,
+# model-scoped displays, content-aware family split. Exit 1 on any blocker.
+diagnose-design:
+	$(PY) scripts/diagnose_design.py \
+		--raw "$(RESULTS)/raw_outputs" \
+		--templates experiment/sealed/templates \
+		--split-seed "diagnosis" \
+		--json experiment/reports/design_diagnosis.json
 
 # Recompute per-model/per-dimension scores + TrustScore from raw outputs
 compute-scores:

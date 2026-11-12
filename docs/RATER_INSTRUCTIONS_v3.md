@@ -18,7 +18,14 @@ You receive a **sealed annotation template**: one JSONL file per rater per split
 e.g.
 
 - `experiment/annotations/{EXPERIMENT_ID}_RATER_A_heldout.jsonl`
-- `experiment/annotations/{EXPERIMENT_ID}_ADJUDICATOR_calibration.jsonl`
+- `experiment/annotations/{EXPERIMENT_ID}_RATER_B_calibration.jsonl`
+
+> **Adjudicators:** you do **not** receive a full template. Your file
+> (`{EXPERIMENT_ID}_ADJUDICATOR_{split}.jsonl`) is generated later and contains
+> **only** the records where RATER_A and RATER_B disagreed — typically a handful
+> of lines, not the whole set. If you are ever handed a file with as many
+> records as the full template, stop and report it: it means
+> `make experiment-adjudicator-prep` was skipped.
 
 Each line is one record containing:
 
@@ -127,13 +134,21 @@ A sealed record looks like this (you fill only the marked fields):
 
 Standard flow:
 
-1. Receive your sealed template file(s) + this document + the rubric.
+1. **RATER_A and RATER_B** receive their sealed template file(s) + this document
+   - the rubric. Both annotate the **full** calibration and heldout sets,
+     independently. (A third independent rater, `RATER_C`, may be added the same
+     way.)
 2. Read and **sign** your declaration form
    (`experiment/rater_declarations/{RATER}_declaration_form.md`):
    independence, no AI, rubric adherence, no cross-rater discussion.
 3. Annotate **your own** file only. One pass per label decision.
 4. Return the filled JSONL (mail/PR) — do **not** open the sealed auto labels,
    do **not** share your file with other raters before all are done.
+5. **Only after both A and B have returned** is the ADJUDICATOR role created:
+   the researcher runs `make experiment-adjudicator-prep SPLIT=...`, which
+   builds the ADJUDICATOR file from **only** the A≠B disagreement records
+   (double-blind — the adjudicator never sees how A or B voted). The adjudicator
+   then annotates that short file and returns it.
 
 ---
 

@@ -1,0 +1,111 @@
+name: PR checks
+
+# Metadata + guardrails for pull requests. Quality gates (tests, lint,
+# reproducibility) live in ci.yml and are pulled in here via `workflow_call`,
+# so there is no duplicated job definition.
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+    branches: [develop, main]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  # ── GitFlow guardrail ─────────────────────────────────────────────────────
+  # CONTRIBUTING.md §6 defines one promotion path:
+  #   feature/fix → develop → main
+  # Anything else (e.g. feature → main) bypasses QA, so flag it early.
+  # There is no staging branch: `develop` is the integration branch AND the
+  # release source, so `develop → main` is a valid promotion.
+  branch-policy:
+    name: Branch policy (GitFlow)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check source → target direction
+        env:
+          BASE: ${{ github.base_ref }}
+          HEAD: ${{ github.head_ref }}
+        run: |
+          set -eu
+          echo "Checking: $HEAD → $BASE"
+
+          # Hotfixes are the only branches allowed to target main directly.
+          case "$HEAD" in
+            hotfix/*)
+              echo "✓ hotfix branch → main is allowed (CONTRIBUTING.md §1)."
+              exit 0
+              ;;
+          esac
+
+          case "$BASE" in
+            develop)
+              # Feature/fix/docs/chore branches land here — anything is fine.
+              echo "✓ target is develop (default integration branch)."
+              ;;
+            main)
+              if [ "$HEAD" != "develop" ]; then
+                echo "::error::Only 'develop' may be promoted to 'main' (got '$HEAD')."
+                echo "Use a hotfix/* branch for urgent production fixes."
+                exit 1
+              fi
+              echo "✓ develop → main release promotion."
+              ;;
+            *)
+              echo "::warning::Unexpected target branch '$BASE'."
+              ;;
+          esac
+
+  # ── PR hygiene ────────────────────────────────────────────────────────────
+  # The repository ships .github/PULL_REQUEST_TEMPLATE.md with a testing
+  # checklist. A PR that ignores it gives the reviewer nothing to verify, so
+  # require a non-trivial description.
+  description:
+    name: Description & size
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Validate PR body and diff size
+        env:
+          BODY: ${{ github.event.pull_request.body }}
+          ADDITIONS: ${{ github.event.pull_request.additions }}
+          DELETIONS: ${{ github.event.pull_request.deletions }}
+          CHANGED: ${{ github.event.pull_request.changed_files }}
+          DRAFT: ${{ github.event.pull_request.draft }}
+        run: |
+          set -eu
+
+          if [ "$DRAFT" = "true" ]; then
+            echo "Draft PR — skipping body checks."
+            exit 0
+          fi
+
+          # Strip whitespace/HTML comments to measure real content.
+          CONTENT=$(printf '%s' "$BODY" | sed 's/<!--.*//' | tr -d '[:space:]')
+          LEN=${#CONTENT}
+          echo "Description length (non-whitespace): $LEN chars"
+
+          if [ "$LEN" -lt 40 ]; then
+            echo "::error::PR description is too short. Use .github/PULL_REQUEST_TEMPLATE.md."
+            exit 1
+          fi
+
+          echo "Changed files: $CHANGED | +$ADDITIONS / -$DELETIONS"
+
+          # Large PRs are hard to review; warn rather than block so a legitimate
+          # regenerated-artifact PR is never stuck.
+          TOTAL=$((ADDITIONS + DELETIONS))
+          if [ "$TOTAL" -gt 700 ]; then
+            echo "::warning::Large change ($TOTAL lines). Consider splitting it (CONTRIBUTING.md §3)."
+          fi
+
+  # ── Quality gates (reused from ci.yml) ────────────────────────────────────
+  quality:
+    name: Quality gates
+    uses: ./.github/workflows/ci.yml

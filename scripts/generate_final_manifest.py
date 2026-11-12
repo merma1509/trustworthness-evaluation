@@ -24,6 +24,7 @@ from typing import Dict, List
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.audit_log import log_action  # noqa: E402
+from src.classifiers import SCORER_VERSION  # noqa: E402
 from src.sealing import sha256_file  # noqa: E402
 
 
@@ -84,9 +85,11 @@ def main() -> int:
     artifacts = args.artifact or DEFAULT_ARTIFACTS
 
     checksums = build_checksums(base, artifacts)
+
     manifest = {
         "pipeline": "clean-redo reproducibility",
         "generator": "scripts/generate_final_manifest.py",
+        "scorer_version": SCORER_VERSION,
         "n_artifacts": len(checksums),
         "checksums": checksums,
     }

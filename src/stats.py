@@ -360,6 +360,7 @@ def compute_paired_difference_ci(
     model2_scores: List[float],
     n_bootstrap: int = 10000,
     ci: float = 0.95,
+    seed: int = 42,
 ) -> Dict:
     """Bootstrap confidence interval for the PAIRED difference.
 
@@ -375,6 +376,7 @@ def compute_paired_difference_ci(
             Must be the same length and in the same prompt order.
         n_bootstrap: Number of bootstrap iterations (default: 10 000).
         ci: Confidence level (default: 0.95 for 95% CI).
+        seed: RNG seed for reproducibility (default 42).
 
     Returns:
         Dict with keys:
@@ -409,10 +411,11 @@ def compute_paired_difference_ci(
     differences = [m1 - m2 for m1, m2 in zip(model1_scores, model2_scores)]
     mean_diff = float(np.mean(differences))
 
-    # Bootstrap the mean difference
+    # Bootstrap the mean difference (deterministic: fixed RandomState seed)
+    rng = np.random.RandomState(seed)
     boot_diffs = []
     for _ in range(n_bootstrap):
-        sample = np.random.choice(differences, size=n, replace=True)
+        sample = rng.choice(differences, size=n, replace=True)
         boot_diffs.append(np.mean(sample))
 
     alpha = (1.0 - ci) / 2.0
@@ -437,6 +440,7 @@ def compute_clustered_consistency_ci(
     model2_group_results: Dict[str, bool],
     n_bootstrap: int = 10000,
     ci: float = 0.95,
+    seed: int = 42,
 ) -> Dict:
     """Clustered bootstrap CI for the difference in consistency scores.
 
@@ -451,6 +455,7 @@ def compute_clustered_consistency_ci(
             Only groups present in **both** dicts are used (intersection).
         n_bootstrap: Number of bootstrap iterations (default: 10 000).
         ci: Confidence level (default: 0.95 for 95% CI).
+        seed: RNG seed for reproducibility (default 42).
 
     Returns:
         Dict with keys:
@@ -480,10 +485,11 @@ def compute_clustered_consistency_ci(
     ]
     mean_diff = float(np.mean(differences))
 
-    # Bootstrap groups (clusters) with replacement
+    # Bootstrap groups (clusters) with replacement (deterministic seed)
+    rng = np.random.RandomState(seed)
     boot_diffs = []
     for _ in range(n_bootstrap):
-        sample = np.random.choice(differences, size=n, replace=True)
+        sample = rng.choice(differences, size=n, replace=True)
         boot_diffs.append(np.mean(sample))
 
     alpha = (1.0 - ci) / 2.0

@@ -65,3 +65,8 @@ experiment/sealed/labels/*
 
 # Working audit notes — not part of the reviewer-facing results set
 AUDIT_REVIEW.md
+
+# Regenerated reports (produced by make diagnose-design / compute-*):
+# they are reproducible artifacts, not sources — do not commit.
+experiment/reports/design_diagnosis.json
+docs/report.md

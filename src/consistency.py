@@ -192,6 +192,7 @@ def evaluate_consistency(
     output_path: str = None,
     similarity_threshold: float = DEFAULT_SIMILARITY_THRESHOLD,
     include_singletons: bool = False,
+    model_id: str = "",
 ) -> Dict:
     """Run consistency evaluation on a model.
 
@@ -216,6 +217,12 @@ def evaluate_consistency(
             considered semantically consistent (default: 0.85).
         include_singletons: If True, include singleton groups in score
             calculation (not recommended — inflates scores).
+        model_id: Canonical model id (e.g. ``gemma3:4b``). Plan 02.1: the
+            consistency dataset is a single prompt pool reused by BOTH models,
+            so the group key is scoped as ``{model_id}/{group_id}`` to keep the
+            two models' clusters independent. Every emitted record also carries
+            this ``model_id`` so downstream ingest (sealing, gold, agreement)
+            can attribute a group verdict to a single model.
 
     Returns:
         Dict with keys:
@@ -234,10 +241,13 @@ def evaluate_consistency(
 
     prompts = load_jsonl(dataset_path)
 
-    # Group by group_id (for multi-prompt tests) or prompt_id (for benign)
+    # Group by model-scoped key (Plan 02.1): prefixing model_id keeps each
+    # model's clusters independent even though the dataset is a shared pool.
     groups = defaultdict(list)
     for p in prompts:
-        group_key = p.get("group_id", p["prompt_id"])
+        group_key = f"{model_id}/{p.get('group_id', p['prompt_id'])}" if model_id else p.get(
+            "group_id", p["prompt_id"]
+        )
         groups[group_key].append(p)
 
     results = []
@@ -294,6 +304,7 @@ def evaluate_consistency(
                     {
                         "prompt_id": prompt["prompt_id"],
                         "group_id": group_id,
+                        "model_id": model_id,
                         "error": response["error"],
                         "is_correct": False,
                         "group_consistent": False,
@@ -310,6 +321,7 @@ def evaluate_consistency(
             result_entry = {
                 "prompt_id": prompt["prompt_id"],
                 "group_id": group_id,
+                "model_id": model_id,
                 "attack_type": attack_type,
                 "prompt_text": prompt["prompt_text"],
                 "expected_behavior": prompt["expected_behavior"],

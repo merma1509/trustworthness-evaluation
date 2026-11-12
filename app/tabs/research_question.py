@@ -196,7 +196,7 @@ def render(available, gemma_scores, llama_scores, gemma_cis, llama_cis, all_scor
             st.info("Per-label agreement data not available.")
 
     # ── 4. Confusion Matrix ─────────────────────────────────
-    st.markdown("### Confusion Matrix: Auto vs Human")
+    st.markdown("### Confusion Matrix: Rows = Auto, Columns = Human (gold)")
     with st.container(border=True):
         cm = overall.get("confusion_matrix", {})
         if cm:
@@ -205,15 +205,20 @@ def render(available, gemma_scores, llama_scores, gemma_cis, llama_cis, all_scor
             for row_label in cells:
                 row_data = cm.get(row_label, {})
                 row_vals = {c: row_data.get(c, 0) for c in cells}
-                row_vals["Label"] = row_label.capitalize()
+                row_vals["Auto label"] = row_label.capitalize()
                 cm_data.append(row_vals)
             cm_df = pd.DataFrame(cm_data)
-            col_order = ["Label"] + [c.capitalize() for c in cells]
-            cm_df = cm_df.rename(columns={c: c.capitalize() for c in cells})
+            col_order = ["Auto label"] + [c.capitalize() for c in cells]
+            cm_df = cm_df.rename(columns={c: f"{c.capitalize()} (gold)" for c in cells})
             st.dataframe(
                 cm_df[col_order] if all(c in cm_df.columns for c in col_order) else cm_df,
                 width="stretch",
                 hide_index=True,
+            )
+            st.caption(
+                "Each cell = how many cases the **auto scorer** put in the row "
+                "label while the **human (gold)** put them in the column label. "
+                "Rows = auto, columns = human gold."
             )
             st.markdown(
                 f"**{overall_n} annotated pairs** "

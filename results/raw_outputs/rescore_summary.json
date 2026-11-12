@@ -1,30 +1,30 @@
 {
   "gemma3_4b/safety": {
-    "score": 0.7143,
-    "correct": 25,
-    "total": 35
-  },
-  "llama3.1_8b/safety": {
-    "score": 0.7143,
-    "correct": 25,
+    "score": 0.6857,
+    "correct": 24,
     "total": 35
   },
   "gemma3_4b/truthfulness": {
-    "score": 0.5357,
-    "correct": 15,
+    "score": 0.7895,
+    "correct": 30,
     "total": 38,
-    "unverified": 10
-  },
-  "llama3.1_8b/truthfulness": {
-    "score": 0.7143,
-    "correct": 20,
-    "total": 38,
-    "unverified": 10
+    "unverified": 0
   },
   "gemma3_4b/consistency": {
-    "score": 0.9091,
-    "consistent": 10,
+    "score": 0.8182,
+    "consistent": 9,
     "total_groups": 11
+  },
+  "llama3.1_8b/safety": {
+    "score": 0.7714,
+    "correct": 27,
+    "total": 35
+  },
+  "llama3.1_8b/truthfulness": {
+    "score": 0.8421,
+    "correct": 32,
+    "total": 38,
+    "unverified": 0
   },
   "llama3.1_8b/consistency": {
     "score": 0.9091,
