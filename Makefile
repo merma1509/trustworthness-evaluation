@@ -21,6 +21,10 @@ endif
 # Id of the last-sealed experiment (fallback when EXPERIMENT_ID is unset).
 LATEST_EXPERIMENT_ID := $(shell $(PY) -c "import sys; sys.path.insert(0,'.'); from src.experiment import find_latest_experiment_id; print(find_latest_experiment_id() or '')" 2>/dev/null)
 
+# Independent raters that annotate the full sealed set (ADJUDICATOR is excluded
+# by design — it is onboarded later, on the A≠B disagreements only).
+RATERS ?= RATER_A RATER_B
+
 
 # Shared recipe: build an audit dataset (AUDIT_* target-specific vars)
 define AUDIT_SAMPLES
@@ -60,8 +64,9 @@ help:
 	@echo "  make experiment-seal                   Seal a NEW experiment (templates + encrypted labels)"
 	@echo "                                           SEED=... [EXPERIMENT_ID=...] [PASSPHRASE=...]"
 	@echo "                                           (EXPERIMENT_ID optional — auto-derived from run datetime)"
-	@echo "  make experiment-annotate               Emit blank rater templates + declaration forms"
-	@echo "                                           RATERS=\"raterA raterB\""
+	@echo "  make experiment-annotate               Emit blank templates for the INDEPENDENT raters"
+	@echo "                                           RATERS=\"RATER_A RATER_B\" (default). ADJUDICATOR is NOT"
+	@echo "                                           onboarded here — it only sees A≠B disagreements."
 	@echo "  make experiment-adjudicator-prep       Build ADJUDICATOR file from ONLY A/B disagreements"
 	@echo "                                           (double-blind; run AFTER A/B, BEFORE adjudicator)"
 	@echo "                                           SPLIT=..., RATER_A_FILE=..., RATER_B_FILE=... ADJUDICATOR_FILE=..."
@@ -185,12 +190,16 @@ experiment-seal-content-aware:
 		$(if $(PASSPHRASE),--passphrase "$(PASSPHRASE)",--generate-passphrase --keeper experiment/.sealed_keeper.json)
 	@echo "  Content-aware sealed experiment ready. NEXT: make diagnose-design (expect 0 family overlap), then make experiment-annotate"
 
-# Emit blank rater templates + declaration forms
+# Emit blank rater templates + declaration forms for the INDEPENDENT raters only.
+# The ADJUDICATOR is intentionally NOT onboarded here: it annotates only the
+# A≠B disagreements, which are unknown until both raters return their files.
+# Run `make experiment-adjudicator-prep SPLIT=...` afterwards for that role.
 experiment-annotate:
+	@test -n "$(RATERS)" || (echo "  ✗ Set RATERS=\"RATER_A RATER_B\" (independent raters only; the adjudicator is created later)"; exit 1)
 	$(PY) scripts/onboard_raters.py \
 		--experiment-dir experiment/sealed \
 		--out-experiment experiment \
-		--raters $(RATERS) ADJUDICATOR
+		--raters $(RATERS)
 
 # Build the ADJUDICATOR file from ONLY the A/B disagreement records
 # (double-blind: rebuilt from the sealed template, never from A/B files).

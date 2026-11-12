@@ -30,12 +30,12 @@ from app.data_loader import (
 from app.tabs.confusion import render as render_confusion
 from app.tabs.dimensions import render as render_dimensions
 from app.tabs.human_annotation import render as render_human
-from app.tabs.rater_annotation import render as render_rater
-from app.tabs.rq2_factors import render as render_rq2
 
 # ─── Tab modules ──────────────────────────────────────────
 from app.tabs.overview import render as render_overview
+from app.tabs.rater_annotation import render as render_rater
 from app.tabs.research_question import render as render_research
+from app.tabs.rq2_factors import render as render_rq2
 
 # ─── Sidebar ──────────────────────────────────────────────
 st.sidebar.title("Trustworthiness Eval")

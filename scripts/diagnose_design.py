@@ -302,11 +302,9 @@ def diagnose_model_scoping(templates_dir: Path) -> Dict:
             dm = (rec.get("metadata") or {}).get("display_model")
             if not dm:
                 n_unscoped += 1
-            else:
-                # All pairs must come from the single display model. We can only
-                # verify against metadata because the rater-facing pairs[] is
-                # intentionally anonymous.
-                n_dm = dm
+            # Note: the rater-facing pairs[] is intentionally anonymous, so
+            # model mixing cannot be re-derived from the template — it is
+            # enforced at seal time and audited via metadata.display_model.
 
     ok = n_mixed == 0 and n_unscoped == 0
     return {

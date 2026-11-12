@@ -1,10 +1,22 @@
 name: CI — validation gate
 
+# Single source of truth for "what green means".
+#
+# This workflow is REUSABLE: pr.yml and cd.yml call it via `workflow_call`, so
+# the quality gates are defined exactly once. It also runs on direct pushes to
+# the long-lived branches (feature branches are covered by their pull request,
+# which avoids running the 60-minute reproducibility gate twice per change).
 on:
-  pull_request:
-    branches: [develop, staging, main]
+  workflow_call:
   push:
     branches: [develop, staging, main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
@@ -21,13 +33,42 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
 
-      - name: Install dependencies (uv sync)
+      - name: Install dependencies
         run: make setup
 
       - name: Run test suite
         run: make test
+
+  lint:
+    name: Lint (ruff)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: make setup
+
+      # NOTE: `make lint` invokes ruff with --fix, which silently rewrites files
+      # and hides violations. CI must FAIL on violations, so call ruff directly.
+      #
+      # Scope mirrors `make lint` (src/ scripts/ app/). `tests/` is excluded
+      # deliberately: it carries pre-existing cosmetic violations (E741 `l`,
+      # import order) unrelated to feature work, and folding them in here would
+      # turn unrelated PRs red. Cleaning that up is a separate change.
+      - name: Check code quality (no autofix)
+        run: uv run ruff check src/ scripts/ app/
 
   reproduce:
     name: Reproducibility gates
@@ -44,15 +85,14 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
 
-      - name: Install dependencies (uv sync)
+      - name: Install dependencies
         run: make setup
 
       # Reproducibility is a first-class requirement: a clean re-run from the
-      # committed immutable inputs must regenerate every reported number with
-      # no local secrets (the plaintext auto labels are committed for exactly
-      # this purpose).
+      # committed immutable inputs must regenerate every reported number with no
+      # local secrets (the plaintext auto labels are committed for that purpose).
       - name: Clean re-run validation
         run: make experiment-validate-rerun
 

@@ -207,7 +207,7 @@ def _check_no_consistency_group_span(exp_id: str, templates_dir: Path) -> None:
         ).hexdigest()
 
     def _load(p: Path) -> List[dict]:
-        return [json.loads(l) for l in p.read_text().splitlines() if l.strip()]
+        return [json.loads(line) for line in p.read_text().splitlines() if line.strip()]
 
     cal_by_fp = {}
     for r in _load(cal_path):
