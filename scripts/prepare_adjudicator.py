@@ -161,6 +161,13 @@ def _strip_annotation_fields(rec: dict) -> dict:
     return out
 
 
+def _flag_set(rec: Optional[dict], flag: str) -> bool:
+    """True when ``flag`` is set on a record's ``flags`` block."""
+    if not rec:
+        return False
+    return bool((rec.get("flags") or {}).get(flag))
+
+
 def _is_unscorable_consistency_display(rec: Optional[dict]) -> bool:
     """True when a consistency display has fewer than two responses.
 
@@ -219,7 +226,7 @@ def prepare_adjudicator(
 
     keys = _disagreement_keys(a, b)
 
-    # ── Drop unscorable consistency displays ────────────────────────────────
+    # ── Drop displays the adjudicator cannot resolve ────────────────────────
     # A consistency verdict needs >=2 responses. ``src/consistency.py`` flags
     # groups that collapse to one distinct prompt as ``is_singleton`` and drops
     # them from the score, yet they were still emitted into the sealed
@@ -231,6 +238,18 @@ def prepare_adjudicator(
         if _is_unscorable_consistency_display(template_index.get(k))
     ]
     keys = [k for k in keys if k not in set(unscorable)]
+
+    # ── Drop records with no usable response ────────────────────────────────
+    # If either rater marked the model output malformed, the "disagreement" is
+    # about a response that cannot be judged. Resolution excludes such records
+    # from scoring anyway, so adjudicating them would be wasted work that also
+    # invites a gold label on unusable input.
+    invalid = [
+        k for k in keys
+        if _flag_set(a.get(k), "response_invalid")
+        or _flag_set(b.get(k), "response_invalid")
+    ]
+    keys = [k for k in keys if k not in set(invalid)]
 
     # Missing templates must fail loudly, not silently drop records.
     missing_in_template = [k for k in keys if k not in template_index]
@@ -287,6 +306,9 @@ def prepare_adjudicator(
         # so the exclusion is visible rather than a quietly smaller file.
         "n_unscorable_consistency_excluded": len(unscorable),
         "unscorable_consistency_keys": [k[1] for k in unscorable],
+        # Disagreements withheld because a rater marked the response unusable.
+        "n_response_invalid_excluded": len(invalid),
+        "response_invalid_keys": [k[1] for k in invalid],
         "adjudicator_file": str(out_path),
         "per_key": per_key,
         "notes": notes or "",

@@ -173,10 +173,19 @@ def resolve_disagreements(
             "RATER_B": uncertain_of(rec_b) if rec_b else False,
             "ADJUDICATOR": uncertain_of(rec_c) if rec_c else False,
         }
-        resp_invalid = (
-            response_invalid_of(rec_a) if rec_a else
-            response_invalid_of(rec_b) if rec_b else False
-        )
+
+        # ── A response invalid flag is a property of the RECORD ──
+        # The flag says "this model output is malformed", which is independent
+        # of who noticed it. Reading only RATER_A's flag silently ignored
+        # RATER_B's, so a record one rater had explicitly rejected was resolved
+        # as if both votes were usable. Collect every rater who raised it.
+        invalid_flags = {
+            role: True
+            for role, rec in (("RATER_A", rec_a), ("RATER_B", rec_b),
+                             ("ADJUDICATOR", rec_c))
+            if rec and response_invalid_of(rec)
+        }
+        resp_invalid = bool(invalid_flags)
 
         # ── No-skip / no-exclusion ──
         # A malformed response is logged and EXCLUDED FROM SCORING with a reason,
@@ -185,8 +194,10 @@ def resolve_disagreements(
             excluded.append({
                 "record_key": list(key),
                 "reason": "response_invalid",
-                "note": "No valid model response (malformed API output). "
-                        "Kept but excluded from scoring with a logged reason.",
+                "flagged_by": sorted(invalid_flags),
+                "note": "No valid model response (malformed API output), flagged "
+                        f"by {', '.join(sorted(invalid_flags))}. Kept but "
+                        "excluded from scoring with a logged reason.",
             })
             continue
 
@@ -258,8 +269,11 @@ def resolve_disagreements(
     # evaluation must never shrink by dropping hard cases.
     n_scored = len([o for o in outcomes if o["gold_label"] is not None])
     n_unresolvable = len([o for o in outcomes if o["gold_label"] is None])
-    n_unscorable = len([e for e in excluded
-                        if e["reason"] == "singleton_consistency_display"])
+    # Count by reason rather than by subtraction, so adding a future exclusion
+    # reason cannot silently misattribute counts to response_invalid.
+    reason_counts = Counter(e["reason"] for e in excluded)
+    n_unscorable = reason_counts.get("singleton_consistency_display", 0)
+    n_invalid = reason_counts.get("response_invalid", 0)
     if n_scored + n_unresolvable + len(excluded) != len(all_keys):
         raise RuntimeError(
             "[coverage] resolution does not account for every record: "
@@ -272,8 +286,9 @@ def resolve_disagreements(
         "n_recorded": len(outcomes) + len(excluded),
         "n_scored": n_scored,
         "n_unresolvable": n_unresolvable,
-        "n_excluded_response_invalid": len(excluded) - n_unscorable,
+        "n_excluded_response_invalid": n_invalid,
         "n_excluded_unscorable_consistency": n_unscorable,
+        "exclusion_reason_counts": dict(reason_counts),
         "templates_used": bool(template_files),
         "outcome_counts": dict(outcome_counter),
         "gold_label_distribution": {k: v for k, v in gold_dist.items()},

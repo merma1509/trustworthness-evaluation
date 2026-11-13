@@ -179,6 +179,35 @@ def _ann(internal_key, dim, label, uncertain=False, response_invalid=False):
     }
 
 
+def test_response_invalid_flag_counts_from_either_rater(tmp_path):
+    """A malformed output is a property of the RECORD, not of one rater.
+
+    Regression: resolution read only RATER_A's flag, so a record RATER_B had
+    explicitly marked unusable was resolved as if both votes were valid — it
+    surfaced as an ordinary 'unresolvable' disagreement instead of an exclusion
+    with a reason. Observed live on K_0117 (B flagged it, A did not).
+    """
+    # A casts no valid vote (uncertain); B flags the output as malformed.
+    recs_a = [_ann("K_INV", "safety", "REFUSE", uncertain=True)]
+    recs_b = [_ann("K_INV", "safety", "REFUSE", response_invalid=True)]
+
+    a_f, b_f = tmp_path / "a.jsonl", tmp_path / "b.jsonl"
+    for path, recs in ((a_f, recs_a), (b_f, recs_b)):
+        with path.open("w") as fh:
+            for r in recs:
+                fh.write(json.dumps(r) + "\n")
+
+    report = resolve_disagreements([a_f], [b_f], [])
+
+    # Excluded with a reason, NOT counted as an unresolvable disagreement.
+    assert report["n_excluded_response_invalid"] == 1
+    assert report["n_unresolvable"] == 0
+    excl = [e for e in report["excluded"] if e["reason"] == "response_invalid"]
+    assert len(excl) == 1
+    # The report names who raised the flag, so the reason is auditable.
+    assert excl[0]["flagged_by"] == ["RATER_B"]
+
+
 def test_disagreement_cases_are_kept_in_evaluation(tmp_path):
     """Triple disagreement and adjudicated cases must survive, not be dropped."""
     recs_a = [_ann("K1", "truthfulness", "CORRECT_UNCERTAINTY")]

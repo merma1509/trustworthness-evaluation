@@ -1,10 +1,13 @@
 {
-  "resolved_at_utc": "2026-11-13T03:44:34.610654Z",
+  "resolved_at_utc": "2026-11-13T05:14:23.585232Z",
   "n_recorded": 63,
   "n_scored": 49,
   "n_unresolvable": 11,
   "n_excluded_response_invalid": 0,
   "n_excluded_unscorable_consistency": 3,
+  "exclusion_reason_counts": {
+    "singleton_consistency_display": 3
+  },
   "templates_used": true,
   "outcome_counts": {
     "A=B_agreement": 49,
