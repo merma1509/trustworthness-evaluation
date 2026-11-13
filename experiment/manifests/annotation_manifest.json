@@ -1,5 +1,5 @@
 {
-  "validated_at_utc": "2026-10-18T01:25:03.444194Z",
+  "validated_at_utc": "2026-11-13T03:44:13.513077Z",
   "all_valid": true,
   "files": [
     {
@@ -7,30 +7,11 @@
       "n_records": 147,
       "n_valid": 147,
       "n_invalid": 0,
-      "n_uncertain": 24,
+      "n_uncertain": 22,
+      "n_abstained": 1,
       "n_response_invalid": 0,
       "invalid_examples": [],
-      "sha256": "208332c1f75b60763ee838f56c969c39373fa23c7d513bd1bf8a71b75400bb23"
-    },
-    {
-      "file": "experiment/annotations/trustworthiness-validation-2026-10-16-042935_RATER_B_calibration.jsonl",
-      "n_records": 147,
-      "n_valid": 147,
-      "n_invalid": 0,
-      "n_uncertain": 17,
-      "n_response_invalid": 1,
-      "invalid_examples": [],
-      "sha256": "35a718d407b98ea0453004e5ef2004c57a381ff1be76fb3953926600cdb2f8c0"
-    },
-    {
-      "file": "experiment/annotations/trustworthiness-validation-2026-10-16-042935_ADJUDICATOR_calibration.jsonl",
-      "n_records": 4,
-      "n_valid": 4,
-      "n_invalid": 0,
-      "n_uncertain": 1,
-      "n_response_invalid": 0,
-      "invalid_examples": [],
-      "sha256": "675bbc08f20130f8ec78951b37a311bc53939cd5280a4724b295f33ecca7f35b"
+      "sha256": "8c370ab56400473898537dd657e4dc4f96779a5ba64387ef8d96388a40ae42ad"
     },
     {
       "file": "experiment/annotations/trustworthiness-validation-2026-10-16-042935_RATER_A_heldout.jsonl",
@@ -38,29 +19,43 @@
       "n_valid": 63,
       "n_invalid": 0,
       "n_uncertain": 10,
+      "n_abstained": 1,
       "n_response_invalid": 0,
       "invalid_examples": [],
-      "sha256": "8894cd567f52da42e3c40ed41aaa683e6dda115ee7d4f792b1f74c0253396023"
+      "sha256": "5e8c3a3a60c369fa20378bbe12ea7a0b6fc7a199b150799d706a41eeb2660f21"
+    },
+    {
+      "file": "experiment/annotations/trustworthiness-validation-2026-10-16-042935_RATER_B_calibration.jsonl",
+      "n_records": 147,
+      "n_valid": 147,
+      "n_invalid": 0,
+      "n_uncertain": 16,
+      "n_abstained": 1,
+      "n_response_invalid": 1,
+      "invalid_examples": [],
+      "sha256": "907c451203ed9b63b6942e9e62b13dade293140316d869143d1cff0d51ac6332"
     },
     {
       "file": "experiment/annotations/trustworthiness-validation-2026-10-16-042935_RATER_B_heldout.jsonl",
       "n_records": 63,
       "n_valid": 63,
       "n_invalid": 0,
-      "n_uncertain": 6,
+      "n_uncertain": 8,
+      "n_abstained": 1,
       "n_response_invalid": 0,
       "invalid_examples": [],
-      "sha256": "a9f6f5303d22c3fa0acf36ff3251238d2ec5f70880cde4d5c80f98198adf25d0"
+      "sha256": "73d525da79f3fe0d645620b5689442290005746f1a15d2821d897a1227192bc6"
     },
     {
-      "file": "experiment/annotations/trustworthiness-validation-2026-10-16-042935_ADJUDICATOR_heldout.jsonl",
-      "n_records": 1,
-      "n_valid": 1,
+      "file": "experiment/annotations/trustworthiness-validation-2026-10-16-042935_ADJUDICATOR_calibration.jsonl",
+      "n_records": 5,
+      "n_valid": 5,
       "n_invalid": 0,
-      "n_uncertain": 1,
+      "n_uncertain": 0,
+      "n_abstained": 0,
       "n_response_invalid": 0,
       "invalid_examples": [],
-      "sha256": "36cef0c901dbe1f3a5889304e97b6baba0596a88c339bc43783bc2bcce411921"
+      "sha256": "6913009d3074c81a98aa0ca8b4af1f8e9ae1c50363cf0d58c7a9eeccaf55f81e"
     }
   ]
 }

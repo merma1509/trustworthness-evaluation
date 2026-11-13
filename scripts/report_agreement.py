@@ -250,6 +250,19 @@ def gold_vs_auto(gold_records: List[dict], with_ci: bool) -> Dict:
     return result
 
 
+def _fmt_kappa(value) -> str:
+    """Render a kappa for human output, distinguishing "undefined" from zero.
+
+    ``None`` means the coefficient carries no information (a single observed
+    category, so chance agreement is 0 by construction). Printing ``0.0`` there
+    would read as "chance-level agreement" and ``1.0`` as "perfect" — both are
+    fabrications. Show it as undefined and let the agreement rate speak.
+    """
+    if value is None:
+        return "undefined"
+    return str(value)
+
+
 def inter_rater(a_path: Path, b_path: Path) -> Dict:
     """Inter-rater agreement between RATER_A and RATER_B."""
     def _load(path: Path) -> Dict[str, tuple]:
@@ -384,17 +397,22 @@ def main() -> int:
              else gva["per_dimension"].get(dim, {}))
         if not s or "n" not in s:
             continue
-        k = s.get("cohens_kappa", 0)
+        k = _fmt_kappa(s.get("cohens_kappa"))
         ci = s.get("kappa_ci")
-        ci_txt = (f" CI=[{ci['ci_lower']},{ci['ci_upper']}]" if ci else "")
+        ci_txt = (f" CI=[{ci['ci_lower']},{ci['ci_upper']}]"
+                  if ci and ci.get("ci_lower") is not None else "")
         print(f"    {dim:<12} n={s.get('n'):<4} agreement={s.get('agreement_rate'):<6} "
               f"kappa={k}{ci_txt}")
+        if s.get("kappa_note"):
+            print(f"      note: {s['kappa_note']}")
 
     ir = report["inter_rater_A_vs_B"]
     print("  INTER-RATER (A vs B):")
     for dim, s in ir.items():
         print(f"    {dim:<12} n={s.get('n'):<4} agreement={s.get('agreement_rate'):<6} "
-              f"kappa={s.get('cohens_kappa')}")
+              f"kappa={_fmt_kappa(s.get('cohens_kappa'))}")
+        if s.get("kappa_note"):
+            print(f"      note: {s['kappa_note']}")
 
     cga = report.get("consistency_group_agreement", {})
     if cga:

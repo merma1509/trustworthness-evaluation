@@ -249,6 +249,7 @@ experiment-resolve:
 		--rater-a $(RATER_A_FILE) \
 		--rater-b $(RATER_B_FILE) \
 		--adjudicator $(ADJUDICATOR_FILE) \
+		--templates "experiment/sealed/templates/$${EXP_ID}_$(SPLIT)_template.jsonl" \
 		--split $(SPLIT) \
 		--experiment-id "$$EXP_ID" \
 		--out experiment/agreements/$${EXP_ID}_$(SPLIT)_disagreements.json
@@ -276,7 +277,13 @@ experiment-gold:
 	fi
 
 # Held-out agreement report (gold vs auto + inter-rater)
+# Held-out agreement report (gold vs auto + inter-rater)
+# The report always compares the HELD-OUT split, so the rater paths must use
+# SPLIT=heldout regardless of any ambient SPLIT= value.
+experiment-agreement: SPLIT := heldout
 experiment-agreement:
+	@EXP_ID="$(EXPERIMENT_ID)"; \
+	if [ -z "$$EXP_ID" ]; then EXP_ID="$(LATEST_EXPERIMENT_ID)"; fi; \
 	$(PY) scripts/report_agreement.py \
 		--gold experiment/gold/gold_labels.jsonl \
 		--rater-a $(RATER_A_FILE) \

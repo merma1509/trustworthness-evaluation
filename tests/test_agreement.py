@@ -31,10 +31,30 @@ def test_cohen_kappa_no_agreement():
     assert kappa == 0.0
 
 
-def test_cohen_kappa_single_category():
+def test_cohen_kappa_single_category_is_undefined():
+    """A single observed category must not be reported as perfect agreement.
+
+    With one category p_expected == 0, so kappa is 0/0. Returning 1.0 claimed a
+    measurement where the design guarantees perfect agreement; returning 0.0
+    would claim chance-level agreement. Neither is true, so kappa is None.
+    """
     kappa, p_o, p_e = cohen_kappa({"only": {"only": 5}})
-    assert kappa == 1.0
+    assert kappa is None
     assert p_o == 1.0
+    assert p_e == 0.0
+
+
+def test_cohen_kappa_undefined_differs_from_zero_agreement():
+    """An undefined kappa must stay distinguishable from a genuine 0.0.
+
+    This is the regression that made consistency look measured: one category
+    returned 1.0, reading as an ideal score.
+    """
+    undefined, _, _ = cohen_kappa({"only": {"only": 5}})
+    # Genuine zero: two raters using different labels at chance level.
+    genuine_zero, _, _ = cohen_kappa({"a": {"a": 1, "b": 1}, "b": {"a": 1, "b": 1}})
+    assert undefined is None
+    assert genuine_zero == 0.0
 
 
 def test_cohen_kappa_expected_from_marginals():

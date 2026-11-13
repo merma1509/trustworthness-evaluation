@@ -48,6 +48,7 @@ from typing import Dict, List, Optional, Set, Tuple
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.audit_log import log_action  # noqa: E402
+from src.labels import is_unscorable_consistency  # noqa: E402
 
 # ─────────── record key / label helpers (mirror resolve_disagreements.py) ────────
 DIMENSION_LABEL_KEY = {
@@ -163,22 +164,11 @@ def _strip_annotation_fields(rec: dict) -> dict:
 def _is_unscorable_consistency_display(rec: Optional[dict]) -> bool:
     """True when a consistency display has fewer than two responses.
 
-    Mirrors ``src/consistency.py``: a group whose prompts de-duplicate to a
-    single distinct entry is marked ``is_singleton`` and excluded from the
-    score. The sealed template exposes the group as ``pairs``; anything below
-    two leaves the rater nothing to compare.
-
-    ``pairs`` missing entirely means *unknown* (legacy annotation files), not
-    empty, so it does not trigger the exclusion.
+    Delegates to the shared rule in ``src.labels`` so the handoff matches the
+    scorer, resolution and ingestion validation. ``pairs`` missing entirely
+    means *unknown* (legacy annotation files), not empty.
     """
-    if not rec:
-        return False
-    pr = rec.get("prompt_record") or {}
-    if (pr.get("dimension") or "").strip() != "consistency":
-        return False
-    if "pairs" not in rec:
-        return False
-    return len(rec.get("pairs") or []) < 2
+    return is_unscorable_consistency(rec)
 
 
 def _disagreement_keys(

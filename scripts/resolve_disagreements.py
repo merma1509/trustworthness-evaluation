@@ -39,6 +39,7 @@ from typing import Dict, List, Optional, Tuple
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.audit_log import log_action  # noqa: E402
+from src.labels import consistency_display_size  # noqa: E402
 
 
 # ──────── Loading helpers ─────────────────────────────────────
@@ -88,31 +89,12 @@ def record_key(rec: dict) -> Tuple[str, str]:
 
 
 def consistency_group_size(rec: Optional[dict]) -> Optional[int]:
-    """Number of *distinct* responses shown in a consistency display.
+    """Number of responses shown in a consistency display (``None`` = N/A).
 
-    Returns ``None`` for non-consistency records (the notion does not apply).
-
-    Why this matters: a consistency verdict compares responses inside a group.
-    ``src/consistency.py`` samples a group and then de-duplicates identical
-    prompts; when a group collapses to a single distinct prompt it marks the
-    record ``is_singleton`` and *excludes it from the score*. Those records were
-    nevertheless emitted into the sealed templates, so raters were shown a
-    display with one response and had nothing to compare — yet their verdict was
-    counted as a real data point. Excluding them here keeps resolution
-    consistent with the scorer, which already ignores them.
-
-    The group is read from the ``pairs`` list written into the sealed template
-    (``seal_experiment.py``). Saved annotations usually omit ``pairs`` entirely,
-    which is *unknown* rather than *empty* — returning ``None`` there keeps a
-    legacy run (no templates supplied) from excluding every consistency record.
+    Thin alias over the shared rule in ``src.labels`` so that sealing, the
+    adjudicator handoff, resolution and ingestion validation cannot drift apart.
     """
-    pr = (rec.get("prompt_record") or {}) if rec else {}
-    if (pr.get("dimension") or "").strip() != "consistency":
-        return None
-    if "pairs" not in rec:
-        # Group size not recorded -> unknown, not unscorable.
-        return None
-    return len(rec.get("pairs") or [])
+    return consistency_display_size(rec)
 
 
 # ────────── Resolution logic ───────────────────────────────

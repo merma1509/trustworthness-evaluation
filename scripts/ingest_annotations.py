@@ -28,12 +28,13 @@ import json
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.audit_log import log_action
 from src.labels import (
+    is_unscorable_consistency,
     is_valid_label,
 )
 from src.sealing import sha256_file
@@ -144,12 +145,19 @@ def _load_by_key(path: Path) -> Dict[tuple, dict]:
 
 
 def cross_check_adjudicator(adj_path: Path, a_path: Path, b_path: Path,
-                            split: str) -> None:
+                            split: str,
+                            template_path: Optional[Path] = None) -> None:
     """Fail closed unless the ADJUDICATOR file holds exactly the A≠B records.
 
     This is the precise guard for the 147/63-record bug: an adjudicator file
     that still contains the full sealed set (or any extra/missing record) is
     rejected with an actionable message.
+
+    Consistency displays with a single response are not comparable, so
+    ``prepare_adjudicator`` withholds them and the scorer ignores them. When
+    ``template_path`` is supplied the expected set drops them too; otherwise
+    the strict full-disagreement set is required (the caller cannot know a
+    display was unscorable).
     """
     a = _load_by_key(a_path)
     b = _load_by_key(b_path)
@@ -161,6 +169,15 @@ def cross_check_adjudicator(adj_path: Path, a_path: Path, b_path: Path,
         if _effective_label(a[key]) and _effective_label(b[key])
         and _effective_label(a[key]) != _effective_label(b[key])
     }
+
+    # Drop displays the adjudicator cannot legitimately resolve.
+    if template_path is not None:
+        templates = _load_by_key(template_path)
+        expected = {
+            key for key in expected
+            if not is_unscorable_consistency(templates.get(key))
+        }
+
     got = set(adj)
 
     extra = got - expected      # adjudicator was shown records with no dispute
@@ -204,13 +221,21 @@ def _parse_role_split(path: Path) -> tuple:
     return "", ""
 
 
-def _enforce_adjudicator_disagreements_only(files: List[Path]) -> None:
+def _enforce_adjudicator_disagreements_only(
+    files: List[Path],
+    templates_by_split: Optional[Dict[str, Path]] = None,
+) -> None:
     """Reject ADJUDICATOR files that are not exactly the A≠B disagreements.
 
     Runs only when the matching RATER_A and RATER_B files are supplied in the
     same invocation; otherwise it is silent (there is nothing to compare to).
     Raises ``ValueError`` on mismatch — ingestion then fails closed.
+
+    When the sealed template for a split is known, single-response consistency
+    displays are dropped from the expected set (they are not comparable, so the
+    adjudicator handoff legitimately omits them).
     """
+    templates_by_split = templates_by_split or {}
     by_key = {}
     for p in files:
         role, split = _parse_role_split(p)
@@ -226,7 +251,10 @@ def _enforce_adjudicator_disagreements_only(files: List[Path]) -> None:
             print(f"  (note) {adj_path.name}: skipped A≠B cross-check "
                   f"(RATER_A/RATER_B for '{split}' not supplied)")
             continue
-        cross_check_adjudicator(adj_path, a_path, b_path, split)
+        cross_check_adjudicator(
+            adj_path, a_path, b_path, split,
+            template_path=templates_by_split.get(split),
+        )
 
 
 def ingest_file(path: Path) -> Dict:
@@ -275,8 +303,25 @@ def main() -> int:
     # Group the supplied files by (split, role) parsed from the filename pattern
     # {experiment}_{ROLE}_{split}.jsonl, then require every ADJUDICATOR file to
     # contain exactly the A≠B disagreements for its split. Fails closed.
+    #
+    # The sealed template for each split is located from the experiment id so
+    # the check can drop consistency displays that are not comparable (single
+    # response). Without it the strict full-disagreement set is required.
+    templates_by_split: Dict[str, Path] = {}
+    for p in files:
+        role, split = _parse_role_split(p)
+        if not split:
+            continue
+        exp_id = p.stem.split(f"_{role}_", 1)[0]
+        candidate = (
+            Path("experiment/sealed/templates")
+            / f"{exp_id}_{split}_template.jsonl"
+        )
+        if candidate.exists():
+            templates_by_split[split] = candidate
+
     try:
-        _enforce_adjudicator_disagreements_only(files)
+        _enforce_adjudicator_disagreements_only(files, templates_by_split)
     except ValueError:
         log_action(
             log_path=Path("experiment/logs/annotation_log.jsonl"),
