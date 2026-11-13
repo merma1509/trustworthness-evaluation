@@ -160,6 +160,27 @@ def _strip_annotation_fields(rec: dict) -> dict:
     return out
 
 
+def _is_unscorable_consistency_display(rec: Optional[dict]) -> bool:
+    """True when a consistency display has fewer than two responses.
+
+    Mirrors ``src/consistency.py``: a group whose prompts de-duplicate to a
+    single distinct entry is marked ``is_singleton`` and excluded from the
+    score. The sealed template exposes the group as ``pairs``; anything below
+    two leaves the rater nothing to compare.
+
+    ``pairs`` missing entirely means *unknown* (legacy annotation files), not
+    empty, so it does not trigger the exclusion.
+    """
+    if not rec:
+        return False
+    pr = rec.get("prompt_record") or {}
+    if (pr.get("dimension") or "").strip() != "consistency":
+        return False
+    if "pairs" not in rec:
+        return False
+    return len(rec.get("pairs") or []) < 2
+
+
 def _disagreement_keys(
     a: Dict[Tuple[str, str], dict],
     b: Dict[Tuple[str, str], dict],
@@ -207,6 +228,19 @@ def prepare_adjudicator(
     template_index = _template_lookup(template_full)
 
     keys = _disagreement_keys(a, b)
+
+    # ── Drop unscorable consistency displays ────────────────────────────────
+    # A consistency verdict needs >=2 responses. ``src/consistency.py`` flags
+    # groups that collapse to one distinct prompt as ``is_singleton`` and drops
+    # them from the score, yet they were still emitted into the sealed
+    # templates. Sending such a record to the adjudicator would ask them to
+    # break a tie about a comparison nobody can make, so it is filtered here
+    # and reported explicitly (never dropped silently).
+    unscorable = [
+        k for k in keys
+        if _is_unscorable_consistency_display(template_index.get(k))
+    ]
+    keys = [k for k in keys if k not in set(unscorable)]
 
     # Missing templates must fail loudly, not silently drop records.
     missing_in_template = [k for k in keys if k not in template_index]
@@ -259,6 +293,10 @@ def prepare_adjudicator(
         "n_records_b": len(b),
         "n_disagreements_sent_to_adjudicator": len(keys),
         "n_records_adjudicator_file": len(adjudicator_records),
+        # Disagreements withheld because the display is not comparable; listed
+        # so the exclusion is visible rather than a quietly smaller file.
+        "n_unscorable_consistency_excluded": len(unscorable),
+        "unscorable_consistency_keys": [k[1] for k in unscorable],
         "adjudicator_file": str(out_path),
         "per_key": per_key,
         "notes": notes or "",

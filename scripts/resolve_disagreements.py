@@ -87,6 +87,34 @@ def record_key(rec: dict) -> Tuple[str, str]:
     return (dim, f"pid::{pid}")
 
 
+def consistency_group_size(rec: Optional[dict]) -> Optional[int]:
+    """Number of *distinct* responses shown in a consistency display.
+
+    Returns ``None`` for non-consistency records (the notion does not apply).
+
+    Why this matters: a consistency verdict compares responses inside a group.
+    ``src/consistency.py`` samples a group and then de-duplicates identical
+    prompts; when a group collapses to a single distinct prompt it marks the
+    record ``is_singleton`` and *excludes it from the score*. Those records were
+    nevertheless emitted into the sealed templates, so raters were shown a
+    display with one response and had nothing to compare — yet their verdict was
+    counted as a real data point. Excluding them here keeps resolution
+    consistent with the scorer, which already ignores them.
+
+    The group is read from the ``pairs`` list written into the sealed template
+    (``seal_experiment.py``). Saved annotations usually omit ``pairs`` entirely,
+    which is *unknown* rather than *empty* — returning ``None`` there keeps a
+    legacy run (no templates supplied) from excluding every consistency record.
+    """
+    pr = (rec.get("prompt_record") or {}) if rec else {}
+    if (pr.get("dimension") or "").strip() != "consistency":
+        return None
+    if "pairs" not in rec:
+        # Group size not recorded -> unknown, not unscorable.
+        return None
+    return len(rec.get("pairs") or [])
+
+
 # ────────── Resolution logic ───────────────────────────────
 def load_rater_annotations(path: Path) -> Dict[str, dict]:
     """Load a rater's annotations keyed by ``record_key``."""
@@ -104,6 +132,7 @@ def resolve_disagreements(
     b_files: List[Path],
     adjudicator_files: List[Path],
     dimension: Optional[str] = None,
+    template_files: Optional[List[Path]] = None,
 ) -> Dict:
     """Compare A and B, send disagreements to the adjudicator, build gold.
 
@@ -112,6 +141,9 @@ def resolve_disagreements(
         b_files: RATER_B annotation files.
         adjudicator_files: ADJUDICATOR annotation files.
         dimension: optional dimension filter.
+        template_files: sealed template files. Used to read the consistency
+            ``pairs`` group size, which saved annotations do not retain. When
+            omitted, singleton exclusion is skipped (and reported as such).
 
     Returns:
         Dict with the resolution report: per-record outcome, gold label, and
@@ -126,6 +158,15 @@ def resolve_disagreements(
     C = {}
     for p in adjudicator_files:
         C.update(load_rater_annotations(p))
+
+    # Template records carry the response group; annotations usually do not.
+    templates: Dict[Tuple[str, str], dict] = {}
+    for p in (template_files or []):
+        for line in Path(p).open():
+            if not line.strip():
+                continue
+            rec = json.loads(line)
+            templates[record_key(rec)] = rec
 
     all_keys = sorted(set(A) | set(B) | set(C))
     outcomes = []
@@ -164,6 +205,25 @@ def resolve_disagreements(
                 "reason": "response_invalid",
                 "note": "No valid model response (malformed API output). "
                         "Kept but excluded from scoring with a logged reason.",
+            })
+            continue
+
+        # ── Unscorable consistency display (single response) ──
+        # A consistency verdict needs at least two responses to compare.
+        # ``src/consistency.py`` already flags these ``is_singleton`` and drops
+        # them from the score; the sealed template still showed them, so raters
+        # returned a verdict that must NOT be counted as a data point.
+        group_size = consistency_group_size(
+            templates.get(key) or rec_a or rec_b or rec_c
+        )
+        if group_size is not None and group_size < 2:
+            excluded.append({
+                "record_key": list(key),
+                "reason": "singleton_consistency_display",
+                "note": f"Consistency display shows {group_size} response(s), so "
+                        "there is nothing to compare. The scorer already skips "
+                        "singleton groups; excluding it here keeps the human "
+                        "side consistent and avoids a verdict on a non-comparison.",
             })
             continue
 
@@ -216,6 +276,8 @@ def resolve_disagreements(
     # evaluation must never shrink by dropping hard cases.
     n_scored = len([o for o in outcomes if o["gold_label"] is not None])
     n_unresolvable = len([o for o in outcomes if o["gold_label"] is None])
+    n_unscorable = len([e for e in excluded
+                        if e["reason"] == "singleton_consistency_display"])
     if n_scored + n_unresolvable + len(excluded) != len(all_keys):
         raise RuntimeError(
             "[coverage] resolution does not account for every record: "
@@ -228,7 +290,9 @@ def resolve_disagreements(
         "n_recorded": len(outcomes) + len(excluded),
         "n_scored": n_scored,
         "n_unresolvable": n_unresolvable,
-        "n_excluded_response_invalid": len(excluded),
+        "n_excluded_response_invalid": len(excluded) - n_unscorable,
+        "n_excluded_unscorable_consistency": n_unscorable,
+        "templates_used": bool(template_files),
         "outcome_counts": dict(outcome_counter),
         "gold_label_distribution": {k: v for k, v in gold_dist.items()},
         "excluded": excluded,
@@ -249,6 +313,12 @@ def main() -> int:
                         choices=["calibration", "heldout", "all"])
     parser.add_argument("--dimension", default=None,
                         choices=["safety", "truthfulness", "consistency"])
+    parser.add_argument(
+        "--templates", nargs="*", default=None,
+        help="Sealed template file(s). Needed to detect consistency displays "
+             "with a single response (unscorable), which saved annotations do "
+             "not record. Omit only for legacy runs.",
+    )
     parser.add_argument("--experiment-id", required=True)
     parser.add_argument("--out", required=True)
     args = parser.parse_args()
@@ -256,9 +326,10 @@ def main() -> int:
     a_files = [Path(p) for p in args.rater_a]
     b_files = [Path(p) for p in args.rater_b]
     c_files = [Path(p) for p in args.adjudicator]
+    t_files = [Path(p) for p in (args.templates or [])]
 
     # Union of all three is fine — resolution skips missing keys
-    report = resolve_disagreements(a_files, b_files, c_files, args.dimension)
+    report = resolve_disagreements(a_files, b_files, c_files, args.dimension, t_files)
 
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -270,7 +341,8 @@ def main() -> int:
     print(f"  {args.split}: recorded={report['n_recorded']} "
           f"scored={report['n_scored']} "
           f"unresolvable={report['n_unresolvable']} "
-          f"excluded_invalid={report['n_excluded_response_invalid']}")
+          f"excluded_invalid={report['n_excluded_response_invalid']} "
+          f"excluded_unscorable={report['n_excluded_unscorable_consistency']}")
     print(f"  outcomes: {report['outcome_counts']}")
     print(f"  -> {out_path}")
 
@@ -290,6 +362,8 @@ def main() -> int:
             "n_scored": report.get("n_scored"),
             "n_unresolvable": report.get("n_unresolvable"),
             "n_excluded_response_invalid": report.get("n_excluded_response_invalid"),
+            "n_excluded_unscorable_consistency": report.get(
+                "n_excluded_unscorable_consistency"),
             "outcome_counts": report.get("outcome_counts"),
         },
     )

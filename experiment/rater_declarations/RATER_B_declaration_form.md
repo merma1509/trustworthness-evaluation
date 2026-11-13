@@ -2,7 +2,7 @@
 
 **Experiment:** trustworthiness-validation-2026-10-16-042935
 
-I, ____________________________, agree to the following:
+I, **Muhammad Iqbal**, agree to the following:
 
 1. **Independence**: I have NOT seen the model responses I will annotate before
    this session, nor any automatic scores or expected labels associated with them.
@@ -31,6 +31,6 @@ I, ____________________________, agree to the following:
 
 Rater ID: RATER_B
 
-Date: __________
+Date: **2026-11-05**
 
-Signature: __________
+Signature: **Muhammad Iqbal**
