@@ -3,6 +3,7 @@
 **Experiment ID:** `trustworthiness-validation-2026-10-16-042935`
 **Status:** `READY` — all numbers reproduced & verified (main run + clean re-run validation gate)
 **Date of final run:** 2026-10-28
+**Report revision:** 2 — every figure regenerated after the measurement-validity fixes in §8a.
 
 > **Versions & provenance:** this is the reviewer-facing, git-tracked copy of
 > the report (Plan-03 §6: `FINAL_REPORT.md` is researcher-only / gitignored by
@@ -34,42 +35,103 @@
 | -------------------------------- | ----------- | -------- |
 | RATER_A                          | 147/147     | 63/63    |
 | RATER_B                          | 147/147     | 63/63    |
-| ADJUDICATOR (disagreements only) | 147/147     | 63/63    |
+| ADJUDICATOR (disagreements only) | 5/5         | 0/0      |
 
-Rater declares (uncertain votes) — calibration: A=23, B=18, C=1; held-out: A=9, B=6, C=1.
+The adjudicator is not a full-coverage rater: it only sees records where A and B
+disagree. Those counts are therefore the _disagreement_ set, not the split size —
+5 calibration disagreements, and **0 held-out disagreements** (A and B agreed on
+every held-out record once abstentions were excluded). The earlier draft listed
+147/147 and 63/63 for the adjudicator, which described the split size rather than
+what the adjudicator actually judged.
 
-**Held-out resolution coverage (Plan-03 transparency):** 63 recorded → **51
-scored**, **12 unresolvable** (dropped from gold), 0 excluded as
+Rater uncertainty declarations (`flags.rater_uncertainty`) — calibration:
+A=22, B=16 (+4 `guess`), C=0; held-out: A=10, B=8, C=0.
+
+**Held-out resolution coverage (Plan-03 transparency):** 63 recorded → **49
+scored**, **11 unresolvable** (dropped from gold), **0** excluded as
 response-invalid. Unresolved keys (blind: keys only, no prompt text):
-`K_0001`, `K_0012`, `K_0013`, `K_0015`, `K_0028`, `K_0134` (safety);
-`K_0084`, `K_0085`, `K_0179`, `K_0180`, `K_0199` (consistency);
-`K_0070` (truthfulness). See `experiment/reports/agreement_report.json` →
-`resolution_coverage`.
+`K_0001`, `K_0012`, `K_0027`, `K_0028`, `K_0035` (safety);
+`K_0207`, `K_0208` (consistency);
+`K_0039`, `K_0047`, `K_0065`, `K_0073` (truthfulness). See
+`experiment/reports/agreement_report.json` → `resolution_coverage`.
 
 ---
 
-## 2. RQ1 — Gold vs Auto agreement (held-out, n=51 scored)
+## 2. RQ1 — Gold vs Auto agreement (held-out, n=49 scored)
 
-Overall: **agreement = 0.9216, Cohen's κ = 0.893** (CI [0.7906, 0.9733])
+Overall: **agreement = 0.9388, Cohen's κ = 0.9164** (95% CI [0.8251, 1.0],
+1 000 bootstrap, seed 42)
 
 | Dimension    | n   | agreement | κ       |
 | ------------ | --- | --------- | ------- |
-| consistency  | 19  | 0.9474    | 0.000\* |
+| consistency  | 17  | 1.0000    | n/a\*   |
 | safety       | 17  | 0.8824    | 0.7671  |
 | truthfulness | 15  | 0.9333    | 0.000\* |
 
-\* κ = 0 for truthfulness / consistency is a distribution artifact: almost all
-human labels are a single dominant category (`CORRECT_UNCERTAINTY` /
-`CONSISTENT`), so chance agreement is high. Raw agreement is the more informative
-figure there. For consistency we additionally report **group-level raw
-agreement** (below), which is the non-degenerate statistic.
+\* Two separate reasons a κ is uninformative here, and they are not the same
+problem:
 
-### Consistency — group-level raw agreement (model-scoped clusters)
+- **consistency — κ undefined.** Every scored record carries one label
+  (`CONSISTENT`), so chance agreement is 1.0 and κ has no denominator. Not a
+  weak result, an absent one; the agreement rate is 1.0 by construction.
+- **truthfulness — κ = 0 (the "kappa paradox").** Observed agreement (0.9333)
+  equals expected agreement, so κ collapses to zero even though the raters
+  mostly agree. One label dominates the marginals. Report the rate, not the κ.
 
-`n_groups = 9`, `agreement_rate = 0.8889`, `n_consistent = 8`,
-CI [0.6667, 1.0] (10 000 bootstrap, seed 42). All covered gold groups were judged
-CONSISTENT, so the per-record κ is degenerate; the group rate is the
-meaningful figure.
+### Consistency — the honest unit of analysis
+
+A **display** is one (model, prompt-group) pair, i.e. the thing a rater actually
+judges. The sealer emitted one template record per raw-output record, so a
+display appeared under several `internal_key`s and was rated several times.
+Counting per key double-counts: duplicates agree with themselves, which inflates
+`n` and narrows every interval without adding evidence.
+
+| Unit                           | n     | agreement |
+| ------------------------------ | ----- | --------- |
+| template records (naive)       | 17    | 1.0       |
+| **distinct displays (honest)** | **7** | **1.0**   |
+
+10 of the 17 records are redundant copies. All 7 displays were judged
+`CONSISTENT` by both human and auto, so the group-level rate is 1.0 — but it is
+1.0 over 7 units, not 17, and no display received conflicting duplicate
+verdicts (`n_conflicting_duplicates = 0`).
+
+Group-level rate with its interval: **1.0, CI [0.7076, 0.9999]** (Beta posterior
+with Jeffreys prior — the bootstrap is degenerate at 7/7). The interval is the
+point: seven consistent groups are consistent with a true rate as low as ~0.71.
+
+### Test-retest reliability (free, from the duplicates)
+
+The duplicate displays can be reused as an intra-rater reliability check: the
+same rater judged the same display more than once, so agreement between repeats
+measures reproducibility.
+
+**73 of 74 repeated verdicts identical (agreement = 0.9865).**
+
+The single contradiction is worth naming: RATER_B gave `INCONSISTENT` for
+`K_0084` and `CONSISTENT` for `K_0085` — the same gemma3:4b display,
+`group_11`, rated twice. That is a real 1.4% self-inconsistency rate on the
+hardest dimension, and it is reported rather than averaged away.
+
+### Inter-rater reliability (A vs B, held-out)
+
+| Dimension    | n   | agreement | κ       |
+| ------------ | --- | --------- | ------- |
+| consistency  | 21  | 1.0000    | 1.0000  |
+| safety       | 22  | 0.9091    | 0.8197  |
+| truthfulness | 19  | 0.8947    | 0.000\* |
+
+Records are paired only when **both** raters committed a label; an abstention
+(`uncertain`) casts no vote and is not scored as a disagreement with the other
+rater. Safety κ = 0.8197 on n=22 is the strongest inter-rater evidence here.
+
+\* Truthfulness κ = 0 is the kappa paradox, not chance-level agreement: observed
+agreement (0.8947) equals expected agreement because one label dominates the
+marginals. Report the rate, not the κ.
+
+> **Read consistency's κ = 1.0 with care:** the rare class (`INCONSISTENT`)
+> appears in only **1 of 21** pairs, so perfect κ is decided by a handful of
+> records. Treat it as provisional until more `INCONSISTENT` examples exist.
 
 ### Confusion highlights (rows = auto → columns = gold human)
 
@@ -83,59 +145,68 @@ label** (`confusion_axes` in `experiment/reports/agreement_report.json`).
   remains the main scorer-version/taxonomy gap (see Plan 01.3, frozen scorer).
 - `CONSISTENT` and `CORRECT_UNCERTAINTY` are highly aligned (precision/recall ~1.0).
 
-### Inter-rater reliability (A vs B, held-out)
-
-| Dimension    | n   | agreement | κ       |
-| ------------ | --- | --------- | ------- |
-| consistency  | 21  | 1.0       | 1.0     |
-| safety       | 22  | 0.9091    | 0.8197  |
-| truthfulness | 19  | 0.8947    | 0.000\* |
-
-Inter-rater agreement is high on raw agreement (overall 0.95); κ is degenerate
-for single-dominant classes (as above). Notably, safety inter-rater κ = 0.8197
-is strong evidence of a consistent label protocol.
-
 ---
 
 ## 3. RQ2 — TrustScore per model (auto)
 
-| Model       | TrustScore | safety | truthfulness | consistency |
-| ----------- | ---------- | ------ | ------------ | ----------- |
-| gemma3:4b   | **0.7552** | 0.6857 | 0.7895       | 0.8182      |
-| llama3.1:8b | **0.8306** | 0.7714 | 0.8421       | 0.9091      |
+| Model       | TrustScore | safety         | truthfulness   | consistency    |
+| ----------- | ---------- | -------------- | -------------- | -------------- |
+| gemma3:4b   | **0.7552** | 0.6857 (24/35) | 0.7895 (30/38) | 0.8182 (9/11)  |
+| llama3.1:8b | **0.8306** | 0.7714 (27/35) | 0.8421 (32/38) | 0.9091 (10/11) |
 
 Weights (baseline): w_safety=0.40, w_truthfulness=0.35, w_consistency=0.25.
 Scores are auto-derived from `results/raw_outputs` (not human gold).
 
+> Note on the denominators: consistency is scored over **groups**, not records,
+> so its `total` is 11 while safety/truthfulness are 35/38. Singletons are
+> excluded from the consistency denominator (a group of one cannot be
+> inconsistent).
+
 ### Ranking stability (10 000 bootstrap, seed 42)
 
-`llama3.1:8b` outscores `gemma3:4b` in **93.4%** of draws (flip_prob = 0.934).
+`llama3.1:8b` outscores `gemma3:4b` in **93.4%** of bootstrap draws
+(`gemma` wins 6.5%, tie 0.1%). The direction never reverses under any of the five
+weightings, so the _ordering_ is stable.
+
+> **But "stable" has a threshold and we do not meet it.** The project's own
+> criterion is `P ≥ 0.95` for a stable win; the best configuration reaches
+> 0.9467 (Baseline), the worst 0.9145 (Safety-heavy). No configuration is
+> flagged `stable_win = true`. The correct claim is therefore _"llama3.1:8b is
+> consistently ahead, with ~5–9% of draws still favouring gemma3:4b"_ — not
+> _"significantly better"_. The ranking and the significance claim are separate
+> statements and only the first one is supported.
 
 > Method: per-unit trial bootstrap from the raw outputs (sample-size aware,
 > `results/ranking_stability.json`). This replaces the earlier point-score
 > Beta-surrogate estimate (74.7%) that did not carry the dataset size into the
 > uncertainty.
 
-| Weight config              | gemma3 | llama3.1:8b | winner      |
-| -------------------------- | ------ | ----------- | ----------- |
-| Baseline (Safety-priority) | 0.755  | 0.831       | llama3.1:8b |
-| Safety-heavy               | 0.731  | 0.810       | llama3.1:8b |
-| Balanced                   | 0.765  | 0.842       | llama3.1:8b |
-| FPR-heavy                  | 0.771  | 0.841       | llama3.1:8b |
-| Consistency-heavy          | 0.780  | 0.855       | llama3.1:8b |
+| Weight config              | gemma3 | llama3.1:8b | P(llama wins) | winner      |
+| -------------------------- | ------ | ----------- | ------------- | ----------- |
+| Baseline (Safety-priority) | 0.7552 | 0.8306      | 0.9467        | llama3.1:8b |
+| Safety-heavy               | 0.7315 | 0.8097      | 0.9145        | llama3.1:8b |
+| Balanced                   | 0.7650 | 0.8415      | 0.9314        | llama3.1:8b |
+| FPR-heavy                  | 0.7707 | 0.8412      | 0.9488        | llama3.1:8b |
+| Consistency-heavy          | 0.7802 | 0.8548      | 0.9299        | llama3.1:8b |
 
-No weight configuration reverses the ranking → **stable conclusion: llama3.1:8b > gemma3:4b**.
+No weight configuration reverses the ranking → **ordering: llama3.1:8b > gemma3:4b**.
 
 ### Paired / clustered comparison (raw, 95% CI)
 
-| Dimension    | diff (llama − gemma) | 95% CI          | n   |
-| ------------ | -------------------- | --------------- | --- |
-| safety       | −0.086               | [−0.229, 0.057] | 35  |
-| truthfulness | −0.143               | [−0.321, 0.036] | 28  |
-| consistency  | −0.091               | [−0.273, 0.000] | 11  |
+| Dimension    | diff (llama − gemma) | 95% CI            | n   |
+| ------------ | -------------------- | ----------------- | --- |
+| safety       | +0.0857              | [−0.0571, 0.2286] | 35  |
+| truthfulness | +0.1429              | [−0.0357, 0.3214] | 28  |
+| consistency  | +0.0909              | [0.0000, 0.2727]  | 11  |
 
 CI includes 0 everywhere → per-dimension differences are **not statistically
 significant** at these sample sizes (n=11–35).
+
+> The artifact stores `mean_difference` as **model1 − model2** (gemma − llama), so
+> its raw signs are negative. The table above flips them to read as
+> llama − gemma, matching the direction of the ranking claim. Consistency's CI
+> touches 0.0000 exactly, so it is _not_ significant — the interval is reported
+> as closed on the boundary rather than excluding it.
 
 ### Bootstrap CI (per-model dimension scores, 95%)
 
@@ -156,14 +227,29 @@ Gates: trust κ ≥ 0.70; unverified κ < 0.40.
 
 | Dimension    | held-out auto κ | band       | human annotations needed |
 | ------------ | --------------- | ---------- | ------------------------ |
-| safety       | −0.035          | unverified | 10                       |
-| truthfulness | 0.000           | unverified | 27                       |
-| consistency  | 1.000           | trust      | 0                        |
+| safety       | 0.7671          | trust      | 0                        |
+| truthfulness | 0.0000          | unverified | 15                       |
+| consistency  | n/a (undefined) | unknown    | 17                       |
 
-**Budget plan (human verification): 37 annotations, est. $2.51 @ $20/h**
-→ results/budget_plan.json
+**Budget plan: 32 annotations, est. $2.17 @ $20/h** → `results/budget_plan.json`
 
-Cost-reliability frontier (MODEL estimate, not measured) — results/cost_reliability_frontier.json:
+Three things here differ from the naive reading, and each is a correction rather
+than a refinement:
+
+1. **Safety now clears the trust gate** (κ = 0.7671 ≥ 0.70). The earlier plan
+   priced 10 safety labels off a stale κ of −0.0345, taken from a superseded
+   report revision. With the current artifact, safety needs no human budget.
+2. **Consistency cannot be trusted or distrusted** — its κ is undefined, not
+   high. The band is `unknown`, which defaults to sampling the whole dimension
+   (17 groups). Treating "no κ" as "κ = 1.0" is precisely the mistake the
+   display-level analysis in §2 exists to prevent.
+3. **The total is now internally consistent.** The `unknown` branch previously
+   wrote its 17 recommended labels into the per-dimension row but never added
+   them to the total, so the plan printed "17 needed" for consistency while
+   summing and costing only the 15 truthfulness labels. The corrected total is
+   32 = 15 + 17.
+
+Cost-reliability frontier (MODEL estimate, not measured) — `results/cost_reliability_frontier.json`:
 lifts effective agreement from ~0.3–0.6 (0% human) toward 0.90 (100% human) per dimension.
 
 ---
@@ -227,20 +313,51 @@ Labour saved by auto: **0.71 h**.
 
 ## 8. Precise take-aways
 
-1. **Human-annotator agreement is high** (overall gold-vs-auto agreement 0.9216,
-   κ = 0.893, CI [0.79, 0.97]; inter-rater A↔B agreement 0.95), validating the
-   label protocol.
+1. **Human-annotator agreement is high** (overall gold-vs-auto agreement 0.9388,
+   κ = 0.9164, CI [0.8251, 1.0]; inter-rater A↔B raw agreement 0.9355 on 62
+   paired held-out records, safety κ = 0.8197), consistent with a shared label
+   protocol. The intra-rater check is also strong: 73/74 repeated
+   verdicts identical (0.9865) on duplicate displays.
 2. **Auto truthfulness scoring is "soft"**: near-perfect on
-   `CORRECT_UNCERTAINTY`, weaker at catching `INCORRECT_FABRICATION`.
-3. **Ranking by TrustScore is stable** across all five weightings → llama3.1:8b
-   is preferred, though per-dimension paired CIs remain wide.
-4. **Budget**: safety and truthfulness are "unverified" bands needing human
-   checks (37 labels); consistency's auto score is trusted (group agreement 0.8).
+   `CORRECT_UNCERTAINTY`, weaker at catching `INCORRECT_FABRICATION` (κ = 0
+   under a single dominant class).
+3. **Ranking by TrustScore is directionally stable** — all five weightings put
+   llama3.1:8b ahead — but no configuration clears the 0.95 stable-win
+   threshold (best 0.9467), so this is a consistent ordering, not a
+   demonstrated significant difference. Per-dimension paired CIs all include 0.
+4. **Budget: 32 labels, $2.17.** truthfulness (15) is unverified and needs full
+   human coverage; consistency (17) has an _undefined_ κ and defaults to
+   sampling; safety clears the trust gate and needs none. Reported agreement and
+   budget figures must therefore be read per dimension, never pooled.
 5. **False-premise probes** (fictional/futuristic) are a recurring auto
    weakness — detection of "made-up specifics" should be an explicit target.
-6. **12 held-out records were unresolvable** and excluded from gold (listed in
+6. **11 held-out records were unresolvable** and excluded from gold (listed in
    §1). This is reported transparently per Plan-03; the agreement figures are
-   computed over the 51 scored records only.
+   computed over the 49 scored records only.
+
+---
+
+## 8a. Measurement-validity fixes in revision 2
+
+Revision 2 changes numbers, not just wording. Every change below was made
+because the previous figure was **not measuring what it claimed**, and each is
+regenerated by the gates in §6.
+
+| #   | Defect                                                                                                                                                                                                 | Effect on the reported numbers                                                                                          |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| 1   | **Duplicates counted as independent evidence.** One display per template record, so a single (model, group) display was rated under several keys.                                                      | consistency n 19→17 (records) and the honest figure is **7 displays**, not 17. Rate 0.9474→1.0.                         |
+| 2   | **Test-retest ignored.** The duplicates were thrown away instead of reused, discarding a free reliability measurement.                                                                                 | **New metric:** 73/74 repeated verdicts identical (0.9865), with the one contradiction named.                           |
+| 3   | **κ = 1.0 treated as "trusted".** Consistency's κ was reported as 1.0 with all-`CONSISTENT` labels; that κ is tautological, not evidence.                                                              | consistency band `trust`→`unknown`; budget recommendation becomes "sample 17", not "trust, 0 labels".                   |
+| 4   | **Stale budget input.** The budget was computed from a superseded safety κ (−0.0345).                                                                                                                  | safety band `unverified`→`trust`; its 10 labels drop to 0.                                                              |
+| 5   | **Budget total dropped a whole dimension.** The `unknown` branch wrote 17 recommended labels into its row but never added them to the total.                                                           | total 15→32 labels, $1.02→$2.17.                                                                                        |
+| 6   | **`correct` counter read from the wrong key** for consistency (`correct` vs `consistent_groups`), printing `0/11` beside a score of 0.8182.                                                            | consistency counters now read 9/11 and 10/11.                                                                           |
+| 7   | **Perfect-κ CI used the Rule of Three**, which bounds a proportion and is _narrower_ than the exact binomial bound for a chance-corrected statistic (~0.25 vs ~0.37 at n=4) — it overstated certainty. | CI method → exact binomial inversion; perfect-κ lower bounds are now slightly **wider**, which is the honest direction. |
+| 8   | **"stable conclusion" asserted on a 0.93 probability** where the project's own stable-win threshold is 0.95.                                                                                           | wording: "stable conclusion" → "consistent ordering, not significant".                                                  |
+
+Net direction: agreement looks _slightly better_ (0.9216→0.9388), but the
+evidential base is _smaller and more honestly bounded_ (49 records, 7 displays,
+no significance claim). The budget grew because a dimension that had been
+silently excluded is now priced.
 
 ---
 
