@@ -197,28 +197,25 @@ def kappa_bootstrap_ci(
     ci_upper = float(np.percentile(boot_vals, (1.0 - alpha) * 100))
 
     # ── Perfect agreement: bootstrap is degenerate [1.0, 1.0] ───────────
-    # When the observed (and every resampled) kappa is 1.0, a percentile
-    # bootstrap collapses to a zero-width [1.0, 1.0] interval that misleadingly
-    # claims certainty. Finite-sample uncertainty still exists: with n records
-    # and (claimed) perfect agreement, the Rule of Three (3/n) bounds how much
-    # a larger sample could plausibly disagree. Applying it symmetrically around
-    # kappa=1 gives a lower bound of 1 - 3/n, which approaches 1 as n grows but
-    # never claims false certainty on a small sample. Mirrors the Beta-posterior
-    # treatment of extreme proportions in ``src.stats.compute_confidence_intervals``.
     if point_kappa >= 1.0 or ci_lower >= 1.0:
-        rule_of_three_lower = max(0.0, 1.0 - 3.0 / n)
+        n_eff = max(1, n - 1)  # n observations support n-1 consecutive pairs
+        lower_bound = 0.05 ** (1.0 / n_eff)
         return {
             "kappa": round(float(point_kappa), 4),
-            "ci_lower": round(rule_of_three_lower, 4),
+            "ci_lower": round(lower_bound, 4),
             "ci_upper": 1.0,
             "n": n,
             "n_bootstrap": n_bootstrap,
             "weighted": weighted,
             "ci_level": ci,
-            "method": "rule_of_three",
+            "method": "exact_binomial_one_sided",
             "note": (
-                f"Perfect agreement ({n}/{n}); bootstrap degenerate, "
-                f"used Rule of Three lower bound (1 - 3/{n})."
+                f"Perfect agreement ({n}/{n}); bootstrap degenerate. Lower bound "
+                f"from the exact binomial bound on discordant pairs with n-1 = "
+                f"{n_eff} effective comparisons (alpha=0.05), NOT the Rule of "
+                f"Three, which does not apply to a chance-corrected statistic. "
+                "Treat this as a weak bound: few groups cannot establish "
+                "reliability."
             ),
         }
 
@@ -342,6 +339,30 @@ def compute_agreement(
         "per_label_agreement": per_label,
     }
 
+    # ``kappa_interpretable`` is the machine-readable twin of ``kappa_note``.
+    # It is False only when the coefficient must not be read as a chance-
+    # corrected reliability estimate, which keeps the JSON honest without
+    # discarding a number that is arithmetically correct:
+    #
+    #   * ``cohens_kappa is None``      -> mathematically undefined (0/0);
+    #   * ``p_observed == p_expected``  -> kappa's numerator vanishes, so the
+    #     coefficient cannot express reliability even though it is defined
+    #     (the "kappa paradox", Feinstein & Cicchetti 1990).
+    #
+    # Both share one visible symptom — a reader sees "kappa" and assumes
+    # chance-corrected agreement — so both are flagged, while the raw
+    # ``agreement_rate`` stays the number to quote.
+    degenerate = kappa is None or (
+        p_expected is not None
+        and p_observed is not None
+        and round(float(p_observed), 4) == round(float(p_expected), 4)
+    )
+    out["kappa_interpretable"] = not degenerate
+    if degenerate:
+        out["kappa_degenerate_reason"] = (
+            "undefined_pe_zero" if kappa is None else "observed_equals_expected"
+        )
+
     # Make an undefined kappa explicit instead of leaving a bare null that a
     # downstream reader could mistake for "no agreement".
     if kappa is None:
@@ -396,3 +417,4 @@ def compute_agreement(
         )
 
     return out
+

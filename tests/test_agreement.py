@@ -140,12 +140,33 @@ def test_kappa_bootstrap_ci_empty():
 def test_kappa_bootstrap_ci_perfect():
     ci = kappa_bootstrap_ci(["a", "a", "b", "b"], ["a", "a", "b", "b"])
     assert ci["kappa"] == 1.0
-    # Perfect agreement: bootstrap is degenerate [1.0, 1.0], so we fall back to
-    # the Rule of Three lower bound to convey finite-sample uncertainty.
-    assert ci["method"] == "rule_of_three"
+    # Perfect agreement: the bootstrap is degenerate [1.0, 1.0], so finite-sample
+    # uncertainty is conveyed by inverting an exact binomial bound on the number
+    # of discordant pairs. The Rule of Three is NOT used: it bounds a proportion
+    # and, being wider (1 - 3/n = 0.25 here vs 0.54), it would understate how
+    # little four observations actually establish about a chance-corrected
+    # statistic.
+    assert ci["method"] == "exact_binomial_one_sided"
     assert ci["ci_upper"] == 1.0
     assert ci["ci_lower"] < 1.0
-    assert ci["ci_lower"] == 1.0 - 3.0 / ci["n"]
+    n_eff = ci["n"] - 1
+    assert ci["ci_lower"] == round(0.05 ** (1.0 / n_eff), 4)
+    # Must not coincide with the Rule of Three bound it replaced.
+    assert ci["ci_lower"] != round(1.0 - 3.0 / ci["n"], 4)
+
+
+def test_kappa_ci_perfect_lower_bound_grows_with_n():
+    """More observations must buy a tighter (higher) lower bound.
+
+    The exact bound is 1 - 0.05**(1/(n-1)), which approaches 1 as n grows. This
+    guards against a future fallback that ignores n and reports a fixed value.
+    """
+    small = kappa_bootstrap_ci(["a", "a", "b", "a"] * 1, ["a", "a", "b", "a"] * 1,
+                               n_bootstrap=50)
+    large = kappa_bootstrap_ci(["a", "a", "b", "a"] * 3, ["a", "a", "b", "a"] * 3,
+                               n_bootstrap=50)
+    assert small["ci_lower"] is not None
+    assert small["ci_lower"] < large["ci_lower"] < 1.0
 
 
 def test_kappa_bootstrap_ci_deterministic_seed():
