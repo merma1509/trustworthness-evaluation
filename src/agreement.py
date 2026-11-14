@@ -16,7 +16,7 @@ Note on Cohen's Kappa:
 """
 
 from collections import defaultdict
-from typing import Dict, List, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -24,7 +24,7 @@ import numpy as np
 def cohen_kappa(
     confusion: Dict[str, Dict[str, int]],
     weighted: bool = False,
-) -> Tuple[float, float, float]:
+) -> Tuple[Optional[float], float, float]:
     """Compute the standard Cohen's Kappa from a confusion matrix.
 
     The confusion matrix is indexed ``{auto_label: {human_label: count}}``.
@@ -35,7 +35,23 @@ def cohen_kappa(
             ordered, multi-class labels). If False, use the unweighted kappa.
 
     Returns:
-        Tuple of (kappa, p_observed, p_expected).
+        Tuple of ``(kappa, p_observed, p_expected)``.
+
+        ``kappa`` is **None when it is mathematically undefined** — i.e. the
+        coefficient carries no information and any number returned here would be
+        read as a measurement. Two cases qualify:
+
+        * a single observed category (``p_expected == 0``): agreement is perfect
+          by construction, so ``1.0`` would be a tautology, not evidence;
+        * ``p_expected == 1`` (all mass on one cell of the marginals): the
+          denominator vanishes.
+
+        Neither is a zero. Returning ``0.0`` would claim "chance-level
+        agreement" and returning ``1.0`` would claim "perfect agreement"; the
+        honest answer is that kappa is not defined, and callers must report it
+        as such (see ``docs``/report notes). Note that a genuine disagreement
+        distribution can also yield ``kappa == 0.0`` legitimately, so the two
+        must be distinguishable.
 
     Reference:
         Cohen, J. (1960). A Coefficient of Agreement for Nominal Scales.
@@ -43,7 +59,7 @@ def cohen_kappa(
     """
     labels = sorted(set(confusion.keys()) | {h for row in confusion.values() for h in row})
     if not labels:
-        return 0.0, 0.0, 0.0
+        return None, 0.0, 0.0
 
     n_categories = len(labels)
     # Build a dense, diagonal-aligned matrix over the union of labels.
@@ -54,13 +70,15 @@ def cohen_kappa(
 
     n_total = mat.sum()
     if n_total == 0:
-        return 0.0, 0.0, 0.0
+        return None, 0.0, 0.0
 
     p_observed = float(np.trace(mat)) / n_total
 
     if n_categories == 1:
-        # Only one category -> perfect agreement by definition (kappa = 1).
-        return 1.0, p_observed, 0.0
+        # Only one category observed on either side: p_expected == 0, so kappa
+        # is 0/0. Perfect agreement here is guaranteed by the design, not
+        # measured — report it as undefined rather than as kappa == 1.
+        return None, p_observed, 0.0
 
     # Marginals: row (auto) and column (human) observed distributions.
     row_marginal = mat.sum(axis=1) / n_total
@@ -72,7 +90,7 @@ def cohen_kappa(
         # Unweighted (nominal) kappa.
         denominator = 1.0 - p_expected
         if denominator == 0:
-            return 0.0, p_observed, p_expected
+            return None, p_observed, p_expected
         kappa = (p_observed - p_expected) / denominator
     else:
         # Quadratic weighted kappa for ordered categories: weights grow
@@ -85,7 +103,7 @@ def cohen_kappa(
         # Equivalent closed form for quadratic weighted kappa.
         expected_numerator = float((expected * weights).sum()) / n_total
         if expected_numerator == 0:
-            return 0.0, p_observed, p_expected
+            return None, p_observed, p_expected
         kappa = 1.0 - (observed_numerator / expected_numerator)
 
     return round(kappa, 4), round(p_observed, 4), round(p_expected, 4)
@@ -126,7 +144,29 @@ def kappa_bootstrap_ci(
 
     rng = np.random.RandomState(random_seed)
     base_confusion = _build_confusion(pairs)
-    point_kappa, _, _ = cohen_kappa(base_confusion, weighted=weighted)
+    point_kappa, _, point_p_expected = cohen_kappa(base_confusion, weighted=weighted)
+
+    # ── Undefined kappa: no interval exists ────────────────────────────────
+    # A single observed category leaves p_expected == 0, so every resample is
+    # also degenerate. A percentile interval over a list of undefined values
+    # would be meaningless, so return an explicit empty interval instead of
+    # inventing bounds.
+    if point_kappa is None:
+        return {
+            "kappa": None,
+            "ci_lower": None,
+            "ci_upper": None,
+            "n": n,
+            "n_bootstrap": n_bootstrap,
+            "weighted": weighted,
+            "ci_level": ci,
+            "method": "undefined",
+            "note": (
+                "Cohen's kappa is undefined (p_expected == 0: a single observed "
+                "category), so no confidence interval exists. Use the raw "
+                "agreement rate for this slice."
+            ),
+        }
 
     boot_vals = []
     for _ in range(n_bootstrap):
@@ -134,35 +174,48 @@ def kappa_bootstrap_ci(
         sample = [pairs[i] for i in idx]
         conf = _build_confusion(sample)
         k, _, _ = cohen_kappa(conf, weighted=weighted)
-        boot_vals.append(k)
+        # Degenerate resamples carry no kappa value; skip rather than coerce
+        # them to 0.0, which would bias the interval downward.
+        if k is not None:
+            boot_vals.append(k)
+
+    if not boot_vals:
+        return {
+            "kappa": None,
+            "ci_lower": None,
+            "ci_upper": None,
+            "n": n,
+            "n_bootstrap": n_bootstrap,
+            "weighted": weighted,
+            "ci_level": ci,
+            "method": "undefined",
+            "note": "Every bootstrap resample was degenerate; kappa undefined.",
+        }
 
     alpha = (1.0 - ci) / 2.0
     ci_lower = float(np.percentile(boot_vals, alpha * 100))
     ci_upper = float(np.percentile(boot_vals, (1.0 - alpha) * 100))
 
     # ── Perfect agreement: bootstrap is degenerate [1.0, 1.0] ───────────
-    # When the observed (and every resampled) kappa is 1.0, a percentile
-    # bootstrap collapses to a zero-width [1.0, 1.0] interval that misleadingly
-    # claims certainty. Finite-sample uncertainty still exists: with n records
-    # and (claimed) perfect agreement, the Rule of Three (3/n) bounds how much
-    # a larger sample could plausibly disagree. Applying it symmetrically around
-    # kappa=1 gives a lower bound of 1 - 3/n, which approaches 1 as n grows but
-    # never claims false certainty on a small sample. Mirrors the Beta-posterior
-    # treatment of extreme proportions in ``src.stats.compute_confidence_intervals``.
     if point_kappa >= 1.0 or ci_lower >= 1.0:
-        rule_of_three_lower = max(0.0, 1.0 - 3.0 / n)
+        n_eff = max(1, n - 1)  # n observations support n-1 consecutive pairs
+        lower_bound = 0.05 ** (1.0 / n_eff)
         return {
             "kappa": round(float(point_kappa), 4),
-            "ci_lower": round(rule_of_three_lower, 4),
+            "ci_lower": round(lower_bound, 4),
             "ci_upper": 1.0,
             "n": n,
             "n_bootstrap": n_bootstrap,
             "weighted": weighted,
             "ci_level": ci,
-            "method": "rule_of_three",
+            "method": "exact_binomial_one_sided",
             "note": (
-                f"Perfect agreement ({n}/{n}); bootstrap degenerate, "
-                f"used Rule of Three lower bound (1 - 3/{n})."
+                f"Perfect agreement ({n}/{n}); bootstrap degenerate. Lower bound "
+                f"from the exact binomial bound on discordant pairs with n-1 = "
+                f"{n_eff} effective comparisons (alpha=0.05), NOT the Rule of "
+                f"Three, which does not apply to a chance-corrected statistic. "
+                "Treat this as a weak bound: few groups cannot establish "
+                "reliability."
             ),
         }
 
@@ -286,9 +339,82 @@ def compute_agreement(
         "per_label_agreement": per_label,
     }
 
+    # ``kappa_interpretable`` is the machine-readable twin of ``kappa_note``.
+    # It is False only when the coefficient must not be read as a chance-
+    # corrected reliability estimate, which keeps the JSON honest without
+    # discarding a number that is arithmetically correct:
+    #
+    #   * ``cohens_kappa is None``      -> mathematically undefined (0/0);
+    #   * ``p_observed == p_expected``  -> kappa's numerator vanishes, so the
+    #     coefficient cannot express reliability even though it is defined
+    #     (the "kappa paradox", Feinstein & Cicchetti 1990).
+    #
+    # Both share one visible symptom — a reader sees "kappa" and assumes
+    # chance-corrected agreement — so both are flagged, while the raw
+    # ``agreement_rate`` stays the number to quote.
+    degenerate = kappa is None or (
+        p_expected is not None
+        and p_observed is not None
+        and round(float(p_observed), 4) == round(float(p_expected), 4)
+    )
+    out["kappa_interpretable"] = not degenerate
+    if degenerate:
+        out["kappa_degenerate_reason"] = (
+            "undefined_pe_zero" if kappa is None else "observed_equals_expected"
+        )
+
+    # Make an undefined kappa explicit instead of leaving a bare null that a
+    # downstream reader could mistake for "no agreement".
+    if kappa is None:
+        out["kappa_note"] = (
+            "Cohen's kappa is undefined for this slice: "
+            f"p_expected={p_expected} leaves no denominator (single observed "
+            "category, or all chance mass on one cell). Observed agreement is "
+            f"{out['agreement_rate']}, which is guaranteed by the design rather "
+            "than measured. Report the agreement rate, not a kappa."
+        )
+    elif kappa <= 0.0 and agreement_rate >= 0.7:
+        # Kappa paradox (Feinstein & Cicchetti, 1990): when the marginal
+        # distributions are highly skewed, high raw agreement can coexist with a
+        # kappa at or below chance. Here p_observed == p_expected exactly, so
+        # kappa's numerator is zero even though ~9 in 10 records agree.
+        #
+        # The number is arithmetically correct, but read alone it says "chance
+        # level", which is false. Explain the situation and point at the raw
+        # agreement rate; never silently substitute a different statistic.
+        out["kappa_note"] = (
+            "Kappa paradox: agreement is high "
+            f"({out['agreement_rate']}) yet kappa is {kappa} because "
+            f"p_observed == p_expected == {p_expected}. The marginals are highly "
+            "skewed (one label dominates), so chance agreement absorbs almost "
+            "all of the observed agreement. The value is arithmetically correct "
+            "but should not be read as 'chance-level agreement' — report the "
+            "agreement rate alongside it, and obtain more examples of the rare "
+            "class for a meaningful kappa."
+        )
+
+    elif kappa >= 1.0:
+        # Perfect kappa, but check it is not a one-case illusion: if the rarest
+        # label appears in only a handful of pairs, "perfect" agreement rests on
+        # those few decisions. Report the support so the number is not read as
+        # robust evidence of reliability.
+        rarest_label, rarest_support = min(
+            ((label, sum(1 for h, _ in pairs if h == label)) for label in categories),
+            key=lambda kv: kv[1],
+        )
+        if rarest_support <= 3:
+            out["kappa_note"] = (
+                f"Perfect kappa rests on very little evidence: the rarest label "
+                f"({rarest_label}) appears in only {rarest_support} of {n_valid} "
+                "pairs, so the agreement on the rare class is decided by a "
+                "handful of records. Treat kappa as provisional until more "
+                "examples of that class exist."
+            )
+
     if with_ci:
         out["kappa_ci"] = kappa_bootstrap_ci(
             human_labels, auto_labels, n_bootstrap=n_bootstrap, weighted=False
         )
 
     return out
+

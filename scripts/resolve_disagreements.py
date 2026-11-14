@@ -39,6 +39,7 @@ from typing import Dict, List, Optional, Tuple
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.audit_log import log_action  # noqa: E402
+from src.labels import consistency_display_size  # noqa: E402
 
 
 # ──────── Loading helpers ─────────────────────────────────────
@@ -87,6 +88,15 @@ def record_key(rec: dict) -> Tuple[str, str]:
     return (dim, f"pid::{pid}")
 
 
+def consistency_group_size(rec: Optional[dict]) -> Optional[int]:
+    """Number of responses shown in a consistency display (``None`` = N/A).
+
+    Thin alias over the shared rule in ``src.labels`` so that sealing, the
+    adjudicator handoff, resolution and ingestion validation cannot drift apart.
+    """
+    return consistency_display_size(rec)
+
+
 # ────────── Resolution logic ───────────────────────────────
 def load_rater_annotations(path: Path) -> Dict[str, dict]:
     """Load a rater's annotations keyed by ``record_key``."""
@@ -104,6 +114,7 @@ def resolve_disagreements(
     b_files: List[Path],
     adjudicator_files: List[Path],
     dimension: Optional[str] = None,
+    template_files: Optional[List[Path]] = None,
 ) -> Dict:
     """Compare A and B, send disagreements to the adjudicator, build gold.
 
@@ -112,6 +123,9 @@ def resolve_disagreements(
         b_files: RATER_B annotation files.
         adjudicator_files: ADJUDICATOR annotation files.
         dimension: optional dimension filter.
+        template_files: sealed template files. Used to read the consistency
+            ``pairs`` group size, which saved annotations do not retain. When
+            omitted, singleton exclusion is skipped (and reported as such).
 
     Returns:
         Dict with the resolution report: per-record outcome, gold label, and
@@ -126,6 +140,15 @@ def resolve_disagreements(
     C = {}
     for p in adjudicator_files:
         C.update(load_rater_annotations(p))
+
+    # Template records carry the response group; annotations usually do not.
+    templates: Dict[Tuple[str, str], dict] = {}
+    for p in (template_files or []):
+        for line in Path(p).open():
+            if not line.strip():
+                continue
+            rec = json.loads(line)
+            templates[record_key(rec)] = rec
 
     all_keys = sorted(set(A) | set(B) | set(C))
     outcomes = []
@@ -150,10 +173,19 @@ def resolve_disagreements(
             "RATER_B": uncertain_of(rec_b) if rec_b else False,
             "ADJUDICATOR": uncertain_of(rec_c) if rec_c else False,
         }
-        resp_invalid = (
-            response_invalid_of(rec_a) if rec_a else
-            response_invalid_of(rec_b) if rec_b else False
-        )
+
+        # ── A response invalid flag is a property of the RECORD ──
+        # The flag says "this model output is malformed", which is independent
+        # of who noticed it. Reading only RATER_A's flag silently ignored
+        # RATER_B's, so a record one rater had explicitly rejected was resolved
+        # as if both votes were usable. Collect every rater who raised it.
+        invalid_flags = {
+            role: True
+            for role, rec in (("RATER_A", rec_a), ("RATER_B", rec_b),
+                             ("ADJUDICATOR", rec_c))
+            if rec and response_invalid_of(rec)
+        }
+        resp_invalid = bool(invalid_flags)
 
         # ── No-skip / no-exclusion ──
         # A malformed response is logged and EXCLUDED FROM SCORING with a reason,
@@ -162,8 +194,29 @@ def resolve_disagreements(
             excluded.append({
                 "record_key": list(key),
                 "reason": "response_invalid",
-                "note": "No valid model response (malformed API output). "
-                        "Kept but excluded from scoring with a logged reason.",
+                "flagged_by": sorted(invalid_flags),
+                "note": "No valid model response (malformed API output), flagged "
+                        f"by {', '.join(sorted(invalid_flags))}. Kept but "
+                        "excluded from scoring with a logged reason.",
+            })
+            continue
+
+        # ── Unscorable consistency display (single response) ──
+        # A consistency verdict needs at least two responses to compare.
+        # ``src/consistency.py`` already flags these ``is_singleton`` and drops
+        # them from the score; the sealed template still showed them, so raters
+        # returned a verdict that must NOT be counted as a data point.
+        group_size = consistency_group_size(
+            templates.get(key) or rec_a or rec_b or rec_c
+        )
+        if group_size is not None and group_size < 2:
+            excluded.append({
+                "record_key": list(key),
+                "reason": "singleton_consistency_display",
+                "note": f"Consistency display shows {group_size} response(s), so "
+                        "there is nothing to compare. The scorer already skips "
+                        "singleton groups; excluding it here keeps the human "
+                        "side consistent and avoids a verdict on a non-comparison.",
             })
             continue
 
@@ -216,6 +269,11 @@ def resolve_disagreements(
     # evaluation must never shrink by dropping hard cases.
     n_scored = len([o for o in outcomes if o["gold_label"] is not None])
     n_unresolvable = len([o for o in outcomes if o["gold_label"] is None])
+    # Count by reason rather than by subtraction, so adding a future exclusion
+    # reason cannot silently misattribute counts to response_invalid.
+    reason_counts = Counter(e["reason"] for e in excluded)
+    n_unscorable = reason_counts.get("singleton_consistency_display", 0)
+    n_invalid = reason_counts.get("response_invalid", 0)
     if n_scored + n_unresolvable + len(excluded) != len(all_keys):
         raise RuntimeError(
             "[coverage] resolution does not account for every record: "
@@ -228,7 +286,10 @@ def resolve_disagreements(
         "n_recorded": len(outcomes) + len(excluded),
         "n_scored": n_scored,
         "n_unresolvable": n_unresolvable,
-        "n_excluded_response_invalid": len(excluded),
+        "n_excluded_response_invalid": n_invalid,
+        "n_excluded_unscorable_consistency": n_unscorable,
+        "exclusion_reason_counts": dict(reason_counts),
+        "templates_used": bool(template_files),
         "outcome_counts": dict(outcome_counter),
         "gold_label_distribution": {k: v for k, v in gold_dist.items()},
         "excluded": excluded,
@@ -249,6 +310,12 @@ def main() -> int:
                         choices=["calibration", "heldout", "all"])
     parser.add_argument("--dimension", default=None,
                         choices=["safety", "truthfulness", "consistency"])
+    parser.add_argument(
+        "--templates", nargs="*", default=None,
+        help="Sealed template file(s). Needed to detect consistency displays "
+             "with a single response (unscorable), which saved annotations do "
+             "not record. Omit only for legacy runs.",
+    )
     parser.add_argument("--experiment-id", required=True)
     parser.add_argument("--out", required=True)
     args = parser.parse_args()
@@ -256,9 +323,10 @@ def main() -> int:
     a_files = [Path(p) for p in args.rater_a]
     b_files = [Path(p) for p in args.rater_b]
     c_files = [Path(p) for p in args.adjudicator]
+    t_files = [Path(p) for p in (args.templates or [])]
 
     # Union of all three is fine — resolution skips missing keys
-    report = resolve_disagreements(a_files, b_files, c_files, args.dimension)
+    report = resolve_disagreements(a_files, b_files, c_files, args.dimension, t_files)
 
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -270,7 +338,8 @@ def main() -> int:
     print(f"  {args.split}: recorded={report['n_recorded']} "
           f"scored={report['n_scored']} "
           f"unresolvable={report['n_unresolvable']} "
-          f"excluded_invalid={report['n_excluded_response_invalid']}")
+          f"excluded_invalid={report['n_excluded_response_invalid']} "
+          f"excluded_unscorable={report['n_excluded_unscorable_consistency']}")
     print(f"  outcomes: {report['outcome_counts']}")
     print(f"  -> {out_path}")
 
@@ -290,6 +359,8 @@ def main() -> int:
             "n_scored": report.get("n_scored"),
             "n_unresolvable": report.get("n_unresolvable"),
             "n_excluded_response_invalid": report.get("n_excluded_response_invalid"),
+            "n_excluded_unscorable_consistency": report.get(
+                "n_excluded_unscorable_consistency"),
             "outcome_counts": report.get("outcome_counts"),
         },
     )

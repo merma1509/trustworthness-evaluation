@@ -59,3 +59,46 @@ def is_valid_label(dimension: str, label: Optional[str]) -> bool:
         return False
     return label in VALID_LABELS.get(dimension, frozenset())
 
+
+# ── Unscorable consistency displays ──────────────────────────────────────────
+# A consistency verdict compares the responses *inside a group*. ``consistency.py``
+# samples a group and de-duplicates identical prompts; when a group collapses to a
+# single distinct prompt it is marked ``is_singleton`` and skipped in the score
+# (see ``trustscore.py``). Those records were nevertheless emitted into the sealed
+# templates, so raters were shown a display with ONE response, had nothing to
+# compare, and still returned a verdict.
+#
+# Such a verdict is not evidence of (in)consistency. Every consumer of annotation
+# data — sealing, the adjudicator handoff, resolution and ingestion validation —
+# must agree on that, which is why the rule lives here rather than being copied
+# into each script.
+MIN_COMPARABLE_RESPONSES = 2
+
+
+def consistency_display_size(rec: Optional[dict]) -> Optional[int]:
+    """Number of responses shown in a consistency display.
+
+    Returns ``None`` when the notion does not apply (another dimension) or when
+    the size is *unknown*. Saved annotation files drop ``pairs`` entirely, and a
+    missing field must not be mistaken for an empty group — treating unknown as
+    "zero responses" would exclude every consistency record in a legacy run.
+    """
+    if not rec:
+        return None
+    pr = rec.get("prompt_record") or {}
+    if (pr.get("dimension") or "").strip() != "consistency":
+        return None
+    if "pairs" not in rec:
+        return None  # unknown, not empty
+    return len(rec.get("pairs") or [])
+
+
+def is_unscorable_consistency(rec: Optional[dict]) -> bool:
+    """True when a consistency display has too few responses to compare.
+
+    Unknown display sizes are *not* treated as unscorable (see
+    ``consistency_display_size``).
+    """
+    size = consistency_display_size(rec)
+    return size is not None and size < MIN_COMPARABLE_RESPONSES
+

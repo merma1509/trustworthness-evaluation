@@ -48,6 +48,7 @@ from typing import Dict, List, Optional, Set, Tuple
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.audit_log import log_action  # noqa: E402
+from src.labels import is_unscorable_consistency  # noqa: E402
 
 # ─────────── record key / label helpers (mirror resolve_disagreements.py) ────────
 DIMENSION_LABEL_KEY = {
@@ -160,6 +161,23 @@ def _strip_annotation_fields(rec: dict) -> dict:
     return out
 
 
+def _flag_set(rec: Optional[dict], flag: str) -> bool:
+    """True when ``flag`` is set on a record's ``flags`` block."""
+    if not rec:
+        return False
+    return bool((rec.get("flags") or {}).get(flag))
+
+
+def _is_unscorable_consistency_display(rec: Optional[dict]) -> bool:
+    """True when a consistency display has fewer than two responses.
+
+    Delegates to the shared rule in ``src.labels`` so the handoff matches the
+    scorer, resolution and ingestion validation. ``pairs`` missing entirely
+    means *unknown* (legacy annotation files), not empty.
+    """
+    return is_unscorable_consistency(rec)
+
+
 def _disagreement_keys(
     a: Dict[Tuple[str, str], dict],
     b: Dict[Tuple[str, str], dict],
@@ -207,6 +225,31 @@ def prepare_adjudicator(
     template_index = _template_lookup(template_full)
 
     keys = _disagreement_keys(a, b)
+
+    # ── Drop displays the adjudicator cannot resolve ────────────────────────
+    # A consistency verdict needs >=2 responses. ``src/consistency.py`` flags
+    # groups that collapse to one distinct prompt as ``is_singleton`` and drops
+    # them from the score, yet they were still emitted into the sealed
+    # templates. Sending such a record to the adjudicator would ask them to
+    # break a tie about a comparison nobody can make, so it is filtered here
+    # and reported explicitly (never dropped silently).
+    unscorable = [
+        k for k in keys
+        if _is_unscorable_consistency_display(template_index.get(k))
+    ]
+    keys = [k for k in keys if k not in set(unscorable)]
+
+    # ── Drop records with no usable response ────────────────────────────────
+    # If either rater marked the model output malformed, the "disagreement" is
+    # about a response that cannot be judged. Resolution excludes such records
+    # from scoring anyway, so adjudicating them would be wasted work that also
+    # invites a gold label on unusable input.
+    invalid = [
+        k for k in keys
+        if _flag_set(a.get(k), "response_invalid")
+        or _flag_set(b.get(k), "response_invalid")
+    ]
+    keys = [k for k in keys if k not in set(invalid)]
 
     # Missing templates must fail loudly, not silently drop records.
     missing_in_template = [k for k in keys if k not in template_index]
@@ -259,6 +302,13 @@ def prepare_adjudicator(
         "n_records_b": len(b),
         "n_disagreements_sent_to_adjudicator": len(keys),
         "n_records_adjudicator_file": len(adjudicator_records),
+        # Disagreements withheld because the display is not comparable; listed
+        # so the exclusion is visible rather than a quietly smaller file.
+        "n_unscorable_consistency_excluded": len(unscorable),
+        "unscorable_consistency_keys": [k[1] for k in unscorable],
+        # Disagreements withheld because a rater marked the response unusable.
+        "n_response_invalid_excluded": len(invalid),
+        "response_invalid_keys": [k[1] for k in invalid],
         "adjudicator_file": str(out_path),
         "per_key": per_key,
         "notes": notes or "",

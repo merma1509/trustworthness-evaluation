@@ -88,6 +88,7 @@ def _check_coverage(resolve_report: Dict) -> None:
 def _check_agreement(
     agreement_path: Path,
     require_resolution_coverage: bool = False,
+    require_consistency_blocks: bool = False,
 ) -> None:
     """Validate κ/agreement-rate/CI bounds from the held-out agreement report.
 
@@ -143,6 +144,36 @@ def _check_agreement(
         if n_sc + n_unres != n_rec:
             _fail(f"resolution_coverage inconsistent: scored({n_sc}) + "
                   f"unresolvable({n_unres}) != recorded({n_rec})")
+
+    # The consistency blocks reported in the write-up (display-level "honest n"
+    # and the free test-retest reliability measurement) must survive the rerun.
+    # Omitting them here previously let the gate pass on a report that did not
+    # contain them at all, so the published figures were unverifiable.
+    if require_consistency_blocks:
+        display = report.get("consistency_display_level") or {}
+        if display.get("available") is False:
+            _fail(
+                "consistency_display_level UNAVAILABLE — the rerun did not pass "
+                "--auto-labels, so the published honest-n figure is unverifiable"
+            )
+        n_displays = display.get("n_displays")
+        if not isinstance(n_displays, int) or n_displays <= 0:
+            _fail("consistency_display_level missing or empty (honest-n block)")
+        if display.get("n_template_records") is None:
+            _fail("consistency_display_level missing n_template_records")
+
+        retest = report.get("consistency_test_retest") or {}
+        if retest.get("available") is False:
+            _fail(
+                "consistency_test_retest UNAVAILABLE — the rerun did not pass "
+                "--auto-labels, so the published 73/74 figure is unverifiable"
+            )
+        n_comparisons = retest.get("n_comparisons")
+        if not isinstance(n_comparisons, int) or n_comparisons <= 0:
+            _fail("consistency_test_retest missing or empty (test-retest block)")
+        for field in ("n_agreements", "n_contradictions", "agreement_rate"):
+            if retest.get(field) is None:
+                _fail(f"consistency_test_retest missing {field}")
 
 
 def _check_gold_join(gold_path: Path) -> None:
@@ -386,13 +417,26 @@ def validate_rerun(args) -> None:
     _check_gold_join(gold_out)
 
     agreement_out = Path(tempfile.mkdtemp(prefix="rerun_agree_")) / "agreement_report.json"
+    # The published report also carries the consistency display-level and
+    # test-retest blocks, both of which are computed over the FULL rater
+    # coverage (calibration + held-out). Passing held-out only would make the
+    # gate validate a different report than the one shipped, so the
+    # calibration files are supplied too when they exist.
+    rater_a_all = [rater_a]
+    rater_b_all = [rater_b]
+    for split in ("calibration",):
+        for role, bucket in (("RATER_A", rater_a_all), ("RATER_B", rater_b_all)):
+            extra = ann_dir / f"{exp_id}_{role}_{split}.jsonl"
+            if extra.exists():
+                bucket.append(extra)
     rc = _run(
         [
             sys.executable,
             "scripts/report_agreement.py",
             "--gold", str(gold_out),
-            "--rater-a", str(rater_files[0]),
-            "--rater-b", str(rater_files[1]),
+            "--auto-labels", str(plaintext_auto),
+            "--rater-a", *[str(p) for p in rater_a_all],
+            "--rater-b", *[str(p) for p in rater_b_all],
             "--out", str(agreement_out),
             "--resolutions", str(resolve_out),
             "--with-ci",
@@ -401,7 +445,11 @@ def validate_rerun(args) -> None:
     )
     if rc != 0:
         _fail("agreement report generation failed")
-    _check_agreement(agreement_out, require_resolution_coverage=True)
+    _check_agreement(
+        agreement_out,
+        require_resolution_coverage=True,
+        require_consistency_blocks=True,
+    )
 
     # ── 4. Regenerate every reported NUMBER from immutable raw outputs ───────
     print("\n=== 4/6 reproduce dimension scores + TrustScore ===")

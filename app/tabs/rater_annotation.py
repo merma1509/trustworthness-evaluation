@@ -122,19 +122,25 @@ def _load_declaration(experiment_id: str, rater: str) -> str:
 
 
 def _declaration_signed(md_text: str) -> bool:
-    r"""Heuristic: is the declaration form filled in (signed) rather than blank?
+    """Is the declaration form actually signed?
 
-    ``onboard_raters.py`` emits a blank template whose blank fields are rendered
-    as escaped markdown underscores like ``\_\_\_\_`` (name / date / signature).
-    Once the rater fills the form in, those long blank runs are replaced by
-    actual text. We therefore treat the *absence* of the escaped-underscore
-    blank markers as "filled in". This is intentionally simple and only used for
-    a status badge — the real gate stays in ``scripts/ingest_annotations.py``.
+    A form counts as signed only when *all three* binding fields — name, date and
+    signature — carry a real value.
+
+    Earlier revisions tested for the *absence* of escaped-underscore runs
+    (``\\_\\_\\_\\_``), on the assumption that ``onboard_raters.declaration_form()``
+    emitted escaped blanks. It actually emits plain underscores (``____``), so
+    that marker is never present and a completely blank form was reported as
+    ``[SIGNED]``. Reading the parsed field values instead makes the badge agree
+    with ``_declaration_values`` and with the file on disk.
+
+    This badge is UI feedback only; the authoritative gate is the declaration
+    check inside ``scripts/ingest_annotations.py``.
     """
     if not md_text:
         return False
-    # Blank template marks unfilled fields with escaped-underscore runs.
-    return "\\_\\_\\_\\_" not in md_text
+    values = _declaration_values(md_text)
+    return all(bool(values[field]) for field in ("name", "date", "signature"))
 
 
 # ── Declaration sign/edit helpers ──────────────────────────────────────────

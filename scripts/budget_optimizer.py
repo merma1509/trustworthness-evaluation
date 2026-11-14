@@ -207,6 +207,8 @@ def build_plan(report: dict, gates: dict, source: str) -> dict:
                     "annotations_needed": n if n else None,
                 }
             )
+            if n:
+                total_labels += n
             continue
         band = _band(k, gates)
         confidence_note = ""
