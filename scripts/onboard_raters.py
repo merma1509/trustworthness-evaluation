@@ -139,6 +139,14 @@ def _annotatable_template(sealed_rec: dict, experiment_id: str, rater_id: str,
     rec["experiment_id"] = experiment_id
     rec["_split"] = split
 
+    # Blinding: the sealed template records WHICH model backs a consistency
+    # display under metadata.display_model, which is correct for the audit but
+    # must never reach the rater. Model identity is a plausible cue for
+    # perceived truthfulness, so the field is removed here rather than left to
+    # be ignored by the interface. The mapping is preserved for audit in
+    # experiment/audit/display_model_map.jsonl (see detach_display_model.py).
+    (rec.get("metadata") or {}).pop("display_model", None)
+
     # Ensure the label-constrained fields the rater may fill are present.
     # Notes live under `metadata.notes` (NOT `annotations.notes`) per the v3
     # label-constrained schema (see docs/LABEL_INTERFACE.md).

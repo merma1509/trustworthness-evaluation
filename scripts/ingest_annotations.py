@@ -207,6 +207,64 @@ def cross_check_adjudicator(adj_path: Path, a_path: Path, b_path: Path,
         )
 
 
+def _check_adjudicator_integrity(adj: dict, a: dict, b: dict,
+                                 adj_path: Path, split: str) -> None:
+    """Fail closed unless every adjudicated record is a complete, justified verdict.
+
+    ``cross_check_adjudicator`` proves *which* records reached the adjudicator;
+    this proves a verdict was actually reached. Two invariants, both needing no
+    git history:
+
+    1. every record carries a non-empty dimension label and ``rater_uncertainty``;
+    2. a dispute where BOTH raters abstained must carry an adjudication note,
+       because the adjudicator is then the only decision-maker.
+
+    Motivation: ``K_0070`` entered as ``INCORRECT_FABRICATION`` / ``uncertain``,
+    then had both fields blanked, then reappeared as ``CORRECT_UNCERTAINTY`` /
+    ``confident`` — the opposite verdict, presented as confident, unexplained.
+    Nothing rejected it.
+    """
+    problems: List[str] = []
+    for (dim, key), rec in sorted(adj.items()):
+        field = _DIM_LABEL_KEY.get(dim)
+        flags = rec.get("flags") or {}
+
+        if field and not ((rec.get("annotations") or {}).get(field) or "").strip():
+            problems.append(f"{dim}:{key} has no {field}")
+        if not (flags.get("rater_uncertainty") or "").strip():
+            problems.append(f"{dim}:{key} has no rater_uncertainty")
+
+        a_rec, b_rec = a.get((dim, key)), b.get((dim, key))
+        if a_rec is None or b_rec is None:
+            continue
+        both_uncertain = all(
+            ((r.get("flags") or {}).get("rater_uncertainty") or "") == "uncertain"
+            for r in (a_rec, b_rec)
+        )
+        if both_uncertain:
+            note = ((rec.get("metadata") or {}).get("notes") or "").strip()
+            if not note:
+                problems.append(
+                    f"{dim}:{key} resolved although both raters were uncertain, "
+                    "with no adjudication note"
+                )
+
+    if problems:
+        sample = "\n".join(f"      {p}" for p in problems[:8])
+        more = f"\n      ... and {len(problems) - 8} more" if len(problems) > 8 else ""
+        print(
+            f"  ✗ {adj_path.name}: {len(problems)} unresolved adjudicator "
+            f"record(s) ({split}):\n      {sample}{more}\n"
+            f"    An unfilled or unexplained adjudication must not produce gold\n"
+            f"    labels. Resolve these records, or drop them from gold.",
+            file=sys.stderr,
+        )
+        raise ValueError(
+            f"{adj_path.name}: {len(problems)} adjudicator record(s) lack a "
+            f"complete, justified verdict"
+        )
+
+
 def _parse_role_split(path: Path) -> tuple:
     """Extract ``(role, split)`` from ``{exp}_{ROLE}_{split}.jsonl``.
 
@@ -254,6 +312,13 @@ def _enforce_adjudicator_disagreements_only(
         cross_check_adjudicator(
             adj_path, a_path, b_path, split,
             template_path=templates_by_split.get(split),
+        )
+        _check_adjudicator_integrity(
+            _load_by_key(adj_path),
+            _load_by_key(a_path),
+            _load_by_key(b_path),
+            adj_path,
+            split,
         )
 
 

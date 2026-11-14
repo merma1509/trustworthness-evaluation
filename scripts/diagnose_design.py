@@ -134,6 +134,7 @@ def diagnose_textual_overlap(
         return out
 
     family_overlap: Dict[str, List[Dict]] = {}
+    group_overlap: Dict[str, List[Dict]] = {}
     text_overlap: Dict[str, List[Dict]] = {}
     total_hold_texts = 0
 
@@ -147,28 +148,47 @@ def diagnose_textual_overlap(
             fam_index: Dict[Tuple[str, object], str] = {}
             txt_index: Dict[str, List[Tuple[str, str]]] = {}
             for ckey, cmid, ckey_fam in cal_entries:
+                # Index EVERY member stimulus, not just the whole unit, so a
+                # single shared prompt is detectable. For consistency
+                # `ckey_fam` is the frozenset of member texts.
+                ctexts = [ckey_fam] if isinstance(ckey_fam, str) else list(ckey_fam)
                 if cmid:
-                    fam_index.setdefault((cmid, ckey_fam), ckey)
-                # Flatten into individual texts for text-only cross-model check.
-                if isinstance(ckey_fam, str):
-                    txt_index.setdefault(ckey_fam, []).append((ckey, cmid))
-                else:
-                    for t in ckey_fam:
-                        txt_index.setdefault(t, []).append((ckey, cmid))
+                    for ct in ctexts:
+                        fam_index.setdefault((cmid, ct), ckey)
+                for ct in ctexts:
+                    txt_index.setdefault(ct, []).append((ckey, cmid))
             for hkey, hmid, hfam in _entries(hold_f, dim):
                 total_hold_texts += 1
-                # family-level: same (model, full family key) in both splits
+                # Exact-family match: the WHOLE unit (for consistency, the full
+                # member-text set) appears in both splits. Informational only —
+                # re-bucketing changes group composition, so this rarely fires
+                # even when stimuli do leak.
                 if hmid and (hmid, hfam) in fam_index:
                     label = hfam if isinstance(hfam, str) else "|".join(sorted(hfam))
-                    family_overlap.setdefault(
+                    group_overlap.setdefault(
                         f"{dim}:{label[:40]}", []
                     ).append(
                         {"heldout_key": hkey,
                          "calibration_key": fam_index[(hmid, hfam)]}
                     )
-                # cross-model textual overlap (any model) -> data-quality warn
+                # Blocking check: the SAME (model, single stimulus) appears in
+                # both splits. For consistency `hfam` is a frozenset of the
+                # group's member texts, so this must be evaluated per member —
+                # comparing only whole sets silently misses a leaked stimulus
+                # whenever the two groups differ in size (e.g. a 3-member
+                # held-out group vs a 2-member calibration group sharing one
+                # prompt), which is exactly how 8/22 real overlaps went unseen.
                 htexts = [hfam] if isinstance(hfam, str) else list(hfam)
                 for ht in htexts:
+                    if hmid and (hmid, ht) in fam_index:
+                        family_overlap.setdefault(
+                            f"{dim}:{ht[:40]}", []
+                        ).append(
+                            {"heldout_key": hkey,
+                             "calibration_key": fam_index[(hmid, ht)],
+                             "model": hmid}
+                        )
+                    # cross-model textual overlap (any model) -> data-quality warn
                     for ckey, cmid in txt_index.get(ht, []):
                         if cmid != hmid:
                             text_overlap.setdefault(
@@ -182,8 +202,11 @@ def diagnose_textual_overlap(
 
     # Deduplicate cross-model pairs.
     text_overlap = {k: _uniq(v) for k, v in text_overlap.items()}
+    family_overlap = {k: _uniq(v) for k, v in family_overlap.items()}
+    group_overlap = {k: _uniq(v) for k, v in group_overlap.items()}
 
     n_family_pairs = sum(len(v) for v in family_overlap.values())
+    n_group_pairs = sum(len(v) for v in group_overlap.values())
     n_text_pairs = sum(len(v) for v in text_overlap.values())
     model_known = bool(model_of)
     ok = n_family_pairs == 0
@@ -198,6 +221,13 @@ def diagnose_textual_overlap(
             {"text": k, "pairs": v[:4]}
             for k, v in list(family_overlap.items())[:8]
         ],
+        # --- exact whole-unit reuse (informational) ---
+        "n_exact_group_overlap_pairs": n_group_pairs,
+        "n_distinct_exact_group_overlap": len(group_overlap),
+        "group_examples": [
+            {"text": k, "pairs": v[:4]}
+            for k, v in list(group_overlap.items())[:8]
+        ],
         # --- cross-model textual overlap (data-quality, non-blocking) ---
         "n_cross_model_text_overlap_pairs": n_text_pairs,
         "n_distinct_cross_model_text_overlap": len(text_overlap),
@@ -206,8 +236,13 @@ def diagnose_textual_overlap(
             for k, v in list(text_overlap.items())[:8]
         ],
         "meaning": (
-            "family_overlap counts the SAME (model, text) in both splits and "
-            "is the blocking check for a content-aware split. "
+            "family_overlap counts the SAME (model, single stimulus) in both "
+            "splits and is the blocking check for a content-aware split; for "
+            "consistency it is evaluated per group member, because comparing "
+            "whole member-sets misses a shared stimulus whenever the two groups "
+            "differ in size. "
+            "exact_group_overlap counts whole units reused verbatim "
+            "(informational). "
             "cross_model_text_overlap counts identical prompt TEXT present in "
             "both splits under different models — allowed by a family split but "
             "a residual data-quality concern for a 'fresh' held-out set."
