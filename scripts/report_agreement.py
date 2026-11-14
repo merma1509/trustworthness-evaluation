@@ -41,15 +41,20 @@ def _load_gold(path: Path) -> List[dict]:
     return [json.loads(line) for line in path.open() if line.strip()]
 
 
-def _load_auto_labels(gold_path: Path) -> List[dict]:
-    """Load the sealed auto labels co-located with the gold file.
+def _load_auto_labels(gold_path: Path, override: Optional[str] = None) -> List[dict]:
+    """Load the sealed auto labels used for display identity and test-retest.
 
     The gold labels live at ``experiment/gold/gold_labels.jsonl`` while the
     sealed auto labels live at ``experiment/sealed/labels/auto_labels.jsonl``.
-    We derive the path relative to the gold file so group-agreement
-    block can map each gold K-record back to its (group_id, model_id) — the
-    raw consistency outputs don't carry the K-keys, only the sealed labels do.
+    Deriving the path relative to the gold file works only when gold sits in
+    its canonical location: a rerun that writes gold to a temporary directory
+    made this lookup fail, which silently emptied the display-level and
+    test-retest blocks instead of raising. Callers that relocate gold must pass
+    ``override`` (CLI: ``--auto-labels``).
     """
+    if override:
+        path = Path(override)
+        return _load_gold(path) if path.exists() else []
     sealed = gold_path.parent.parent / "sealed" / "labels" / "auto_labels.jsonl"
     if not sealed.exists():
         return []
@@ -71,6 +76,231 @@ def _per_dimension(records: List[dict], human_key: str, auto_key: str):
         out[dim] = compute_agreement(hs, as_)
         out[dim]["n"] = len(hs)
     return out
+
+
+# ── Display-level accounting for consistency ────────────────────────────────
+# A *display* is what a rater actually sees: (display_model, sorted prompts).
+# The sealer emitted one template record per raw-output record, so the same
+# display appears under several internal_keys and was rated several times.
+#
+# Counting agreement per internal_key therefore double-counts: duplicates always
+# agree with themselves, so they inflate n (narrowing every CI) while adding no
+# information. This block recomputes consistency on display units and keeps the
+# duplicate ratings, which are a free test-retest reliability measurement.
+#
+# Only consistency uses displays; safety/truthfulness are flat single-response
+# records where one internal_key is exactly one observation.
+
+def _display_key(rec: dict) -> Optional[tuple]:
+    """Display identity for a consistency record, or ``None`` if unavailable.
+
+    The identity is ``(model_id, group_id)``: one group holds exactly one set of
+    prompts, so a (model, group) pair is precisely one display a rater saw. This
+    is taken from the sealed auto labels, which carry both fields — saved
+    annotations and gold records do not.
+    """
+    model = rec.get("model_id") or rec.get("display_model") or ""
+    group = rec.get("group_id") or ""
+    if not group:
+        return None
+    return (model, group)
+
+
+def _display_level_consistency(
+    gold_records: List[dict],
+    auto_labels: List[dict],
+) -> Dict:
+    """Consistency agreement counted per display, not per template record.
+
+    Args:
+        gold_records: Adjudicated gold labels (``internal_key``,
+            ``gold_human_label``, ``dimension``).
+        auto_labels: Sealed auto labels, used to recover model id and prompts.
+
+    Returns:
+        Dict describing the K-key -> display collapse, the per-display
+        agreement, and any intra-rater inconsistency observed on duplicates.
+    """
+    meta: Dict[str, dict] = {}
+    for rec in auto_labels:
+        if rec.get("dimension") != "consistency":
+            continue
+        key = rec.get("internal_key")
+        if key:
+            meta[key] = rec
+
+    # Collapse gold consistency records onto their display.
+    by_display: Dict[tuple, List[dict]] = defaultdict(list)
+    n_keys = n_unmapped = 0
+    for rec in gold_records:
+        if rec.get("dimension") != "consistency":
+            continue
+        n_keys += 1
+        src = meta.get(rec.get("internal_key", "")) or rec
+        dk = _display_key(src)
+        if dk is None:
+            n_unmapped += 1
+            continue
+        by_display[dk].append(rec)
+
+    per_display = []
+    n_agree = 0
+    n_disagree = 0
+    n_conflicting_duplicates = 0
+    for dk, recs in sorted(by_display.items()):
+        labels = [(r.get("gold_human_label") or "").upper() for r in recs]
+        # Duplicate copies of one display should receive one verdict. If they
+        # differ, the display is genuinely contested: report it, do not average.
+        unique_labels = sorted({l for l in labels if l})
+        if len(unique_labels) > 1:
+            n_conflicting_duplicates += 1
+            verdict = "CONFLICTING"
+            agree = False
+        elif not unique_labels:
+            continue
+        else:
+            verdict = unique_labels[0]
+            # Auto verdict for the display: any non-CONSISTENT auto label means
+            # the scorer called the group inconsistent.
+            auto_verdicts = {
+                (meta.get(r.get("internal_key", ""), {}) or {}).get("auto_label", "")
+                for r in recs
+            }
+            auto_consistent = all(
+                (a or "").upper() == "CONSISTENT" for a in auto_verdicts if a
+            )
+            agree = (verdict == "CONSISTENT") == auto_consistent
+        if agree:
+            n_agree += 1
+        else:
+            n_disagree += 1
+        per_display.append(
+            {
+                "model_id": dk[0],
+                "group_id": dk[1],
+                "n_template_records": len(recs),
+                "gold_verdict": verdict,
+                "agree_with_auto": agree,
+            }
+        )
+
+    n_displays = len(per_display)
+    return {
+        "units": "display (display_model + sorted prompts)",
+        "n_template_records": n_keys,
+        "n_displays": n_displays,
+        "n_redundant_records": n_keys - n_displays,
+        "n_unmapped_records": n_unmapped,
+        "agreement_rate": round(n_agree / n_displays, 4) if n_displays else 0.0,
+        "n_agree": n_agree,
+        "n_disagree": n_disagree,
+        "n_conflicting_duplicates": n_conflicting_duplicates,
+        "per_display": per_display,
+        "note": (
+            "The same display was emitted once per raw-output record, so counting "
+            "per internal_key double-counts it: duplicates agree with themselves, "
+            "inflating n and narrowing CIs without adding evidence. Agreement "
+            "above is computed on display units. Displays whose duplicate copies "
+            "received different verdicts are reported as CONFLICTING rather than "
+            "averaged."
+        ),
+    }
+
+
+def _load_annotations_with_labels(
+    annotation_paths: List[Path],
+) -> Dict[tuple, dict]:
+    """Map ``(rater, internal_key)`` -> {label} from rater annotation files.
+
+    Tolerates missing files (a rater may not have supplied a split) so the
+    test-retest block degrades to "not available" instead of failing the report.
+    """
+    out: Dict[tuple, dict] = {}
+    for path in annotation_paths:
+        if not path or not Path(path).exists():
+            continue
+        rater = Path(path).name
+        for line in Path(path).open():
+            if not line.strip():
+                continue
+            rec = json.loads(line)
+            dim = (rec.get("prompt_record") or {}).get("dimension", "")
+            key_name = {
+                "safety": "safety_label",
+                "truthfulness": "truthfulness_label",
+                "consistency": "consistency_label",
+            }.get(dim)
+            if not key_name:
+                continue
+            label = (rec.get("annotations") or {}).get(key_name, "")
+            # An uncertain rater casts no vote, so it cannot evidence a repeat.
+            if (rec.get("flags") or {}).get("rater_uncertainty") == "uncertain":
+                label = ""
+            out[(rater, rec.get("internal_key", ""))] = {"label": label, "rater": rater}
+    return out
+
+
+def _test_retest(
+    labels_by_key: Dict[tuple, dict],
+    display_by_key: Dict[tuple, tuple],
+) -> Dict:
+    """Intra-rater reliability from duplicate ratings of the same display.
+
+    Duplicates were an accident of the sealer, but they mean each display was
+    rated more than once by the same rater. Comparing those repeated verdicts
+    measures how reproducible a rater's consistency judgement is — information
+    that would otherwise need a dedicated re-rating round.
+
+    Args:
+        labels_by_key: ``(rater, internal_key)`` -> {label, rater}, with
+            uncertain votes already blanked (an abstention is not a verdict).
+        display_by_key: ``(rater, internal_key)`` -> display identity.
+    """
+    # Group repeated verdicts per (rater, display).
+    by_unit: Dict[tuple, List[tuple]] = defaultdict(list)
+    for combo, info in labels_by_key.items():
+        dk = display_by_key.get(combo)
+        if dk is None:
+            continue
+        label = (info.get("label") or "").upper()
+        if not label:
+            continue
+        rater, key = combo
+        by_unit[(rater,) + dk].append((key, label))
+
+    comparisons = agreements = 0
+    contradictions = []
+    for unit, vals in by_unit.items():
+        if len(vals) < 2:
+            continue
+        for i in range(len(vals)):
+            for j in range(i + 1, len(vals)):
+                comparisons += 1
+                if vals[i][1] == vals[j][1]:
+                    agreements += 1
+                else:
+                    contradictions.append(
+                        {
+                            "rater": unit[0],
+                            "model_id": unit[1],
+                            "group_id": unit[2],
+                            "keys": [vals[i][0], vals[j][0]],
+                            "labels": [vals[i][1], vals[j][1]],
+                        }
+                    )
+
+    return {
+        "n_comparisons": comparisons,
+        "n_agreements": agreements,
+        "agreement_rate": round(agreements / comparisons, 4) if comparisons else None,
+        "n_contradictions": len(contradictions),
+        "contradictions": contradictions,
+        "note": (
+            "Test-retest reliability of the consistency verdict, derived from "
+            "duplicate displays. A contradiction means the same rater gave the "
+            "same comparison two different verdicts."
+        ),
+    }
 
 
 def _consistency_group_agreement(
@@ -263,27 +493,47 @@ def _fmt_kappa(value) -> str:
     return str(value)
 
 
-def inter_rater(a_path: Path, b_path: Path) -> Dict:
-    """Inter-rater agreement between RATER_A and RATER_B."""
-    def _load(path: Path) -> Dict[str, tuple]:
+def _heldout_paths(paths: List[str]) -> List[Path]:
+    """Keep only held-out annotation files from a mixed list.
+
+    ``--rater-a/b`` receive calibration + held-out so the test-retest block can
+    see the calibration duplicates. The inter-rater block must stay held-out
+    only — that is the number reported as held-out inter-rater agreement.
+    """
+    out = [Path(p) for p in paths if "heldout" in Path(p).name]
+    return out or [Path(p) for p in paths]
+
+
+def inter_rater(a_paths, b_paths) -> Dict:
+    """Inter-rater agreement between RATER_A and RATER_B.
+
+    Accepts either a single path or a list of paths per rater; multiple files
+    (calibration + held-out) are merged on ``internal_key``.
+    """
+    def _load(paths) -> Dict[str, tuple]:
+        if isinstance(paths, (str, Path)):
+            paths = [paths]
         out = {}
-        for line in path.open():
-            if not line.strip():
+        for path in [Path(p) for p in paths]:
+            if not path.exists():
                 continue
-            rec = json.loads(line)
-            dim = rec.get("prompt_record", {}).get("dimension", "")
-            ann = rec.get("annotations") or {}
-            key = {
-                "safety": "safety_label",
-                "truthfulness": "truthfulness_label",
-                "consistency": "consistency_label",
-            }.get(dim)
-            label = ann.get(key, "") if key else ""
-            out[rec.get("internal_key", "")] = (dim, label or None)
+            for line in path.open():
+                if not line.strip():
+                    continue
+                rec = json.loads(line)
+                dim = rec.get("prompt_record", {}).get("dimension", "")
+                ann = rec.get("annotations") or {}
+                key = {
+                    "safety": "safety_label",
+                    "truthfulness": "truthfulness_label",
+                    "consistency": "consistency_label",
+                }.get(dim)
+                label = ann.get(key, "") if key else ""
+                out[rec.get("internal_key", "")] = (dim, label or None)
         return out
 
-    a_map = _load(a_path)
-    b_map = _load(b_path)
+    a_map = _load(a_paths)
+    b_map = _load(b_paths)
 
     by_dim: Dict[str, List[tuple]] = defaultdict(list)
     for k, (a_dim, la) in a_map.items():
@@ -297,12 +547,16 @@ def inter_rater(a_path: Path, b_path: Path) -> Dict:
 
     result = {}
     for dim in sorted(by_dim):
-        hs = [p[0] for p in by_dim[dim]]
-        as_ = [p[1] for p in by_dim[dim]]
-        result[dim] = compute_agreement(hs, as_)
-        result[dim]["n"] = len(hs)
-        # Rows = RATER_A, cols = RATER_B (built as {A: {B: count}}).
-        result[dim]["confusion_axes"] = {"rows": "rater_a", "cols": "rater_b"}
+        a_labels = [p[0] for p in by_dim[dim]]
+        b_labels = [p[1] for p in by_dim[dim]]
+        # compute_agreement(human, auto) builds {auto: {human: count}}, so with
+        # A as "human" and B as "auto" the matrix is {rater_b: {rater_a: count}}:
+        # rows = RATER_B, cols = RATER_A. The axis declaration below must match
+        # that; the previous version declared rows="rater_a" and so read the
+        # matrix backwards.
+        result[dim] = compute_agreement(a_labels, b_labels)
+        result[dim]["n"] = len(a_labels)
+        result[dim]["confusion_axes"] = {"rows": "rater_b", "cols": "rater_a"}
     return result
 
 
@@ -343,11 +597,56 @@ def _load_resolution_coverage(resolutions_path) -> Dict:
     }
 
 
+def _calibration_inter_rater(args) -> Dict:
+    """Inter-rater agreement on the calibration split, if supplied.
+
+    Kept separate from ``inter_rater_A_vs_B`` on purpose: that block is a
+    held-out reliability figure and must not be diluted with calibration
+    records. Calibration agreement is still worth reporting, because a large
+    held-out/calibration gap means the raters drifted after training.
+
+    Returns ``{"available": False, "reason": ...}`` when the flag was omitted or
+    the file pair is unusable, so a consumer can tell "not measured" apart from
+    "measured and zero".
+    """
+    supplied = list(getattr(args, "inter_rater_calibration", None) or [])
+    if not supplied:
+        return {"available": False, "reason": "no --inter-rater-calibration given"}
+
+    a_paths = [Path(p) for p in supplied if "RATER_A" in Path(p).name]
+    b_paths = [Path(p) for p in supplied if "RATER_B" in Path(p).name]
+    if not a_paths or not b_paths:
+        return {
+            "available": False,
+            "reason": "expected one RATER_A and one RATER_B calibration file",
+            "supplied": [Path(p).name for p in supplied],
+        }
+
+    missing = [str(p) for p in a_paths + b_paths if not p.exists()]
+    if missing:
+        return {"available": False, "reason": "file(s) not found", "missing": missing}
+
+    result = inter_rater(a_paths, b_paths)
+    if not result:
+        return {"available": False, "reason": "no overlapping labelled records"}
+    return result
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--gold", required=True)
-    parser.add_argument("--rater-a", required=True)
-    parser.add_argument("--rater-b", required=True)
+    parser.add_argument(
+        "--auto-labels",
+        default=None,
+        help="Path to the sealed auto labels (experiment/sealed/labels/"
+             "auto_labels.jsonl). Required when --gold is not in its canonical "
+             "location, because display-level and test-retest blocks are "
+             "derived from it.",
+    )
+    parser.add_argument("--rater-a", nargs="+", required=True,
+                        help="RATER_A annotation file(s); calibration + held-out.")
+    parser.add_argument("--rater-b", nargs="+", required=True,
+                        help="RATER_B annotation file(s); calibration + held-out.")
     parser.add_argument("--out", required=True)
     parser.add_argument(
         "--resolutions",
@@ -355,7 +654,21 @@ def main() -> int:
         help="Path to the held-out disagreement-resolutions JSON (for "
              "reporting n_recorded/n_scored/n_unresolvable).",
     )
+    parser.add_argument(
+        "--inter-rater-calibration", nargs="*", default=None,
+        help="Optional pair [RATER_A, RATER_B] annotation file(s) for the "
+             "calibration split. The held-out inter_rater_A_vs_B block stays "
+             "held-out only, so calibration drift never leaks into the reported "
+             "reliability figure; the result is emitted separately as "
+             "inter_rater_calibration_A_vs_B.",
+    )
     parser.add_argument("--with-ci", action="store_true")
+    parser.add_argument(
+        "--templates", nargs="*", default=None,
+        help="Sealed template file(s). Needed for display-level accounting: "
+             "saved annotations drop pairs[], so the display a rater saw can "
+             "only be recovered from the template.",
+    )
     args = parser.parse_args()
 
     gold_path = Path(args.gold)
@@ -363,14 +676,60 @@ def main() -> int:
         print(f"  ✗ Gold file not found: {gold_path}")
         return 1
     gold = _load_gold(gold_path)
-    auto_labels = _load_auto_labels(gold_path)
+    auto_labels = _load_auto_labels(gold_path, override=args.auto_labels)
+    if not auto_labels:
+        # Do not silently emit an empty display-level or test-retest block: both
+        # are derived from the sealed auto labels, and a zero block reads as "no
+        # duplicates" rather than "labels unavailable". Mark them explicitly so
+        # the rerun gate can reject a report that claims these figures.
+        print(
+            f"  ! Sealed auto labels not found for {gold_path}.\n"
+            f"    consistency display-level and test-retest blocks are marked\n"
+            f"    UNAVAILABLE (pass --auto-labels to enable them).",
+            file=sys.stderr,
+        )
+
+    template_paths = [Path(p) for p in (args.templates or [])]
+    annotation_paths = [Path(p) for p in list(args.rater_a) + list(args.rater_b)]
+
+    # ── Display-level accounting + test-retest (consistency) ───────────────
+    # Duplicate displays were rated more than once. Counting them per
+    # internal_key inflates n; counting per display gives an honest sample size
+    # and preserving the repeats yields a reliability measurement for free.
+    display_consistency = _display_level_consistency(gold, auto_labels)
+
+    # Map (rater, internal_key) -> display identity, via the sealed labels.
+    display_by_key: Dict[tuple, tuple] = {}
+    for rec in auto_labels:
+        if rec.get("dimension") != "consistency":
+            continue
+        dk = _display_key(rec)
+        key = rec.get("internal_key", "")
+        if dk is None or not key:
+            continue
+        for path in annotation_paths:
+            if path.exists():
+                display_by_key[(path.name, key)] = dk
+
+    label_map = _load_annotations_with_labels(annotation_paths)
+    test_retest = _test_retest(label_map, display_by_key)
 
     report = {
-        "gold_vs_auto": gold_vs_auto(gold, args.with_ci),
+        "gold_vs_auto": gold_vs_auto(gold, args.with_ci),        
         "consistency_group_agreement": _consistency_group_agreement(
             gold, auto_labels, with_ci=args.with_ci
         ),
-        "inter_rater_A_vs_B": inter_rater(Path(args.rater_a), Path(args.rater_b)),
+        "consistency_display_level": (
+            display_consistency if auto_labels
+            else {"available": False, "reason": "sealed auto labels not found"}
+        ),
+        "consistency_test_retest": (
+            test_retest if auto_labels
+            else {"available": False, "reason": "sealed auto labels not found"}
+        ),
+        "inter_rater_A_vs_B": inter_rater(_heldout_paths(args.rater_a),
+                                          _heldout_paths(args.rater_b)),
+        "inter_rater_calibration_A_vs_B": _calibration_inter_rater(args),
         "resolution_coverage": _load_resolution_coverage(args.resolutions),
         "note": (
             "Labels use the constrained vocabulary (REFUSE/COMPLY, ...). "
@@ -414,6 +773,14 @@ def main() -> int:
         if s.get("kappa_note"):
             print(f"      note: {s['kappa_note']}")
 
+    irc = report.get("inter_rater_calibration_A_vs_B") or {}
+    if irc.get("available") is not False and irc:
+        print("  INTER-RATER calibration split (A vs B, NOT the reliability figure):")
+        for dim, s in irc.items():
+            print(f"    {dim:<12} n={s.get('n'):<4} "
+                  f"agreement={s.get('agreement_rate'):<6} "
+                  f"kappa={_fmt_kappa(s.get('cohens_kappa'))}")
+
     cga = report.get("consistency_group_agreement", {})
     if cga:
         ci = cga.get("agreement_ci") or {}
@@ -425,6 +792,26 @@ def main() -> int:
         )
         if cga.get("single_class_caveat"):
             print(f"    caveat: {cga['single_class_caveat']}")
+
+    dl = report.get("consistency_display_level") or {}
+    if dl and dl.get("n_displays"):
+        print(f"  CONSISTENCY display-level (honest n):")
+        print(f"    {dl['n_template_records']} template records -> "
+              f"{dl['n_displays']} distinct displays "
+              f"({dl['n_redundant_records']} redundant)")
+        print(f"    agreement={dl['agreement_rate']} "
+              f"({dl['n_agree']}/{dl['n_displays']})"
+              + (f"  CONFLICTING duplicates={dl['n_conflicting_duplicates']}"
+                 if dl.get("n_conflicting_duplicates") else ""))
+
+    tr = report.get("consistency_test_retest") or {}
+    if tr.get("n_comparisons"):
+        print("  CONSISTENCY test-retest (same rater, duplicate displays):")
+        print(f"    {tr['n_agreements']}/{tr['n_comparisons']} repeated verdicts "
+              f"identical (agreement={tr['agreement_rate']})")
+        for c in tr.get("contradictions") or []:
+            print(f"    CONTRADICTION {c['rater']} {c['keys']} {c['labels']} "
+                  f"model={c['model_id']} group={c['group_id']}")
 
     rc = report.get("resolution_coverage") or {}
     if rc:
@@ -446,8 +833,9 @@ def main() -> int:
         script="scripts/report_agreement.py",
         args={"--gold": args.gold, "--rater-a": args.rater_a,
               "--rater-b": args.rater_b, "--out": args.out},
-        input_paths={"gold": gold_path, "rater_a": Path(args.rater_a),
-                     "rater_b": Path(args.rater_b)},
+        input_paths={"gold": gold_path,
+                     "rater_a": [Path(p) for p in args.rater_a],
+                     "rater_b": [Path(p) for p in args.rater_b]},
         output_paths={"agreement_report": out_path},
         extra={
             "gold_vs_auto_overall": {
