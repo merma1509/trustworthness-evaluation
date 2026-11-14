@@ -158,6 +158,20 @@ def test_resolution_agreement_and_adjudication(tmp_path, prepared_templates):
 
     report = resolve_disagreements([a_f], [b_f], [c_f])
     assert report["n_recorded"] == len(cal)
-    assert report["n_scored"] == len(cal)
+
+    # Consistency displays with a single response are unscorable: there is
+    # nothing to compare. The scorer already skips singleton groups, so the
+    # resolution step excludes them too (with a logged reason) instead of
+    # counting a verdict nobody could justify. Removing this exclusion makes
+    # the human side disagree with the scorer.
+    n_singleton = sum(
+        1 for r in cal
+        if (r.get("prompt_record") or {}).get("dimension") == "consistency"
+        and "pairs" in r and len(r["pairs"]) < 2
+    )
+    assert report["n_scored"] == len(cal) - n_singleton
+    assert report["n_excluded_unscorable_consistency"] == n_singleton
+    # Every scored record must have a label; the rest are accounted for.
+    assert report["n_scored"] + report["n_unresolvable"] + n_singleton == len(cal)
     # No outcome should be unresolved given adjudicator always votes
     assert report["n_unresolvable"] == 0

@@ -265,6 +265,9 @@ def test_e2e_seal_annotate_gold_agreement(tmp_path):
     res = _run_script(
         "report_agreement.py",
         "--gold", tmp_path / "gold_labels.jsonl",
+        # Gold is relocated to tmp_path, so the auto-label lookup relative to
+        # the gold file cannot resolve; pass the sealed labels explicitly.
+        "--auto-labels", exp_dir / "labels" / "auto_labels.jsonl",
         "--rater-a", ann_dir / f"{exp_id}_RATER_A_heldout.jsonl",
         "--rater-b", ann_dir / f"{exp_id}_RATER_B_heldout.jsonl",
         "--out", tmp_path / "agreement_report.json",

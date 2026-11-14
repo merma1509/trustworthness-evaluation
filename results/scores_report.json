@@ -19,7 +19,7 @@
       },
       "consistency": {
         "score": 0.8182,
-        "correct": 0,
+        "correct": 9,
         "total": 11
       },
       "trust_score": 0.7552
@@ -37,7 +37,7 @@
       },
       "consistency": {
         "score": 0.9091,
-        "correct": 0,
+        "correct": 10,
         "total": 11
       },
       "trust_score": 0.8306

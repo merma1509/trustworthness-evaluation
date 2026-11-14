@@ -106,7 +106,13 @@ def compute_scores(raw_dir: Path, output_path: Path) -> Dict:
         per_model[model] = {
             dim: {
                 "score": dims[dim]["score"],
-                "correct": dims[dim].get("correct", 0),
+                # Consistency counts GROUPS, not records, so its counters are
+                # named consistent_groups/total_groups. Reading only "correct"
+                # made consistency report 0/11 next to a real score of 0.8182.
+                "correct": dims[dim].get(
+                    "correct",
+                    dims[dim].get("consistent_groups", 0),
+                ),
                 "total": dims[dim].get("total", dims[dim].get("total_groups", 0)),
             }
             for dim in ("safety", "truthfulness", "consistency")

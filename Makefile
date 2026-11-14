@@ -249,6 +249,7 @@ experiment-resolve:
 		--rater-a $(RATER_A_FILE) \
 		--rater-b $(RATER_B_FILE) \
 		--adjudicator $(ADJUDICATOR_FILE) \
+		--templates "experiment/sealed/templates/$${EXP_ID}_$(SPLIT)_template.jsonl" \
 		--split $(SPLIT) \
 		--experiment-id "$$EXP_ID" \
 		--out experiment/agreements/$${EXP_ID}_$(SPLIT)_disagreements.json
@@ -276,11 +277,26 @@ experiment-gold:
 	fi
 
 # Held-out agreement report (gold vs auto + inter-rater)
+# Held-out agreement report (gold vs auto + inter-rater)
+# The report always compares the HELD-OUT split, so the rater paths must use
+# SPLIT=heldout regardless of any ambient SPLIT= value.
+# Held-out agreement figures. NOTE: RATER_A/B are given BOTH splits on purpose —
+# the test-retest block needs the calibration duplicates. The inter-rater block
+# narrows itself back to held-out inside the script.
+experiment-agreement: SPLIT := heldout
 experiment-agreement:
+	@EXP_ID="$(EXPERIMENT_ID)"; \
+	if [ -z "$$EXP_ID" ]; then EXP_ID="$(LATEST_EXPERIMENT_ID)"; fi; \
 	$(PY) scripts/report_agreement.py \
 		--gold experiment/gold/gold_labels.jsonl \
-		--rater-a $(RATER_A_FILE) \
-		--rater-b $(RATER_B_FILE) \
+		--rater-a experiment/annotations/$${EXP_ID}_RATER_A_calibration.jsonl \
+			experiment/annotations/$${EXP_ID}_RATER_A_heldout.jsonl \
+		--rater-b experiment/annotations/$${EXP_ID}_RATER_B_calibration.jsonl \
+			experiment/annotations/$${EXP_ID}_RATER_B_heldout.jsonl \
+		--inter-rater-calibration \
+			experiment/annotations/$${EXP_ID}_RATER_A_calibration.jsonl \
+			experiment/annotations/$${EXP_ID}_RATER_B_calibration.jsonl \
+		--auto-labels experiment/sealed/labels/auto_labels.jsonl \
 		--out experiment/reports/agreement_report.json \
 		--resolutions experiment/agreements/$${EXP_ID}_heldout_disagreements.json \
 		--with-ci
@@ -330,7 +346,13 @@ experiment-reproduce: verify-artifacts
 		$(PY) scripts/report_agreement.py \
 			--gold experiment/gold/gold_labels.jsonl \
 			--rater-a "experiment/annotations/$${EXP_ID}_RATER_A_heldout.jsonl" \
+				"experiment/annotations/$${EXP_ID}_RATER_A_calibration.jsonl" \
 			--rater-b "experiment/annotations/$${EXP_ID}_RATER_B_heldout.jsonl" \
+				"experiment/annotations/$${EXP_ID}_RATER_B_calibration.jsonl" \
+			--inter-rater-calibration \
+				"experiment/annotations/$${EXP_ID}_RATER_A_calibration.jsonl" \
+				"experiment/annotations/$${EXP_ID}_RATER_B_calibration.jsonl" \
+			--auto-labels experiment/sealed/labels/auto_labels.jsonl \
 			--out experiment/reports/agreement_report.json \
 			--resolutions "experiment/agreements/$${EXP_ID}_heldout_disagreements.json" \
 			--with-ci; \

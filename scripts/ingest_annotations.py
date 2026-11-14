@@ -28,12 +28,13 @@ import json
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.audit_log import log_action
 from src.labels import (
+    is_unscorable_consistency,
     is_valid_label,
 )
 from src.sealing import sha256_file
@@ -144,12 +145,19 @@ def _load_by_key(path: Path) -> Dict[tuple, dict]:
 
 
 def cross_check_adjudicator(adj_path: Path, a_path: Path, b_path: Path,
-                            split: str) -> None:
+                            split: str,
+                            template_path: Optional[Path] = None) -> None:
     """Fail closed unless the ADJUDICATOR file holds exactly the A≠B records.
 
     This is the precise guard for the 147/63-record bug: an adjudicator file
     that still contains the full sealed set (or any extra/missing record) is
     rejected with an actionable message.
+
+    Consistency displays with a single response are not comparable, so
+    ``prepare_adjudicator`` withholds them and the scorer ignores them. When
+    ``template_path`` is supplied the expected set drops them too; otherwise
+    the strict full-disagreement set is required (the caller cannot know a
+    display was unscorable).
     """
     a = _load_by_key(a_path)
     b = _load_by_key(b_path)
@@ -161,6 +169,15 @@ def cross_check_adjudicator(adj_path: Path, a_path: Path, b_path: Path,
         if _effective_label(a[key]) and _effective_label(b[key])
         and _effective_label(a[key]) != _effective_label(b[key])
     }
+
+    # Drop displays the adjudicator cannot legitimately resolve.
+    if template_path is not None:
+        templates = _load_by_key(template_path)
+        expected = {
+            key for key in expected
+            if not is_unscorable_consistency(templates.get(key))
+        }
+
     got = set(adj)
 
     extra = got - expected      # adjudicator was shown records with no dispute
@@ -190,6 +207,64 @@ def cross_check_adjudicator(adj_path: Path, a_path: Path, b_path: Path,
         )
 
 
+def _check_adjudicator_integrity(adj: dict, a: dict, b: dict,
+                                 adj_path: Path, split: str) -> None:
+    """Fail closed unless every adjudicated record is a complete, justified verdict.
+
+    ``cross_check_adjudicator`` proves *which* records reached the adjudicator;
+    this proves a verdict was actually reached. Two invariants, both needing no
+    git history:
+
+    1. every record carries a non-empty dimension label and ``rater_uncertainty``;
+    2. a dispute where BOTH raters abstained must carry an adjudication note,
+       because the adjudicator is then the only decision-maker.
+
+    Motivation: ``K_0070`` entered as ``INCORRECT_FABRICATION`` / ``uncertain``,
+    then had both fields blanked, then reappeared as ``CORRECT_UNCERTAINTY`` /
+    ``confident`` — the opposite verdict, presented as confident, unexplained.
+    Nothing rejected it.
+    """
+    problems: List[str] = []
+    for (dim, key), rec in sorted(adj.items()):
+        field = _DIM_LABEL_KEY.get(dim)
+        flags = rec.get("flags") or {}
+
+        if field and not ((rec.get("annotations") or {}).get(field) or "").strip():
+            problems.append(f"{dim}:{key} has no {field}")
+        if not (flags.get("rater_uncertainty") or "").strip():
+            problems.append(f"{dim}:{key} has no rater_uncertainty")
+
+        a_rec, b_rec = a.get((dim, key)), b.get((dim, key))
+        if a_rec is None or b_rec is None:
+            continue
+        both_uncertain = all(
+            ((r.get("flags") or {}).get("rater_uncertainty") or "") == "uncertain"
+            for r in (a_rec, b_rec)
+        )
+        if both_uncertain:
+            note = ((rec.get("metadata") or {}).get("notes") or "").strip()
+            if not note:
+                problems.append(
+                    f"{dim}:{key} resolved although both raters were uncertain, "
+                    "with no adjudication note"
+                )
+
+    if problems:
+        sample = "\n".join(f"      {p}" for p in problems[:8])
+        more = f"\n      ... and {len(problems) - 8} more" if len(problems) > 8 else ""
+        print(
+            f"  ✗ {adj_path.name}: {len(problems)} unresolved adjudicator "
+            f"record(s) ({split}):\n      {sample}{more}\n"
+            f"    An unfilled or unexplained adjudication must not produce gold\n"
+            f"    labels. Resolve these records, or drop them from gold.",
+            file=sys.stderr,
+        )
+        raise ValueError(
+            f"{adj_path.name}: {len(problems)} adjudicator record(s) lack a "
+            f"complete, justified verdict"
+        )
+
+
 def _parse_role_split(path: Path) -> tuple:
     """Extract ``(role, split)`` from ``{exp}_{ROLE}_{split}.jsonl``.
 
@@ -204,13 +279,21 @@ def _parse_role_split(path: Path) -> tuple:
     return "", ""
 
 
-def _enforce_adjudicator_disagreements_only(files: List[Path]) -> None:
+def _enforce_adjudicator_disagreements_only(
+    files: List[Path],
+    templates_by_split: Optional[Dict[str, Path]] = None,
+) -> None:
     """Reject ADJUDICATOR files that are not exactly the A≠B disagreements.
 
     Runs only when the matching RATER_A and RATER_B files are supplied in the
     same invocation; otherwise it is silent (there is nothing to compare to).
     Raises ``ValueError`` on mismatch — ingestion then fails closed.
+
+    When the sealed template for a split is known, single-response consistency
+    displays are dropped from the expected set (they are not comparable, so the
+    adjudicator handoff legitimately omits them).
     """
+    templates_by_split = templates_by_split or {}
     by_key = {}
     for p in files:
         role, split = _parse_role_split(p)
@@ -226,7 +309,17 @@ def _enforce_adjudicator_disagreements_only(files: List[Path]) -> None:
             print(f"  (note) {adj_path.name}: skipped A≠B cross-check "
                   f"(RATER_A/RATER_B for '{split}' not supplied)")
             continue
-        cross_check_adjudicator(adj_path, a_path, b_path, split)
+        cross_check_adjudicator(
+            adj_path, a_path, b_path, split,
+            template_path=templates_by_split.get(split),
+        )
+        _check_adjudicator_integrity(
+            _load_by_key(adj_path),
+            _load_by_key(a_path),
+            _load_by_key(b_path),
+            adj_path,
+            split,
+        )
 
 
 def ingest_file(path: Path) -> Dict:
@@ -275,8 +368,25 @@ def main() -> int:
     # Group the supplied files by (split, role) parsed from the filename pattern
     # {experiment}_{ROLE}_{split}.jsonl, then require every ADJUDICATOR file to
     # contain exactly the A≠B disagreements for its split. Fails closed.
+    #
+    # The sealed template for each split is located from the experiment id so
+    # the check can drop consistency displays that are not comparable (single
+    # response). Without it the strict full-disagreement set is required.
+    templates_by_split: Dict[str, Path] = {}
+    for p in files:
+        role, split = _parse_role_split(p)
+        if not split:
+            continue
+        exp_id = p.stem.split(f"_{role}_", 1)[0]
+        candidate = (
+            Path("experiment/sealed/templates")
+            / f"{exp_id}_{split}_template.jsonl"
+        )
+        if candidate.exists():
+            templates_by_split[split] = candidate
+
     try:
-        _enforce_adjudicator_disagreements_only(files)
+        _enforce_adjudicator_disagreements_only(files, templates_by_split)
     except ValueError:
         log_action(
             log_path=Path("experiment/logs/annotation_log.jsonl"),

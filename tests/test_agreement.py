@@ -31,10 +31,30 @@ def test_cohen_kappa_no_agreement():
     assert kappa == 0.0
 
 
-def test_cohen_kappa_single_category():
+def test_cohen_kappa_single_category_is_undefined():
+    """A single observed category must not be reported as perfect agreement.
+
+    With one category p_expected == 0, so kappa is 0/0. Returning 1.0 claimed a
+    measurement where the design guarantees perfect agreement; returning 0.0
+    would claim chance-level agreement. Neither is true, so kappa is None.
+    """
     kappa, p_o, p_e = cohen_kappa({"only": {"only": 5}})
-    assert kappa == 1.0
+    assert kappa is None
     assert p_o == 1.0
+    assert p_e == 0.0
+
+
+def test_cohen_kappa_undefined_differs_from_zero_agreement():
+    """An undefined kappa must stay distinguishable from a genuine 0.0.
+
+    This is the regression that made consistency look measured: one category
+    returned 1.0, reading as an ideal score.
+    """
+    undefined, _, _ = cohen_kappa({"only": {"only": 5}})
+    # Genuine zero: two raters using different labels at chance level.
+    genuine_zero, _, _ = cohen_kappa({"a": {"a": 1, "b": 1}, "b": {"a": 1, "b": 1}})
+    assert undefined is None
+    assert genuine_zero == 0.0
 
 
 def test_cohen_kappa_expected_from_marginals():
@@ -120,12 +140,33 @@ def test_kappa_bootstrap_ci_empty():
 def test_kappa_bootstrap_ci_perfect():
     ci = kappa_bootstrap_ci(["a", "a", "b", "b"], ["a", "a", "b", "b"])
     assert ci["kappa"] == 1.0
-    # Perfect agreement: bootstrap is degenerate [1.0, 1.0], so we fall back to
-    # the Rule of Three lower bound to convey finite-sample uncertainty.
-    assert ci["method"] == "rule_of_three"
+    # Perfect agreement: the bootstrap is degenerate [1.0, 1.0], so finite-sample
+    # uncertainty is conveyed by inverting an exact binomial bound on the number
+    # of discordant pairs. The Rule of Three is NOT used: it bounds a proportion
+    # and, being wider (1 - 3/n = 0.25 here vs 0.54), it would understate how
+    # little four observations actually establish about a chance-corrected
+    # statistic.
+    assert ci["method"] == "exact_binomial_one_sided"
     assert ci["ci_upper"] == 1.0
     assert ci["ci_lower"] < 1.0
-    assert ci["ci_lower"] == 1.0 - 3.0 / ci["n"]
+    n_eff = ci["n"] - 1
+    assert ci["ci_lower"] == round(0.05 ** (1.0 / n_eff), 4)
+    # Must not coincide with the Rule of Three bound it replaced.
+    assert ci["ci_lower"] != round(1.0 - 3.0 / ci["n"], 4)
+
+
+def test_kappa_ci_perfect_lower_bound_grows_with_n():
+    """More observations must buy a tighter (higher) lower bound.
+
+    The exact bound is 1 - 0.05**(1/(n-1)), which approaches 1 as n grows. This
+    guards against a future fallback that ignores n and reports a fixed value.
+    """
+    small = kappa_bootstrap_ci(["a", "a", "b", "a"] * 1, ["a", "a", "b", "a"] * 1,
+                               n_bootstrap=50)
+    large = kappa_bootstrap_ci(["a", "a", "b", "a"] * 3, ["a", "a", "b", "a"] * 3,
+                               n_bootstrap=50)
+    assert small["ci_lower"] is not None
+    assert small["ci_lower"] < large["ci_lower"] < 1.0
 
 
 def test_kappa_bootstrap_ci_deterministic_seed():
