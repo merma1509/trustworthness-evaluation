@@ -28,7 +28,7 @@ import json
 import sys
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -151,7 +151,7 @@ def _display_level_consistency(
         labels = [(r.get("gold_human_label") or "").upper() for r in recs]
         # Duplicate copies of one display should receive one verdict. If they
         # differ, the display is genuinely contested: report it, do not average.
-        unique_labels = sorted({l for l in labels if l})
+        unique_labels = sorted({lbl for lbl in labels if lbl})
         if len(unique_labels) > 1:
             n_conflicting_duplicates += 1
             verdict = "CONFLICTING"
@@ -663,12 +663,6 @@ def main() -> int:
              "inter_rater_calibration_A_vs_B.",
     )
     parser.add_argument("--with-ci", action="store_true")
-    parser.add_argument(
-        "--templates", nargs="*", default=None,
-        help="Sealed template file(s). Needed for display-level accounting: "
-             "saved annotations drop pairs[], so the display a rater saw can "
-             "only be recovered from the template.",
-    )
     args = parser.parse_args()
 
     gold_path = Path(args.gold)
@@ -689,7 +683,6 @@ def main() -> int:
             file=sys.stderr,
         )
 
-    template_paths = [Path(p) for p in (args.templates or [])]
     annotation_paths = [Path(p) for p in list(args.rater_a) + list(args.rater_b)]
 
     # ── Display-level accounting + test-retest (consistency) ───────────────
@@ -715,7 +708,7 @@ def main() -> int:
     test_retest = _test_retest(label_map, display_by_key)
 
     report = {
-        "gold_vs_auto": gold_vs_auto(gold, args.with_ci),        
+        "gold_vs_auto": gold_vs_auto(gold, args.with_ci),
         "consistency_group_agreement": _consistency_group_agreement(
             gold, auto_labels, with_ci=args.with_ci
         ),
@@ -795,7 +788,7 @@ def main() -> int:
 
     dl = report.get("consistency_display_level") or {}
     if dl and dl.get("n_displays"):
-        print(f"  CONSISTENCY display-level (honest n):")
+        print("  CONSISTENCY display-level (honest n):")
         print(f"    {dl['n_template_records']} template records -> "
               f"{dl['n_displays']} distinct displays "
               f"({dl['n_redundant_records']} redundant)")
