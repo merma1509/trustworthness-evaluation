@@ -5,6 +5,107 @@ here. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Blinding breach: `metadata.display_model` was shipped to raters.**
+  - The seal correctly recorded which model backs each consistency display under
+    `metadata.display_model`, but that field was written into the very files
+    handed to annotators: all 22 held-out / 42 calibration consistency records
+    named `gemma3:4b` / `llama3.1:8b` to raters meant to be blind to it. Model
+    identity is a plausible cue for perceived truthfulness, so this was a real
+    breach of the blinded protocol, not a cosmetic leak.
+  - Rater-visible annotation files now drop the field;
+    `experiment/audit/display_model_map.jsonl` keeps
+    `internal_key -> display_model` so the audit trail survives the removal.
+  - `make experiment-agreement` and `experiment-validate-rerun` are unaffected —
+    the model identity they need comes from the sealed auto labels, not from the
+    annotation files.
+
+- **The published consistency figures were unverifiable by the rerun gate.**
+  - `experiment-validate-rerun` passed held-out annotations only, so it
+    regenerated **26/26** repeated verdicts while the write-up quoted **73/74**:
+    the gate validated a different report than the one shipped. Both the gate and
+    `make experiment-agreement` now receive the calibration split as well.
+  - `report_agreement.py::_load_auto_labels` guessed the sealed-label path
+    relative to the gold file. A rerun that writes gold to a temporary directory
+    made the lookup fail and **silently emptied** the display-level and
+    test-retest blocks (`n_displays: 0`, `n_unmapped: 19`) instead of raising.
+    The path is now explicit (`--auto-labels`), and when the labels are genuinely
+    absent the blocks are emitted as `{"available": false, "reason": ...}` so a
+    consumer can tell "not measured" apart from "measured and zero".
+  - `_check_agreement` now fails closed when either block is missing, empty or
+    marked unavailable, so this class of mismatch cannot pass the gate again.
+
+- **Adjudicator records could carry an unjustified verdict.**
+  - `cross_check_adjudicator` proved _which_ records reached the adjudicator but
+    never that a verdict was reached. K_0070 entered as
+    `INCORRECT_FABRICATION`/`uncertain`, had both fields blanked, and reappeared
+    as `CORRECT_UNCERTAINTY`/`confident` — the opposite verdict, presented as
+    confident, with no explanation.
+  - New `_check_adjudicator_integrity` fails closed unless every adjudicated
+    record carries a dimension label and a `rater_uncertainty`, and unless a
+    dispute where **both** raters abstained carries an adjudication note (there
+    the adjudicator is the only decision-maker).
+
+- **Inter-rater confusion matrices were read transposed.**
+  - `compute_agreement(human, auto)` indexes the matrix `{auto: {human: ...}}`,
+    and the inter-rater block passes RATER_B as `auto`, so the stored matrix is
+    `{rater_b: {rater_a: ...}}` while it declared `rows: rater_a`. Every consumer
+    read it transposed, inverting who was the stricter rater. The declared axes
+    now match the data layout.
+
+- **Dead CLI flags that silently accepted input and did nothing.**
+  - `--inter-rater-calibration` was declared on `report_agreement.py` and read by
+    nothing, so passing it produced identical output: a caller could believe
+    calibration agreement had been measured when it had not. It now emits a
+    separate `inter_rater_calibration_A_vs_B` block, kept apart from
+    `inter_rater_A_vs_B` so calibration records can never dilute the held-out
+    reliability figure.
+  - `--templates` was likewise declared and unused, and its help text was
+    **factually wrong** (it claimed display identity could only be recovered from
+    the template, whereas it comes from the sealed auto labels' `group_id`).
+    Removed rather than documented, since a flag that does nothing is worse than
+    no flag.
+  - `tests/test_inter_rater_calibration.py` pins both directions: the flag must
+    change the output, and the held-out block must stay byte-identical either way.
+
+### Added
+
+- **`kappa_interpretable` marks a kappa that cannot express reliability.**
+  - Slices shipped `"cohens_kappa": 0.0` where `p_observed == p_expected`
+    (truthfulness: agreement 0.8947, kappa 0.0). The number is arithmetically
+    correct — `p_expected` is 0.8947, so the denominator is 0.1053, not zero —
+    but read alone it says "chance level", which is false.
+  - A `null` would have been the wrong fix (the coefficient _is_ defined), so the
+    value stays and `kappa_interpretable` / `kappa_degenerate_reason` make the
+    caveat machine-readable. Two distinct degeneracies are distinguished:
+    `undefined_pe_zero` (kappa is `None`; single observed class) and
+    `observed_equals_expected` (defined but carrying no information).
+  - `tests/test_kappa_interpretability.py` covers both degeneracies plus a
+    genuine-agreement slice that must stay interpretable.
+
+- **`experiment/audit/display_model_map.jsonl`** — the de-blinded audit trail for
+  consistency displays (`internal_key -> display_model`), so removing the field
+  from rater-visible files does not also destroy the record of which model was
+  shown.
+
+### Changed
+
+- **`docs/report.md` is no longer tracked.**
+  - `.gitignore` already listed it under _"Regenerated reports … do not commit"_,
+    but the file had been force-added earlier, so the ignore never applied. It is
+    now untracked (`git rm --cached`) to match the documented policy; the file
+    remains on disk as a local artifact.
+
+- **`make experiment-agreement` now passes `--auto-labels` and
+  `--inter-rater-calibration`**, so the canonical report includes the
+  display-level, test-retest and calibration blocks that the write-up quotes.
+
+- **Lint gate green again.** Six ruff violations in the restored
+  `report_agreement.py` (missing `Optional` import, ambiguous loop name, unused
+  local, trailing whitespace, placeholder-free f-string) are fixed; `make lint`
+  and the CI `Lint (ruff)` job pass.
+
 ## [2.1.0] - 2026-11-12
 
 ### Changed
