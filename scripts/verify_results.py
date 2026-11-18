@@ -134,6 +134,59 @@ def _check_expected_ranking(ranking, expected, errors: List[str]) -> None:
                 )
 
 
+def _check_paired_reproducibility(paired, expected,
+                                  errors: List[str]) -> None:
+    """The paired comparison must reproduce the committed reference values.
+
+    Unlike the scores/CI checks this has no tolerance: the paired bootstrap is
+    seeded, so a differing figure means the estimator, the input set or the seed
+    changed -- any of which invalidates a published "no significant difference"
+    claim. Regenerating the artifact inside the gate
+    (``validate_rerun_pipeline``) only proves it *ran*; comparing against the
+    committed reference proves it *reproduced*.
+
+    The reference must come from ``expected_results.json``, NOT from
+    ``results/paired_comparison.json``: the gate rewrites that file in place
+    before verification, so comparing it to itself would be a tautology that
+    passes on any tampering.
+    """
+    want_dims = (expected or {}).get("paired", {}).get("dimensions")
+    if not want_dims:
+        # No committed reference: nothing to reproduce against. Callers that
+        # build a partial results directory (unit tests, ad-hoc verification)
+        # must not be failed for an artifact they never claimed to produce.
+        return
+
+    if paired is None:
+        errors.append("[paired] results/paired_comparison.json missing or unreadable")
+        return
+
+
+    got = paired.get("dimensions") or {}
+    if sorted(got) != sorted(want_dims):
+        errors.append(
+            f"[paired] dimensions {sorted(got)} ≠ reference {sorted(want_dims)}"
+        )
+        return
+    for dim, want_stats in want_dims.items():
+        got_stats = got.get(dim) or {}
+        for field, want_value in want_stats.items():
+            got_value = got_stats.get(field)
+            if isinstance(want_value, (int, float)) and not isinstance(
+                want_value, bool
+            ) and isinstance(got_value, (int, float)):
+                if not _tolerance_close(got_value, want_value):
+                    errors.append(
+                        f"[paired] {dim}.{field}: got {got_value} ≠ "
+                        f"reference {want_value}"
+                    )
+            elif got_value != want_value:
+                errors.append(
+                    f"[paired] {dim}.{field}: got {got_value!r} ≠ "
+                    f"reference {want_value!r}"
+                )
+
+
 def _check_expected(actual_reports: dict, expected, errors: List[str]) -> None:
     """Compare regenerated reports against the committed expected values."""
 
@@ -154,6 +207,14 @@ def verify_results(results_dir: Path, expected_path: Optional[Path] = None) -> L
     ) or _load(results_dir / ".." / "experiment/reports/agreement_report.json")
     ci = _load(results_dir / "ci_report.json")
     ranking = _load(results_dir / "ranking_stability.json")
+    paired = _load(results_dir / "paired_comparison.json")
+
+    # 0. The paired comparison must reproduce the committed reference. Nothing
+    #    checked this before, so a shipped paired figure was unverifiable.
+    #    (Compared against expected_results.json, not against the artifact on
+    #    disk -- the gate rewrites that in place.)
+    _check_paired_reproducibility(paired, _load(expected_path)
+                                  if expected_path is not None else None, errors)
 
     # 1. TrustScore == weighted sum of dimension scores.
     if scores and trust:
