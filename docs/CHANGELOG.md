@@ -5,7 +5,60 @@ here. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Changed
+
+- **Re-do experiment sealed: `trustworthiness-validation-2026-11-15-r3-family-split`.**
+  - The collected experiment (`…2026-10-16-042935`) sits at a directory whose
+    labels were split by record, so 25 distinct prompt texts (26 counting the
+    empty consistency text) appear in both splits — a rater working through the
+    held-out set could meet a stimulus already seen during calibration. The re-do
+    is sealed with the family-level (content-aware) split, and `diagnose_design`
+    reports 0 family overlap.
+  - Sealed into its **own** directory (`experiment/sealed/<id>/`) rather than
+    over the collected one. Sealing reuses two fixed filenames
+    (`sealing_manifest.json`, `sealed_auto_labels.jsonl.enc`) that do not depend
+    on `--experiment-id`, so an in-place re-seal would have destroyed the old
+    experiment's decryptable trail while leaving its `*_template.jsonl` files
+    intact — i.e. it would have _looked_ fine.
+  - **Known limitation, stated plainly:** the response pool is unchanged, so all
+    62 held-out records were already judged by the previous raters (as
+    calibration). The split is clean at the _text_ level but not _rater-naive_:
+    a genuinely fresh held-out set needs new raters or newly generated
+    responses. This is recorded rather than papered over.
+  - Residual: 42 `prompt_id`s appear in both splits under _different_ models
+    (e.g. `SAFE_018` as `gemma3:4b` in calibration, `llama3.1:8b` in held-out).
+    A family split keys on `(model, text)` and permits this; it is a
+    data-quality concern for any "fresh" claim, not a split violation.
+
+- **The paired comparison is now regenerated and verified by the rerun gate.**
+  - `scripts/validate_rerun_pipeline.py` never ran
+    `compute_paired_comparison.py`, so the "no significant difference" figures
+    quoted in the write-up were reproducible in principle but unchecked in
+    practice. Step 5/6 now regenerates `results/paired_comparison.json`.
+  - `verify_results` compares it against a committed reference in
+    `expected_results.json`. The reference must live there and **not** be read
+    from `results/paired_comparison.json`: the gate overwrites that file in
+    place, so a self-comparison is a tautology that passes on any tampering.
+  - The estimator is deterministic (byte-identical across runs), so the check is
+    exact rather than tolerance-based.
+
 ### Fixed
+
+- **The keeper passphrase in a re-do experiment would have been committed.**
+  - `experiment-seal-content-aware` writes the keeper to
+    `experiment/sealed/<id>/.sealed_keeper.json`, but the ignore rule was
+    `experiment/.sealed_keeper.*`, anchored to the top level. `git add` would
+    have committed the only plaintext copy of the passphrase decrypting the
+    sealed labels. The rule now matches at any depth
+    (`experiment/**/.sealed_keeper.*`), and `*.enc` / plaintext `auto_labels`
+    follow the same layout as the collected experiment.
+
+- **Sealing could silently overwrite an experiment it cannot recreate.**
+  - `seal_experiment.py` now refuses when a manifest or `.enc` already exists,
+    and when `--generate-passphrase` targets an existing keeper; `--force` is
+    the deliberate escape hatch. `experiment-seal-content-aware` requires
+    `EXPERIMENT_ID` and seals into its own directory, and `diagnose-design`
+    takes `SEALED_DIR` so a re-do can be checked before it replaces anything.
 
 - **Blinding breach: `metadata.display_model` was shipped to raters.**
   - The seal correctly recorded which model backs each consistency display under

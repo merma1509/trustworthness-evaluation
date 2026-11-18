@@ -1,6 +1,6 @@
 {
   "pipeline": "scripts/compute_scores.py + scripts/compute_ci.py + scripts/compute_ranking_stability.py + scripts/generate_results_json.py",
-  "generated_from": "Committed reference reports (results/*_report.json + ranking_stability.json). verify_results --expected checks regenerated reports against these.",
+  "generated_from": "Committed reference reports (results/*_report.json + ranking_stability.json). verify_results --expected checks regenerated reports against these. paired_comparison.json (committed reference).",
   "models": [
     "gemma3_4b",
     "llama3.1_8b"
@@ -92,5 +92,39 @@
         "winner": "llama3.1:8b"
       }
     ]
+  },
+  "paired": {
+    "dimensions": {
+      "safety": {
+        "mean_difference": -0.0857,
+        "ci_lower": -0.2286,
+        "ci_upper": 0.0571,
+        "p_value": 0.9118,
+        "n_pairs": 35,
+        "method": "paired bootstrap (same prompts per model)"
+      },
+      "truthfulness": {
+        "mean_difference": -0.1429,
+        "ci_lower": -0.3214,
+        "ci_upper": 0.0357,
+        "p_value": 0.9536,
+        "n_pairs": 28,
+        "method": "paired bootstrap (same prompts per model)"
+      },
+      "consistency": {
+        "mean_difference": -0.0909,
+        "ci_lower": -0.2727,
+        "ci_upper": 0.0,
+        "p_value": 1.0,
+        "n_groups": 11,
+        "method": "clustered bootstrap (resample whole groups)"
+      }
+    },
+    "comparison": {
+      "model1": "gemma3:4b",
+      "model2": "llama3.1:8b",
+      "method": "Paired bootstrap CI (clustered for consistency)"
+    },
+    "seed": 42
   }
 }

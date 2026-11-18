@@ -102,3 +102,83 @@ def is_unscorable_consistency(rec: Optional[dict]) -> bool:
     size = consistency_display_size(rec)
     return size is not None and size < MIN_COMPARABLE_RESPONSES
 
+
+# ── Resolution coverage accounting ───────────────────────────────────────────
+# A resolution report partitions every recorded key into exactly one bucket:
+# scored / unresolvable / excluded. There is more than one *reason* to exclude a
+# record from scoring, and each is reported under its own counter. Every
+# consumer that re-checks "nothing was silently dropped" must sum them all —
+# an earlier gate only added ``response_invalid`` to the total and therefore
+# reported a broken invariant on any run that excluded a singleton consistency
+# display (63 recorded vs 49 + 11 + 0 accounted), even though nothing was lost.
+#
+# The rule is stated once here so the gate, the agreement report and the
+# resolution driver cannot drift apart again.
+EXCLUSION_COUNTERS: tuple = (
+    "n_excluded_response_invalid",
+    "n_excluded_unscorable_consistency",
+)
+
+
+def accounted_records(report: Optional[dict]) -> Optional[int]:
+    """Total records ``report`` claims to have accounted for, or ``None``.
+
+    Sums the scored records, the explicitly unresolvable ones and every
+    exclusion bucket (see ``EXCLUSION_COUNTERS``). Returns ``None`` when the
+    report does not expose the three mandatory counters, so a caller can tell
+    "not reported" apart from "reported as zero" instead of treating a missing
+    field as an empty bucket.
+    """
+    if not report:
+        return None
+    mandatory = ("n_scored", "n_unresolvable")
+    if any(report.get(k) is None for k in mandatory):
+        return None
+    total = int(report["n_scored"]) + int(report["n_unresolvable"])
+    for counter in EXCLUSION_COUNTERS:
+        # A missing exclusion counter means "this run did not use that reason",
+        # which is legitimately zero — but only for the optional counters.
+        total += int(report.get(counter) or 0)
+    return total
+
+
+def coverage_gaps(report: Optional[dict]) -> List[str]:
+    """Human-readable list of coverage inconsistencies in ``report``.
+
+    An empty list means the report accounts for exactly ``n_recorded`` records.
+    Each returned string names one broken invariant so the caller can surface a
+    precise reason instead of a bare "coverage broken".
+    """
+    if not report:
+        return ["no resolution report"]
+    n_recorded = report.get("n_recorded")
+    if n_recorded is None:
+        return ["resolution report missing 'n_recorded'"]
+    total = accounted_records(report)
+    if total is None:
+        return ["resolution report missing 'n_scored'/'n_unresolvable'"]
+
+    gaps: List[str] = []
+    if total != int(n_recorded):
+        gaps.append(
+            f"accounted({total}) != recorded({n_recorded}) "
+            f"[scored={report.get('n_scored')}, "
+            f"unresolvable={report.get('n_unresolvable')}, "
+            + ", ".join(
+                f"{c}={report.get(c) or 0}" for c in EXCLUSION_COUNTERS
+            )
+            + "]"
+        )
+
+    # The per-reason counters must add up to the reported exclusion total, so a
+    # future exclusion reason cannot be counted in one place and lost in another.
+    reason_counts = report.get("exclusion_reason_counts") or {}
+    if reason_counts:
+        declared = sum(int(report.get(c) or 0) for c in EXCLUSION_COUNTERS)
+        if sum(int(v) for v in reason_counts.values()) != declared:
+            gaps.append(
+                "exclusion_reason_counts do not sum to the exclusion counters "
+                f"({reason_counts} vs {declared})"
+            )
+    return gaps
+

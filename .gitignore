@@ -43,7 +43,10 @@ FINAL_REPORT.md
 experiment/blinded/ground_truth_blinded.json
 
 # Sealed keeper passphrase (access control — never commit private key material)
-experiment/.sealed_keeper.*
+# The pattern must match at ANY depth: experiment-seal-content-aware now writes
+# the keeper inside experiment/sealed/<experiment-id>/, and a top-level-only
+# pattern let those plaintext passphrases be committed (it did, before this fix).
+experiment/**/.sealed_keeper.*
 sealed_keeper.*
 
 # Sealed experiment artifacts — regenerable BUILD outputs (make experiment-seal):
@@ -58,6 +61,11 @@ experiment/.sealed_work/
 # (reproducibility), while the *.enc and other label artifacts stay out.
 experiment/sealed/labels/*
 !experiment/sealed/labels/auto_labels.jsonl
+# Same rule for a re-do experiment sealed into its own subdirectory
+# (experiment/sealed/<experiment-id>/labels/): the encrypted labels must not be
+# committed, but the plaintext auto labels should be, so gold stays rebuildable.
+experiment/sealed/*/labels/*
+!experiment/sealed/*/labels/auto_labels.jsonl
 
 # NOTE: the *filled* annotations, agreements, gold labels, agreement reports,
 # the annotation manifest and the rater declarations ARE committed for reviewer

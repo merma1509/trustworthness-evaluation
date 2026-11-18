@@ -1,0 +1,24 @@
+{
+  "experiment_id": "trustworthiness-validation-2026-11-15-r3-family-split",
+  "created_at_utc": "2026-11-18T01:54:10.534319Z",
+  "seed": "42",
+  "seed_hash": "ee151f4814ecc1032d3fcf6238dce5888ccaf61d151944a0b25f5ee1c96f3efa",
+  "scorer_version": "truthfulness-v3-rtti-1",
+  "calibration_ratio": 0.7,
+  "pool_size": 210,
+  "calibration_size": 148,
+  "heldout_size": 62,
+  "seal_checksums": {
+    "calibration_template": "sha256:d81f24dc913edcf978ff2ebc23d912b133bda072625faad366abc72ba328e9d3",
+    "heldout_template": "sha256:2b84daac70ecd1b4264925b8d0cf14e6370cdef68b73e3de730931014760c974",
+    "auto_labels_plaintext": "sha256:d36865090c97872ccc59556f4ba45e5ef2e90bc74e84776d72fa18aebb8e9aa2",
+    "auto_labels_sealed_file": "sha256:26e3093db8211a23f7eda143b004a25be714ae36e1755375200cda2be8c2383f",
+    "rubric": "sha256:643699b7b26c828ed0247ad42c317b4b4e56f0ba76018aaed62c7df5d8fd1b1c",
+    "label_interface": "sha256:c7f138c627897e5dec05c42f48341a21cd6e625074fdf8715b5a8f0578d03800"
+  },
+  "templates": {
+    "calibration": "trustworthiness-validation-2026-11-15-r3-family-split/templates/trustworthiness-validation-2026-11-15-r3-family-split_calibration_template.jsonl",
+    "heldout": "trustworthiness-validation-2026-11-15-r3-family-split/templates/trustworthiness-validation-2026-11-15-r3-family-split_heldout_template.jsonl"
+  },
+  "pending": "Auto labels are SEALED. Do NOT open until all human annotations are finalised and declarations filed."
+}
