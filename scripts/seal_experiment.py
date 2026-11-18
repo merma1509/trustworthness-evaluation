@@ -523,6 +523,12 @@ def main() -> int:
                              "compatibility with sealed experiments.")
     parser.add_argument("--experiment-id", default=None,
                         help="Explicit experiment id (default: auto-generated).")
+    parser.add_argument("--force", action="store_true",
+                        help="Allow sealing over an existing sealed experiment. "
+                             "WITHOUT this flag an existing manifest/.enc stops the "
+                             "run: the encrypted labels and the manifest use fixed "
+                             "filenames, so re-sealing a non-empty --experiment-dir "
+                             "destroys the previous experiment's decryptable trail.")
     args = parser.parse_args()
 
     raw_dir = Path(args.raw)
@@ -530,6 +536,46 @@ def main() -> int:
     if not raw_dir.exists():
         print(f"  Raw outputs dir not found: {raw_dir}")
         return 1
+
+    # ── Step 0: never clobber an existing sealed experiment by accident ──────
+    # ``sealed_auto_labels.jsonl.enc`` and ``sealing_manifest.json`` are written
+    # to FIXED paths, independent of --experiment-id. Re-sealing into a
+    # directory that already holds them silently overwrites the previous
+    # experiment's encrypted labels and its manifest (which
+    # ``find_latest_experiment_id`` / ``verify_seal_integrity`` read), leaving
+    # templates that can no longer be verified or decrypted. Templates alone are
+    # not enough to notice: they are named per experiment, so they survive while
+    # everything needed to use them is gone.
+    if not args.force:
+        existing = [
+            (base_dir / "manifests" / "sealing_manifest.json", "sealing manifest"),
+            (base_dir / "labels" / "sealed_auto_labels.jsonl.enc", "sealed auto labels"),
+        ]
+        clobbered = [f"  - {label}: {path}" for path, label in existing if path.exists()]
+        if clobbered:
+            print(
+                "\n  REFUSING TO OVERWRITE an existing sealed experiment.\n"
+                + "\n".join(clobbered)
+                + "\n\n  These filenames do not depend on --experiment-id, so sealing"
+                "\n  here would destroy the previous experiment's encrypted labels"
+                "\n  and manifest, and any keeper passphrase would no longer match."
+                "\n\n  Seal the NEW experiment into a fresh directory instead:"
+                "\n      --experiment-dir experiment/sealed/<new-id>"
+                "\n  (or pass --force if you really mean to discard the old one)."
+            )
+            return 1
+
+        # A fresh passphrase would be written over the keeper, making the
+        # EXISTING .enc permanently undecryptable. Refuse when we can tell that
+        # the passphrase on disk belongs to another experiment.
+        if args.generate_passphrase and Path(args.keeper).exists():
+            print(
+                f"\n  REFUSING TO OVERWRITE the keeper passphrase: {args.keeper}"
+                "\n  It decrypts an existing sealed experiment. Generating a new"
+                "\n  passphrase here would orphan that .enc file irrecoverably."
+                "\n  Use a distinct --keeper for the new experiment."
+            )
+            return 1
 
     # ── Step 1: Experiment id ────────────────────────────────────────────────
     experiment_id = args.experiment_id or generate_experiment_id()

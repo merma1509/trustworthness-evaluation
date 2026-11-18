@@ -43,6 +43,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src.audit_log import log_action  # noqa: E402
 from src.classifiers import SCORER_VERSION  # noqa: E402
 from src.experiment import find_latest_experiment_id  # noqa: E402
+from src.labels import coverage_gaps  # noqa: E402
 
 # Headline invariants checked per dimension of the gold/agreement reports.
 INTEGRITY_CHECKS = ("gold_vs_auto", "inter_rater", "ci", "coverage")
@@ -67,8 +68,6 @@ def _check_coverage(resolve_report: Dict) -> None:
     """No-silent-drop invariant on the resolution report (fail closed)."""
     n_recorded = resolve_report.get("n_recorded")
     n_scored = resolve_report.get("n_scored")
-    n_unres = resolve_report.get("n_unresolvable")
-    n_excl = resolve_report.get("n_excluded_response_invalid")
     if n_recorded is None:
         _fail("resolution report missing 'n_recorded'")
     # An all-unresolvable report (0 scored) usually means blank templates or a
@@ -78,11 +77,12 @@ def _check_coverage(resolve_report: Dict) -> None:
             "resolution report scored 0 records (blank/unavailable annotations); "
             "refusing to validate a rerun with no gold labels"
         )
-    if n_scored + n_unres + n_excl != n_recorded:
-        _fail(
-            f"coverage broken: scored({n_scored}) + unresolvable({n_unres}) + "
-            f"excluded({n_excl}) != recorded({n_recorded})"
-        )
+    # Sum EVERY exclusion bucket, not just response_invalid: a consistency
+    # singleton is legitimately excluded from scoring, and ignoring it made the
+    # invariant report a false failure whenever such a display existed.
+    gaps = coverage_gaps(resolve_report)
+    if gaps:
+        _fail("coverage broken: " + "; ".join(gaps))
 
 
 def _check_agreement(
@@ -141,9 +141,12 @@ def _check_agreement(
         if None in (n_rec, n_sc, n_unres):
             _fail("resolution_coverage missing n_recorded/n_scored/n_unresolvable "
                   "(transparency block)")
-        if n_sc + n_unres != n_rec:
-            _fail(f"resolution_coverage inconsistent: scored({n_sc}) + "
-                  f"unresolvable({n_unres}) != recorded({n_rec})")
+        # Excluded records (e.g. singleton consistency displays) are part of the
+        # accounting too; omitting their counters made the block look
+        # inconsistent on a run that lost nothing at all.
+        gaps = coverage_gaps(rc)
+        if gaps:
+            _fail("resolution_coverage inconsistent: " + "; ".join(gaps))
 
     # The consistency blocks reported in the write-up (display-level "honest n"
     # and the free test-retest reliability measurement) must survive the rerun.
@@ -265,6 +268,50 @@ def _check_no_consistency_group_span(exp_id: str, templates_dir: Path) -> None:
           f"{len(hold_by_fp)} held-out displays checked)")
 
 
+def _check_design_leakage(args) -> None:
+    """Run the family-level leakage diagnosis as part of the gate.
+
+    A group-aware split still lets the SAME (model, prompt text) appear in both
+    splits, so a rater can meet a stimulus in calibration and be scored on it in
+    held-out. ``diagnose_design`` already detects that blocker, but nothing in
+    the pipeline called it, so a leaking split was validated as clean.
+
+    Default is NON-blocking on purpose: the already-collected experiment is
+    known to leak (see ``AUDIT_REVIEW.md`` §3) and its numbers are still
+    reproducible, so turning the gate red would only encourage an ``|| true``.
+    Pass ``--design-strict`` (the policy for any NEW experiment) to make
+    leakage fail closed instead.
+    """
+    print("\n=== 1b/6 annotation design (family-level leakage) ===")
+    design_rc = _run(
+        [
+            sys.executable,
+            "scripts/diagnose_design.py",
+            "--raw", "results/raw_outputs",
+            "--templates", "experiment/sealed/templates",
+            "--split-seed", "diagnosis",
+            "--json", "experiment/reports/design_diagnosis.json",
+        ],
+        Path.cwd(),
+    )
+    if design_rc == 0:
+        print("  design diagnosis clean: no family-level leakage")
+        return
+
+    msg = (
+        "annotation design has blockers (see design_diagnosis.json): the "
+        "same (model, prompt text) appears in both splits. Raters can be "
+        "scored on a stimulus they already judged in calibration."
+    )
+    if getattr(args, "design_strict", False):
+        _fail(
+            msg + " Re-seal with `make experiment-seal-content-aware` under "
+            "a NEW experiment id before validating."
+        )
+    print("\n  ⚠ DESIGN WARNING (non-blocking): " + msg)
+    print("    Any NEW experiment must pass --design-strict.")
+
+
 def validate_rerun(args) -> None:
     """Run the full regenerate + validate sequence; fail closed on any break."""
     root = Path.cwd()
@@ -369,9 +416,23 @@ def validate_rerun(args) -> None:
         exp_id, root / "experiment/sealed/templates"
     )
 
+    # A group-aware split must be in force — see ``_check_design_leakage`` for
+    # why the family-level check lives there.
+    _check_design_leakage(args)
+
     # ── 2. Resolve A/B disagreements with the ADJUDICATOR (held-out) ─────────
     print("\n=== 2/6 disagreement resolution (held-out) ===")
     resolve_out = Path(tempfile.mkdtemp(prefix="rerun_resolve_")) / "resolutions.json"
+    # The sealed template is REQUIRED: it is the only place the consistency
+    # display size is recorded, and without it singleton displays are counted
+    # as scored. Omitting it made the gate validate a different n (51) than the
+    # published report (49) — the check would pass or fail on numbers nobody
+    # reports.
+    heldout_template = (
+        root / "experiment/sealed/templates" / f"{exp_id}_heldout_template.jsonl"
+    )
+    if not heldout_template.exists():
+        _fail(f"held-out sealed template missing: {heldout_template}")
     rc = _run(
         [
             sys.executable,
@@ -379,6 +440,7 @@ def validate_rerun(args) -> None:
             "--rater-a", str(rater_files[0]),
             "--rater-b", str(rater_files[1]),
             "--adjudicator", str(rater_files[2]),
+            "--templates", str(heldout_template),
             "--split", "heldout",
             "--experiment-id", exp_id,
             "--out", str(resolve_out),
@@ -468,7 +530,7 @@ def validate_rerun(args) -> None:
     if rc != 0:
         _fail("scores/trustscore regeneration failed")
 
-    print("\n=== 5/6 reproduce CIs + ranking stability ===")
+    print("\n=== 5/6 reproduce CIs + ranking stability + paired comparison ===")
     rc = _run(
         [sys.executable, "scripts/compute_ci.py",
          "--raw", "results/raw_outputs", "--n-bootstrap", "10000",
@@ -483,8 +545,19 @@ def validate_rerun(args) -> None:
          "--output", "results/ranking_stability.json"],
         root,
     )
+    # The paired/clustered model comparison was never regenerated by the gate,
+    # so a shipped paired figure could not be reproduced from immutable inputs
+    # (and `results/paired_comparison.json` was absent entirely). It reads the
+    # same raw outputs as every other statistic, so it belongs here.
+    rc |= _run(
+        [sys.executable, "scripts/compute_paired_comparison.py",
+         "--raw", "results/raw_outputs",
+         "--output", "results/paired_comparison.json",
+         "--seed", "42"],
+        root,
+    )
     if rc != 0:
-        _fail("CI/ranking regeneration failed")
+        _fail("CI/ranking/paired regeneration failed")
 
     # ── 6. Verify internal consistency of the regenerated reports ───────────
     print("\n=== 6/6 internal consistency verification ===")
@@ -545,6 +618,11 @@ def main() -> int:
                         help="Passphrase to open sealed auto labels for the gold join.")
     parser.add_argument("--keep", action="store_true",
                         help="Keep derived agreement/gold reports under experiment/.")
+    parser.add_argument("--design-strict", action="store_true",
+                        help="Fail closed when diagnose_design finds family-level "
+                             "leakage. Required for any NEW experiment; the "
+                             "already-collected run is known to leak, so it "
+                             "defaults to a loud warning to stay reproducible.")
     args = parser.parse_args()
 
     plaintext_auto = Path("experiment/sealed/labels/auto_labels.jsonl")
@@ -577,3 +655,5 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+
+

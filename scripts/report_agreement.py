@@ -529,23 +529,46 @@ def inter_rater(a_paths, b_paths) -> Dict:
                     "consistency": "consistency_label",
                 }.get(dim)
                 label = ann.get(key, "") if key else ""
-                out[rec.get("internal_key", "")] = (dim, label or None)
+                # Record the abstention flag alongside the label instead of
+                # deleting the label. Whether an uncertain verdict casts a vote
+                # is a *methodological choice*, and it is not free: on this data
+                # every A≠B disagreement coincides with an abstention, so
+                # dropping abstentions yields a perfect 100% by discarding
+                # exactly the hard cases. Both readings are computed below
+                # (primary + sensitivity) rather than silently picking one.
+                abstained = (
+                    (rec.get("flags") or {}).get("rater_uncertainty") == "uncertain"
+                )
+                out[rec.get("internal_key", "")] = (dim, label or None, abstained)
         return out
 
     a_map = _load(a_paths)
     b_map = _load(b_paths)
 
     by_dim: Dict[str, List[tuple]] = defaultdict(list)
-    for k, (a_dim, la) in a_map.items():
+    # Sensitivity view: the same pairs with abstentions withheld. Kept separate
+    # from the primary view so the headline figure is never silently computed
+    # over a subset that excludes the hard cases.
+    by_dim_confident: Dict[str, List[tuple]] = defaultdict(list)
+    # Count of judged pairs whose label was withheld, per dimension.
+    withheld: Dict[str, int] = defaultdict(int)
+    for k, (a_dim, la, a_abstained) in a_map.items():
         if k not in b_map:
             continue
-        b_dim, lb = b_map[k]
-        if la is None or lb is None:
-            continue  # uncertain / not labelled don't cast a vote
+        b_dim, lb, b_abstained = b_map[k]
         dim = a_dim or b_dim or "unknown"
+        if la is None or lb is None:
+            continue  # no label at all: not a judged pair
         by_dim[dim].append((la, lb))
+        if a_abstained or b_abstained:
+            withheld[dim] += 1
+        else:
+            by_dim_confident[dim].append((la, lb))
 
     result = {}
+    # Iterate over every dimension with at least one judged pair, so a
+    # dimension cannot vanish from the report just because every pair involved
+    # an abstention (which would hide the abstentions entirely).
     for dim in sorted(by_dim):
         a_labels = [p[0] for p in by_dim[dim]]
         b_labels = [p[1] for p in by_dim[dim]]
@@ -556,6 +579,30 @@ def inter_rater(a_paths, b_paths) -> Dict:
         # matrix backwards.
         result[dim] = compute_agreement(a_labels, b_labels)
         result[dim]["n"] = len(a_labels)
+        # ── Abstention transparency ──
+        # PRIMARY (above) scores every judged pair, abstainers included: an
+        # "uncertain" flag records hesitation but the rater still committed to a
+        # label, and dropping those pairs removes precisely the hard cases.
+        # The sensitivity view WITHHOLDS abstained pairs, which is the rule
+        # ``resolve_disagreements`` uses for gold. Reporting both keeps the
+        # headline honest: on this data the sensitivity view reaches 100% simply
+        # because every disagreement involved an abstention.
+        result[dim]["n_withheld_abstentions"] = withheld.get(dim, 0)
+        conf_pairs = by_dim_confident.get(dim, [])
+        conf = compute_agreement(
+            [p[0] for p in conf_pairs], [p[1] for p in conf_pairs]
+        ) if conf_pairs else {}
+        result[dim]["confident_only"] = {
+            "n": len(conf_pairs),
+            "agreement_rate": conf.get("agreement_rate"),
+            "cohens_kappa": conf.get("cohens_kappa"),
+            "note": (
+                "Sensitivity analysis: pairs where either rater flagged "
+                "uncertainty are withheld. On this dataset that removes every "
+                "A≠B disagreement, so any high figure here reflects which cases "
+                "were removed, not reliability of the full record set."
+            ),
+        }
         result[dim]["confusion_axes"] = {"rows": "rater_b", "cols": "rater_a"}
     return result
 
@@ -586,6 +633,14 @@ def _load_resolution_coverage(resolutions_path) -> Dict:
         "n_scored": data.get("n_scored"),
         "n_unresolvable": data.get("n_unresolvable"),
         "n_excluded_response_invalid": data.get("n_excluded_response_invalid"),
+        # Must be carried through: it is a real exclusion bucket, and dropping
+        # it here made the coverage block fail its own accounting invariant
+        # (scored + unresolvable + exclusions != recorded) on every run that
+        # excluded a singleton consistency display.
+        "n_excluded_unscorable_consistency": data.get(
+            "n_excluded_unscorable_consistency"
+        ),
+        "exclusion_reason_counts": data.get("exclusion_reason_counts"),
         "outcome_counts": data.get("outcome_counts"),
         "unresolved_keys": unresolved,
         "note": (
@@ -761,8 +816,14 @@ def main() -> int:
     ir = report["inter_rater_A_vs_B"]
     print("  INTER-RATER (A vs B):")
     for dim, s in ir.items():
+        withheld = s.get("n_withheld_abstentions", 0)
         print(f"    {dim:<12} n={s.get('n'):<4} agreement={s.get('agreement_rate'):<6} "
               f"kappa={_fmt_kappa(s.get('cohens_kappa'))}")
+        conf = s.get("confident_only") or {}
+        if withheld and conf.get("n") is not None:
+            print(f"      sensitivity: withholding {withheld} abstained pair(s) -> "
+                  f"n={conf['n']}, agreement={conf.get('agreement_rate')} "
+                  f"(removes the hard cases; not a reliability figure)")
         if s.get("kappa_note"):
             print(f"      note: {s['kappa_note']}")
 
@@ -810,7 +871,9 @@ def main() -> int:
     if rc:
         print("  HELD-OUT RESOLUTION COVERAGE:")
         print(f"    recorded={rc.get('n_recorded')} scored={rc.get('n_scored')} "
-              f"unresolvable={rc.get('n_unresolvable')}")
+              f"unresolvable={rc.get('n_unresolvable')} "
+              f"excluded_invalid={rc.get('n_excluded_response_invalid') or 0} "
+              f"excluded_unscorable={rc.get('n_excluded_unscorable_consistency') or 0}")
         ukeys = rc.get("unresolved_keys") or []
         if ukeys:
             print(f"    unresolved keys ({len(ukeys)}): {ukeys}")

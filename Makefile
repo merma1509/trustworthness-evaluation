@@ -192,16 +192,26 @@ experiment-seal:
 # Clean design re-do: seal with the family-level (content-aware) split
 # required by the design review. Use a NEW EXPERIMENT_ID so the
 # freshly sealed keys never ambiguously map onto old annotations.
+#
+# The manifest and the encrypted labels use FIXED filenames, so this target
+# must write to its own directory: sealing into experiment/sealed would
+# overwrite the collected experiment's manifest + .enc (and its keeper),
+# leaving templates that can never be verified or decrypted again.
 experiment-seal-content-aware:
 	@test -n "$(SEED)" || (echo "Set SEED=..."; exit 1)
+	@test -n "$(EXPERIMENT_ID)" || (echo "Set EXPERIMENT_ID=... (a NEW id; the old annotations must not map onto the new keys)"; exit 1)
 	$(PY) scripts/seal_experiment.py \
 		--raw "$(RESULTS)/raw_outputs" \
-		--experiment-dir experiment/sealed \
+		--experiment-dir experiment/sealed/$(EXPERIMENT_ID) \
 		--seed "$(SEED)" \
 		--content-aware \
-		$(if $(EXPERIMENT_ID),--experiment-id "$(EXPERIMENT_ID)",) \
-		$(if $(PASSPHRASE),--passphrase "$(PASSPHRASE)",--generate-passphrase --keeper experiment/.sealed_keeper.json)
-	@echo "  Content-aware sealed experiment ready. NEXT: make diagnose-design (expect 0 family overlap), then make experiment-annotate"
+		--experiment-id "$(EXPERIMENT_ID)" \
+		$(if $(PASSPHRASE),--passphrase "$(PASSPHRASE)",--generate-passphrase --keeper experiment/sealed/$(EXPERIMENT_ID)/.sealed_keeper.json)
+	@echo "  Content-aware sealed experiment ready -> experiment/sealed/$(EXPERIMENT_ID)"
+	@echo "  NEXT: make diagnose-design SEALED_DIR=experiment/sealed/$(EXPERIMENT_ID) (expect 0 family overlap)"
+	@echo "  NOTE: the source pool is unchanged, so every 'fresh' held-out record was"
+	@echo "        already judged by the previous raters — this needs NEW raters or"
+	@echo "        NEW prompts to be a genuinely held-out set."
 
 # Emit blank rater templates + declaration forms for the INDEPENDENT raters only.
 # The ADJUDICATOR is intentionally NOT onboarded here: it annotates only the
@@ -419,10 +429,13 @@ verify-artifacts:
 
 # Design diagnosis: textual overlap, inconsistent probes,
 # model-scoped displays, content-aware family split. Exit 1 on any blocker.
+# SEALED_DIR lets a re-do experiment be diagnosed before it replaces the
+# collected one (which stays at the default path).
+SEALED_DIR ?= experiment/sealed
 diagnose-design:
 	$(PY) scripts/diagnose_design.py \
 		--raw "$(RESULTS)/raw_outputs" \
-		--templates experiment/sealed/templates \
+		--templates "$(SEALED_DIR)/templates" \
 		--split-seed "diagnosis" \
 		--json experiment/reports/design_diagnosis.json
 
