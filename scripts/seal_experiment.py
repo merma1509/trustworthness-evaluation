@@ -44,7 +44,7 @@ import re
 import sys
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Set, Tuple
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -113,6 +113,26 @@ def _family_unit_key(rec: dict, model_id: str) -> str:
     return f"{model_id}//{_normalise_stimulus(rec.get('prompt_text', ''))}"
 
 
+def _stimuli_of(rec: dict) -> Set[str]:
+    """Every stimulus a rater actually SEES in this record.
+
+    This is the crux of a content-aware split, and the original code got it
+    wrong. A consistency record's own ``prompt_text`` is EMPTY: its stimuli live
+    in the group's member records. A truthfulness/safety record's stimuli live in
+    ``prompt_text``. Keying a unit on only ONE of these fields let the same
+    stimulus sit in both splits under different dimensions — e.g. "What is the
+    capital of Russia?" shown to a rater as a truthfulness probe in calibration
+    and again as a consistency display in held-out. Same rater, same model, same
+    text, twice.
+    """
+    if (rec.get("_dimension") or rec.get("dimension")) == "consistency":
+        members = rec.get("_group_members") or [rec]
+        texts = {_normalise_stimulus(m.get("prompt_text", "")) for m in members}
+    else:
+        texts = {_normalise_stimulus(rec.get("prompt_text", ""))}
+    return {t for t in texts if t}
+
+
 def build_split_units(pool: List[dict], content_aware: bool) -> List[List[dict]]:
     """Bucket the response pool into indivisible split units.
 
@@ -120,10 +140,11 @@ def build_split_units(pool: List[dict], content_aware: bool) -> List[List[dict]]
     is one unit (all member records share a rater display); every safety /
     truthfulness record is its own unit.
 
-    ``content_aware=True``: additionally merge all records sharing
-    the same (model_id, normalised prompt_text) into ONE family unit, so no
-    stimulus text can leak across the calibration/held-out boundary even if it
-    appears under different internal keys.
+    ``content_aware=True``: additionally merge, TRANSITIVELY, every record a
+    rater would see under the same ``(model_id, stimulus)``, so no stimulus can
+    leak across the calibration/held-out boundary. Transitivity matters: if
+    group A shows texts {X, Y} and group B shows {Y, Z}, a plain per-record key
+    buckets them apart and Y leaks; both groups must collapse into ONE unit.
 
     Consistency groups are never torn in either mode — they must be judged
     together and must land in exactly one split.
@@ -143,12 +164,25 @@ def build_split_units(pool: List[dict], content_aware: bool) -> List[List[dict]]
             units.append(members if members else [rec])
         return units
 
-    # family units: bucket EVERY record by
-    # (model_id, normalised prompt_text); consistency additionally keeps the
-    # (model_id, group_id) members together (their key already includes group_id
-    # through _family_unit_key).
-    # Guard: if callers did not pre-link _group_members, link them here so the
-    # content-aware key sees the full group's texts, never a single member.
+    # ── content-aware: union-find over "same rater sees it under one model" ──
+    def _id(rec: dict) -> str:
+        return rec.get("_internal_key") or rec.get("internal_key") or id(rec)
+
+    parent: Dict[str, str] = {_id(r): _id(r) for r in pool}
+    by_id: Dict[str, dict] = {_id(r): r for r in pool}
+
+    def _find(x: str) -> str:
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]  # path halving
+            x = parent[x]
+        return x
+
+    def _union(a: str, b: str) -> None:
+        ra, rb = _find(a), _find(b)
+        if ra != rb:
+            parent[rb] = ra
+
+    # Link consistency group members first: they are one indivisible display.
     by_group: Dict[str, List[dict]] = defaultdict(list)
     for rec in pool:
         if rec.get("_dimension") == "consistency":
@@ -158,12 +192,27 @@ def build_split_units(pool: List[dict], content_aware: bool) -> List[List[dict]]
         if rec.get("_dimension") == "consistency" and not rec.get("_group_members"):
             gkey = f'{rec.get("_model_id", "")}/{rec.get("group_id", "")}'
             rec["_group_members"] = by_group.get(gkey, [rec])
+    for members in by_group.values():
+        for m in members[1:]:
+            _union(_id(members[0]), _id(m))
 
-    family: Dict[str, List[dict]] = defaultdict(list)
+    # Then union every record sharing a (model, stimulus) with any other.
+    by_stimulus: Dict[Tuple[str, str], List[str]] = defaultdict(list)
     for rec in pool:
-        key = _family_unit_key(rec, rec.get("_model_id", ""))
-        family[key].append(rec)
-    return [members for members in family.values()]
+        mid = rec.get("_model_id", "")
+        for text in _stimuli_of(rec):
+            by_stimulus[(mid, text)].append(_id(rec))
+    for ids in by_stimulus.values():
+        for other in ids[1:]:
+            _union(ids[0], other)
+
+    buckets: Dict[str, List[dict]] = defaultdict(list)
+    for rec in pool:
+        buckets[_find(_id(rec))].append(by_id[_id(rec)])
+
+    # Deterministic order: keep first-seen order of the pool so the shuffle seed
+    # alone controls the split (never dict/set iteration order).
+    return list(buckets.values())
 
 
 def _load_raw(path: Path) -> List[dict]:
