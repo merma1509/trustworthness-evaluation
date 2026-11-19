@@ -67,6 +67,14 @@ experiment/sealed/labels/*
 experiment/sealed/*/labels/*
 !experiment/sealed/*/labels/auto_labels.jsonl
 
+# An un-annotated re-seal is not a result. Sealing produces templates and a
+# manifest in minutes, so a fresh split looks like progress while having no
+# gold labels and no kappa behind it. Keep such working splits OUT of the
+# published set; only a split that has been annotated and validated (see
+# validate_rerun_pipeline._check_experiment_has_annotations) belongs in git.
+# Local working splits live under experiment/sealed/ and stay untracked.
+experiment/sealed/trustworthiness-validation-*-r*-family-split/
+
 # NOTE: the *filled* annotations, agreements, gold labels, agreement reports,
 # the annotation manifest and the rater declarations ARE committed for reviewer
 # audit, so they are deliberately NOT listed below.

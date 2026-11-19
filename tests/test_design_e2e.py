@@ -159,6 +159,21 @@ def _seal(raw: Path, exp_dir: Path, exp_id: str) -> None:
     assert (exp_dir / "labels" / "sealed_auto_labels.jsonl.enc").exists()
 
 
+def _decrypt_auto_labels(exp_dir: Path) -> Path:
+    """Decrypt the sealed auto labels next to them, for diagnostics that need
+    the model id of each record (family-level overlap cannot work without it)."""
+    from src.sealing import decrypt_json_file
+
+    keeper = json.loads((exp_dir / "keeper.json").read_text())
+    enc = exp_dir / "labels" / "sealed_auto_labels.jsonl.enc"
+    records = decrypt_json_file(enc, passphrase=keeper["passphrase"])
+    out = exp_dir / "labels" / "auto_labels.jsonl"
+    with out.open("w") as f:
+        for rec in records:
+            f.write(json.dumps(rec) + "\n")
+    return out
+
+
 def _simulate_rater(tpl: Path, out: Path, rater: str, label: str) -> None:
     """Fill a template file with a single label choice for every record."""
     with tpl.open() as f:
@@ -202,9 +217,24 @@ def test_e2e_seal_annotate_gold_agreement(tmp_path):
     _seal(raw, exp_dir, exp_id)
 
     # ── diagnose: content-aware split must leave 0 overlap on the sealed set ──
+    # The overlap check needs the model id of each record, which lives in the
+    # auto-label payload. While that is still sealed, the check CANNOT evaluate
+    # overlap and must fail closed rather than print a vacuous green — so
+    # decrypt first, exactly as an auditor would.
     from scripts.diagnose_design import diagnose_textual_overlap
-    overlap = diagnose_textual_overlap(
+
+    overlap_without_models = diagnose_textual_overlap(
         exp_dir / "templates", exp_dir / "templates"
+    )
+    assert not overlap_without_models["ok"], (
+        "a vacuum model map must NOT report a clean split: "
+        f"{overlap_without_models}"
+    )
+    assert overlap_without_models.get("error") == "model_unknown"
+
+    plain = _decrypt_auto_labels(exp_dir)
+    overlap = diagnose_textual_overlap(
+        exp_dir / "templates", exp_dir / "templates", plain
     )
     # The shared-text pair must have landed in ONE split -> no overlap.
     assert overlap["ok"], f"textual overlap on content-aware sealed set: {overlap}"
