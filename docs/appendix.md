@@ -284,4 +284,83 @@ research questions").
 
 ---
 
+## Limitations
+
+These bound what the reported numbers can be used to claim. They are listed
+here — in a tracked file — because `docs/report.md` is generated locally and is
+not committed, so a caveat that lives only there is invisible to a reader of
+the repository.
+
+### L1. The content-aware split did not prevent stimulus reuse (fixed in code, not in the collected data)
+
+The collected experiment was sealed with a split that was intended to keep every
+prompt on one side of the calibration/held-out boundary. It did not. A rater met
+the same prompt, under the same model, in both splits **15 times**, because:
+
+- a consistency record's own `prompt_text` is empty — its stimuli live in the
+  group's member records — so the split unit key degenerated for that whole
+  dimension;
+- a prompt shared _across_ dimensions (a truthfulness probe in calibration, a
+  consistency display in held-out) was never compared, because each check
+  worked one dimension at a time;
+- grouping was non-transitive: if one display showed {X, Y} and another {Y, Z},
+  the two stayed in different units and Y could cross the boundary.
+
+Both the sealer and the two diagnostics agreed with each other on this wrong
+definition, so "0 family overlap" was circular confirmation. `seal_experiment`
+and `diagnose_design` are now fixed (units are the transitive closure over
+"same rater sees it under one model", and the diagnosis fails closed instead of
+reporting a vacuous green when the model map is unavailable). Re-sealing with
+the fixed code yields 0 same-model stimulus leaks.
+
+**Consequence for the existing results:** the κ values reported here were
+measured under the leaking split. The leak inflates self-consistency across
+split halves and is a threat to validity for the RQ1 agreement figures. A
+corrected re-seal is reproducible, but its numbers will differ: 88 of 210
+records change split side, so the held-out set is not the same held-out set.
+Every figure in this appendix reflects the as-collected split.
+
+### L2. Cross-model textual overlap is real and not removed
+
+Independently of L1, 82.9% of held-out prompt texts also occur in calibration
+under the **other** model (34 of 41 distinct texts). A family split keys on
+`(model, text)`, so this is correct by construction — no `(model, text)` pair
+crosses the boundary. But the held-out stimuli are not _entirely fresh text_: a
+rater who scored "What year did World War II end?" for gemma meets the same
+sentence again for llama. This can inflate cross-model agreement and therefore
+affects the model ranking (RQ2), not the per-model per-dimension scores.
+Removing it needs disjoint text pools per model, which the 210-record pool
+cannot supply at a usable held-out size.
+
+### L3. Truthfulness κ on the held-out split is not interpretable
+
+Truthfulness reports κ = 0.0 alongside an observed agreement of 0.933. This is
+the base-rate (prevalence) paradox, not disagreement: 14 of 15 records fall in
+one cell, so chance agreement is ~0.93 and κ collapses toward zero while the
+raters in fact agree almost always. Report agreement rates for this dimension,
+not κ. The agreement report already marks it `kappa_interpretable: false`.
+
+### L4. Held-out is rater-naive only in the weak sense
+
+Raters had not seen the auto-labels, and calibration/held-out were separated.
+But because of L2 the same _sentences_ recur across models, so "naive to the
+stimuli" does not hold. Any claim that held-out measures generalisation to
+unseen prompts must be weakened accordingly.
+
+### L5. Blinding is enforced by construction, not audited at annotation time
+
+Templates carry opaque keys and strip model id, prompt id and auto labels
+(checked by `verify_seal_integrity`, PASS). What is not verified is whether a
+rater inferred the model from a response's style. The `display_model` field is
+deliberately blank in consistency templates, but style is a side channel this
+pipeline does not measure.
+
+### L6. Single annotator pair on a small held-out set
+
+Two raters plus adjudication on 63 held-out records, 49 of which were scorable.
+Per-dimension κ rests on a handful of scored records for some cells (truthfulness
+14–15). Treat dimension-level κ as indicative, not as a precise estimate.
+
+---
+
 _End of Appendix_

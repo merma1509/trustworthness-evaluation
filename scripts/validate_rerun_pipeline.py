@@ -312,6 +312,41 @@ def _check_design_leakage(args) -> None:
     print("    Any NEW experiment must pass --design-strict.")
 
 
+def _check_experiment_has_annotations(args) -> None:
+    """A sealed experiment with no annotations is not a published result.
+
+    Sealing a fresh split is easy and looks like progress: templates and a
+    manifest land on disk, the seal integrity check passes, and the design
+    diagnosis can be run. But nothing has been judged, so there is no gold, no
+    κ, and nothing to report. Validating it silently (or worse, reporting the
+    PREVIOUS experiment's numbers alongside it) is exactly how an un-annotated
+    re-seal gets mistaken for a result.
+
+    Fail closed: the experiment id under validation must have rater files for
+    both splits, and they must be non-empty.
+    """
+    print("\n=== 1c/6 experiment is actually annotated ===")
+    ann_dir = Path(args.annotations_dir)
+    exp_id = args.experiment_id
+    missing: List[str] = []
+    for split in ("calibration", "heldout"):
+        for rater in ("RATER_A", "RATER_B"):
+            path = ann_dir / f"{exp_id}_{rater}_{split}.jsonl"
+            if not path.exists():
+                missing.append(str(path))
+                continue
+            with path.open() as handle:
+                if not any(line.strip() for line in handle):
+                    missing.append(f"{path} (empty)")
+    if missing:
+        _fail(
+            f"experiment '{exp_id}' has no usable annotations for both splits. "
+            "A sealed-but-unannotated split has no gold labels and no κ — it "
+            "cannot be validated or reported. Missing: " + "; ".join(missing)
+        )
+    print(f"  annotations present for {exp_id} (both splits, A and B)")
+
+
 def validate_rerun(args) -> None:
     """Run the full regenerate + validate sequence; fail closed on any break."""
     root = Path.cwd()
@@ -419,6 +454,9 @@ def validate_rerun(args) -> None:
     # A group-aware split must be in force — see ``_check_design_leakage`` for
     # why the family-level check lives there.
     _check_design_leakage(args)
+
+    # Refuse to validate a split that nobody has judged: sealed != published.
+    _check_experiment_has_annotations(args)
 
     # ── 2. Resolve A/B disagreements with the ADJUDICATOR (held-out) ─────────
     print("\n=== 2/6 disagreement resolution (held-out) ===")

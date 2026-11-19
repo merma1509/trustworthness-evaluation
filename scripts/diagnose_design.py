@@ -105,12 +105,19 @@ def diagnose_textual_overlap(
     model_of = _load_model_map(auto_labels_path)
 
     def _entries(path: Path, dim: str) -> List[Tuple[str, str, object]]:
-        """Return (internal_key, model_id, family_key) per template record.
+        """Return (internal_key, model_id, stimuli) per template record.
 
-        ``family_key`` is the normalised text for safety/truthfulness and the
-        frozenset of the group's member texts for consistency — mirroring the
-        content-aware split unit key so a consistency *group* (all its member
-        texts) is compared atomically, never text-by-text.
+        ``stimuli`` is the COMPLETE frozenset of texts a rater sees in this
+        record, and it is the same notion ``seal_experiment._stimuli_of`` uses
+        for the split unit. This is what the earlier version got wrong: it
+        keyed a consistency record on its ``pairs`` and a safety/truthfulness
+        record on ``prompt_text``, so a stimulus shared ACROSS those two
+        shapes (a consistency display in one split, a truthfulness probe in the
+        other) was invisible here — the diagnosis passed a split that leaked.
+
+        It is also why ``family_split_enforcement`` used to disagree with this
+        check: that one keyed on the group's member-text SET, so two groups
+        sharing one stimulus but differing in another looked distinct.
         """
         out: List[Tuple[str, str, object]] = []
         for rec in load_jsonl(path):
@@ -119,18 +126,16 @@ def diagnose_textual_overlap(
                 continue
             key = rec.get("internal_key", "")
             mid = model_of.get(key, "")
-            if dim == "consistency":
-                texts = frozenset(
-                    _normalise(p.get("prompt", ""))
-                    for p in rec.get("pairs", []) or []
-                )
-                texts = frozenset(t for t in texts if t)
-                if texts:
-                    out.append((key, mid, texts))
-            else:
-                t = _normalise(pr.get("prompt_text", ""))
+            texts = set()
+            for pair in rec.get("pairs", []) or []:
+                t = _normalise(pair.get("prompt", ""))
                 if t:
-                    out.append((key, mid, t))
+                    texts.add(t)
+            own = _normalise(pr.get("prompt_text", ""))
+            if own:
+                texts.add(own)
+            if texts:
+                out.append((key, mid, frozenset(texts)))
         return out
 
     family_overlap: Dict[str, List[Dict]] = {}
@@ -138,67 +143,64 @@ def diagnose_textual_overlap(
     text_overlap: Dict[str, List[Dict]] = {}
     total_hold_texts = 0
 
+    # Dimension-agnostic on purpose. The split unit is "what the rater meets
+    # under this model", and that crosses dimensions: the same prompt can be a
+    # truthfulness probe in calibration and a consistency display in held-out.
+    # Bucketing the comparison per dimension made exactly those leaks
+    # invisible, which is how the collected experiment passed with 15 real
+    # same-model stimulus leaks. Calibration and held-out are each indexed once,
+    # over every dimension.
+    cal_entries: List[Tuple[str, str, object]] = []
+    for cal_f in cal_files:
+        for dim in ("safety", "truthfulness", "consistency"):
+            cal_entries.extend(_entries(cal_f, dim))
+
+    hold_entries: List[Tuple[str, str, object]] = []
     for hold_f in hold_files:
         for dim in ("safety", "truthfulness", "consistency"):
-            cal_entries = []
-            for cal_f in cal_files:
-                cal_entries.extend(_entries(cal_f, dim))
-            # Index calibration by (model, family_key) for family-level, and by
-            # individual text (flattened) for cross-model textual overlap.
-            fam_index: Dict[Tuple[str, object], str] = {}
-            txt_index: Dict[str, List[Tuple[str, str]]] = {}
-            for ckey, cmid, ckey_fam in cal_entries:
-                # Index EVERY member stimulus, not just the whole unit, so a
-                # single shared prompt is detectable. For consistency
-                # `ckey_fam` is the frozenset of member texts.
-                ctexts = [ckey_fam] if isinstance(ckey_fam, str) else list(ckey_fam)
-                if cmid:
-                    for ct in ctexts:
-                        fam_index.setdefault((cmid, ct), ckey)
-                for ct in ctexts:
-                    txt_index.setdefault(ct, []).append((ckey, cmid))
-            for hkey, hmid, hfam in _entries(hold_f, dim):
-                total_hold_texts += 1
-                # Exact-family match: the WHOLE unit (for consistency, the full
-                # member-text set) appears in both splits. Informational only —
-                # re-bucketing changes group composition, so this rarely fires
-                # even when stimuli do leak.
-                if hmid and (hmid, hfam) in fam_index:
-                    label = hfam if isinstance(hfam, str) else "|".join(sorted(hfam))
-                    group_overlap.setdefault(
-                        f"{dim}:{label[:40]}", []
-                    ).append(
+            hold_entries.extend(_entries(hold_f, dim))
+
+    # Index calibration by (model, exact stimulus set) for whole-unit reuse,
+    # by (model, single stimulus) for the blocking check, and by single
+    # stimulus across models for the non-blocking data-quality warning.
+    fam_index: Dict[Tuple[str, object], str] = {}
+    flat_index: Dict[Tuple[str, str], str] = {}
+    txt_index: Dict[str, List[Tuple[str, str]]] = {}
+    for ckey, cmid, cstim in cal_entries:
+        if cmid:
+            fam_index.setdefault((cmid, cstim), ckey)
+        for ct in cstim:
+            if cmid:
+                flat_index.setdefault((cmid, ct), ckey)
+            txt_index.setdefault(ct, []).append((ckey, cmid))
+
+    for hkey, hmid, hstim in hold_entries:
+        total_hold_texts += 1
+        # Whole-unit reuse: the rater's ENTIRE stimulus set reappears. Kept as
+        # information (rare once units are correct).
+        if hmid and (hmid, hstim) in fam_index:
+            label = "|".join(sorted(hstim))
+            group_overlap.setdefault(f"{label[:40]}", []).append(
+                {"heldout_key": hkey,
+                 "calibration_key": fam_index[(hmid, hstim)]}
+            )
+        # Blocking check: the SAME (model, single stimulus) sits in both splits.
+        for ht in hstim:
+            if hmid and (hmid, ht) in flat_index:
+                family_overlap.setdefault(f"{ht[:40]}", []).append(
+                    {"heldout_key": hkey,
+                     "calibration_key": flat_index[(hmid, ht)],
+                     "model": hmid}
+                )
+            # Cross-model textual overlap (different model, same text) -> warning.
+            for ckey, cmid in txt_index.get(ht, []):
+                if cmid != hmid:
+                    text_overlap.setdefault(f"{ht[:40]}", []).append(
                         {"heldout_key": hkey,
-                         "calibration_key": fam_index[(hmid, hfam)]}
+                         "calibration_key": ckey,
+                         "calibration_model": cmid,
+                         "heldout_model": hmid}
                     )
-                # Blocking check: the SAME (model, single stimulus) appears in
-                # both splits. For consistency `hfam` is a frozenset of the
-                # group's member texts, so this must be evaluated per member —
-                # comparing only whole sets silently misses a leaked stimulus
-                # whenever the two groups differ in size (e.g. a 3-member
-                # held-out group vs a 2-member calibration group sharing one
-                # prompt), which is exactly how 8/22 real overlaps went unseen.
-                htexts = [hfam] if isinstance(hfam, str) else list(hfam)
-                for ht in htexts:
-                    if hmid and (hmid, ht) in fam_index:
-                        family_overlap.setdefault(
-                            f"{dim}:{ht[:40]}", []
-                        ).append(
-                            {"heldout_key": hkey,
-                             "calibration_key": fam_index[(hmid, ht)],
-                             "model": hmid}
-                        )
-                    # cross-model textual overlap (any model) -> data-quality warn
-                    for ckey, cmid in txt_index.get(ht, []):
-                        if cmid != hmid:
-                            text_overlap.setdefault(
-                                f"{dim}:{ht[:40]}", []
-                            ).append(
-                                {"heldout_key": hkey,
-                                 "calibration_key": ckey,
-                                 "calibration_model": cmid,
-                                 "heldout_model": hmid}
-                            )
 
     # Deduplicate cross-model pairs.
     text_overlap = {k: _uniq(v) for k, v in text_overlap.items()}
@@ -209,6 +211,29 @@ def diagnose_textual_overlap(
     n_group_pairs = sum(len(v) for v in group_overlap.values())
     n_text_pairs = sum(len(v) for v in text_overlap.values())
     model_known = bool(model_of)
+    # Fail CLOSED when the model map is unavailable. Without it every stimulus
+    # keys to model "", so all same-text records collapse into one bucket and
+    # no overlap can ever be reported — the check would print a green "0
+    # overlaps" for a split it cannot actually inspect. That is worse than
+    # failing: it manufactures confidence. A freshly sealed experiment has no
+    # plaintext labels until it is decrypted, which is exactly when this
+    # happens, so the caller must decrypt first (see --auto-labels).
+    if not model_known:
+        return {
+            "ok": False,
+            "model_known": False,
+            "n_heldout_prompt_texts_checked": total_hold_texts,
+            "n_family_overlap_pairs": n_family_pairs,
+            "n_distinct_family_overlap": len(family_overlap),
+            "error": "model_unknown",
+            "meaning": (
+                "The auto-label payload was not readable, so the model id of "
+                "each record is unknown. Family-level overlap CANNOT be "
+                "evaluated: every stimulus would key to model '', making the "
+                "check vacuously green. Reported as not-ok on purpose. "
+                "Decrypt the sealed labels (or pass --auto-labels) and re-run."
+            ),
+        }
     ok = n_family_pairs == 0
     return {
         "ok": ok,
@@ -450,7 +475,7 @@ def diagnose_family_split(raw_dir: Path, seed: str, ratio: float = 0.70) -> Dict
     by their canonical member-text set (a group that reuses a stimulus cannot
     leak it under a different group_id).
     """
-    from scripts.seal_experiment import build_split_units
+    from scripts.seal_experiment import _stimuli_of, build_split_units
 
     # Build a pool with the same tags as seal_experiment._build_response_pool.
     pool: List[dict] = []
@@ -483,20 +508,13 @@ def diagnose_family_split(raw_dir: Path, seed: str, ratio: float = 0.70) -> Dict
     for i in unit_keys:
         members = units[i]
         mid = next(iter({m.get("_model_id", "") for m in members}), "")
-        if members and members[0].get("_dimension") == "consistency":
-            # Atomic family identity for consistency = (model, sorted member
-            # texts) — exactly the unit key build_split_units uses.  Two
-            # groups sharing ONE text but differing in another are DISTINCT
-            # families (no leak).
-            fam_key: Tuple[str, object] = (
-                mid,
-                tuple(sorted({
-                    _normalise(m.get("prompt_text", ""))
-                    for m in members if _normalise(m.get("prompt_text", ""))
-                })),
-            )
-        else:
-            fam_key = (mid, _normalise(members[0].get("prompt_text", "")))
+        # A unit's identity is its complete stimulus set under one model — the
+        # same notion build_split_units now unions on. Comparing only the
+        # member-text SET (old code) let two groups that share one stimulus but
+        # differ in another look like distinct families with no overlap.
+        stim_set = frozenset().union(*[_stimuli_of(m) for m in members]) \
+            if members else frozenset()
+        fam_key: Tuple[str, object] = (mid, stim_set)
         if cal_seen < n_cal:
             cal_families.add(fam_key)
             cal_seen += len(members)
@@ -511,14 +529,16 @@ def diagnose_family_split(raw_dir: Path, seed: str, ratio: float = 0.70) -> Dict
         "n_cal_target": n_cal,
         "n_family_overlap": len(overlap),
         "examples_overlap": [
-            t if isinstance(t, str) else " | ".join(t) for _, t in overlap
+            t if isinstance(t, str) else " | ".join(sorted(t))
+            for _, t in overlap
         ][:8],
         "method": (
-            "Content-aware units keyed by (model, normalised prompt_text); "
-            "consistency groups are additionally merged by their member text "
-            "set (same logic as seal_experiment build_split_units). family "
-            "overlap counts the SAME (model, family identity) present in BOTH "
-            "splits — exactly the unit a content-aware split must keep at zero."
+            "Content-aware units are the transitive closure of 'same rater sees "
+            "it under the same model': consistency groups plus every record "
+            "sharing a (model, stimulus), where a consistency record's stimuli "
+            "are its group members' texts (same logic as seal_experiment "
+            "build_split_units). Overlap counts the SAME (model, stimulus) in "
+            "both splits — what a content-aware split must keep at zero."
         ),
     }
 
