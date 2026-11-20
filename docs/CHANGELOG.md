@@ -97,8 +97,9 @@ templates present"}` when it found no template files. A glob passed where a
     - consistency's κ was described as "1.0, trusted". It is **undefined** (one
       observed class, `P_e = 1`), and the budget now samples the dimension
       instead of trusting it.
-  - `docs/appendix.md` and `docs/report.md` remain untracked by design, so this
-    entry is the tracked record of what changed in them.
+  - `docs/appendix.md` is tracked (it is the repository-visible record) and was
+    corrected in place; `docs/report.md` stays untracked by design, so its §8b
+    rewrite is a local change that regenerates from the tracked sources.
 
 - **The keeper passphrase in a re-do experiment would have been committed.**
   - `experiment-seal-content-aware` writes the keeper to
