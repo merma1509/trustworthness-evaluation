@@ -32,7 +32,6 @@ from restore_rater_notes import (  # noqa: E402
     PROV_ABSENT,
     PROV_RATER_ORIGINAL,
     PROV_RESTORED,
-    PROVENANCE_KEYS,
     SPLITS,
     _annotation_path,
     _diff_outside_notes,

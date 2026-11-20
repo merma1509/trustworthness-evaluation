@@ -502,7 +502,10 @@ def test_gold_can_be_built_from_jsonl_plaintext_auto_labels(tmp_path):
 
     rc, gold = _run_generate_gold_labels(auto_file, resolutions, tmp_path)
     assert rc == 0
-    lines = [json.loads(l) for l in gold.read_text(encoding="utf-8").splitlines()]
+    lines = [
+        json.loads(line)
+        for line in gold.read_text(encoding="utf-8").splitlines()
+    ]
     assert len(lines) == 2
     by_key = {g["internal_key"]: g for g in lines}
     # auto labels were joined through (represents the gold-vs-auto comparison)
@@ -554,8 +557,9 @@ def test_gold_from_jsonl_matches_committed_plaintext(tmp_path):
 
     def _sorted(path):
         return sorted(
-            json.dumps(json.loads(l), sort_keys=True)
-            for l in path.read_text(encoding="utf-8").splitlines() if l.strip()
+            json.dumps(json.loads(line), sort_keys=True)
+            for line in path.read_text(encoding="utf-8").splitlines()
+            if line.strip()
         )
 
     assert _sorted(out) == _sorted(gold_committed)
@@ -597,7 +601,9 @@ def test_truthfulness_raw_labels_match_rescore_vocabulary():
     rows = []
     for model in ("gemma3_4b", "llama3.1_8b"):
         p = raw_dir / f"{model}_truthfulness.jsonl"
-        rows += [json.loads(l) for l in p.read_text().splitlines() if l.strip()]
+        rows += [
+            json.loads(line) for line in p.read_text().splitlines() if line.strip()
+        ]
 
     assert rows, "committed truthfulness raw outputs must exist"
     assert len(rows) == 76, "expected 38 records per model"

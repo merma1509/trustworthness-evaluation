@@ -100,7 +100,18 @@ def diagnose_textual_overlap(
     cal_files = sorted(cal_dir.glob("*_calibration_template.jsonl"))
     hold_files = sorted(hold_dir.glob("*_heldout_template.jsonl"))
     if not cal_files or not hold_files:
-        return {"ok": True, "note": "no sealed templates present"}
+        # Fail CLOSED. Reporting ``ok: True`` here made a wrong path — a glob
+        # passed where a directory was expected, a typo'd --templates — print a
+        # clean "no blockers" for an experiment that was never inspected. An
+        # unexamined split is not a verified split.
+        return {
+            "ok": False,
+            "note": "no sealed templates found — the split was NOT inspected",
+            "cal_dir": str(cal_dir),
+            "hold_dir": str(hold_dir),
+            "n_calibration_files": len(cal_files),
+            "n_heldout_files": len(hold_files),
+        }
 
     model_of = _load_model_map(auto_labels_path)
 

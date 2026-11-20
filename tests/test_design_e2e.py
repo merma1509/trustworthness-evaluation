@@ -177,7 +177,7 @@ def _decrypt_auto_labels(exp_dir: Path) -> Path:
 def _simulate_rater(tpl: Path, out: Path, rater: str, label: str) -> None:
     """Fill a template file with a single label choice for every record."""
     with tpl.open() as f:
-        recs = [json.loads(l) for l in f if l.strip()]
+        recs = [json.loads(line) for line in f if line.strip()]
     dim_key = {"safety": "safety_label",
                "truthfulness": "truthfulness_label",
                "consistency": "consistency_label"}
@@ -242,8 +242,12 @@ def test_e2e_seal_annotate_gold_agreement(tmp_path):
     # Every consistency display must be model-scoped via metadata.
     tpl = exp_dir / "templates" / f"{exp_id}_heldout_template.jsonl"
     with tpl.open() as f:
-        cons = [json.loads(l) for l in f if l.strip()
-                and json.loads(l)["prompt_record"]["dimension"] == "consistency"]
+        cons = [
+            json.loads(line)
+            for line in f
+            if line.strip()
+            and json.loads(line)["prompt_record"]["dimension"] == "consistency"
+        ]
     for rec in cons:
         assert rec["metadata"]["display_model"] in ("gemma3:4b", "llama3.1:8b")
 
@@ -279,15 +283,18 @@ def test_e2e_seal_annotate_gold_agreement(tmp_path):
         "--out", tmp_path / "gold_labels.jsonl",
     )
     assert res.returncode == 0, res.stderr[-1500:]
-    gold = [json.loads(l) for l in
-            (tmp_path / "gold_labels.jsonl").open() if l.strip()]
+    gold = [
+        json.loads(line)
+        for line in (tmp_path / "gold_labels.jsonl").open()
+        if line.strip()
+    ]
     assert gold, "gold file empty"
 
     # Every gold key must resolve despite the shared-text design.
     keys = {g.get("internal_key") for g in gold}
     # The five heldout templates records must map 1:1 into gold.
     with (exp_dir / "templates" / f"{exp_id}_heldout_template.jsonl").open() as f:
-        held_keys = {json.loads(l)["internal_key"] for l in f if l.strip()}
+        held_keys = {json.loads(line)["internal_key"] for line in f if line.strip()}
     covered = held_keys & keys
     assert len(covered) > 0, "no held-out key covered by gold"
 
