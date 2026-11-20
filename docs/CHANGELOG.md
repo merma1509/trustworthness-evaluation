@@ -8,12 +8,19 @@ here. Format follows [Keep a Changelog](https://keepachangelog.com/).
 ### Changed
 
 - **Re-do experiment sealed: `trustworthiness-validation-2026-11-15-r3-family-split`.**
-  - The collected experiment (`…2026-10-16-042935`) sits at a directory whose
-    labels were split by record, so 25 distinct prompt texts (26 counting the
-    empty consistency text) appear in both splits — a rater working through the
-    held-out set could meet a stimulus already seen during calibration. The re-do
-    is sealed with the family-level (content-aware) split, and `diagnose_design`
-    reports 0 family overlap.
+  - The collected experiment (`…2026-10-16-042935`) was split by record, so 34
+    distinct prompt texts appear in both splits (69 calibration, 41 held-out) —
+    a rater working through the held-out set could meet a stimulus already seen
+    during calibration. Measured on the templates: **15 `(model, text)` pairs
+    across 7 distinct texts** still leak, and `diagnose_design` reports
+    `textual_overlap.ok = false`.
+  - **Correction to what this entry used to say.** It claimed the re-do is clean
+    because `diagnose_design` reports "0 family overlap" for it. That was wrong
+    twice over: the r3 templates produce **9 leaking pairs across 4 distinct
+    texts** (`textual_overlap` BLOCKER), and the claim had been read off the
+    wrong check. `family_split_enforcement` is green for r3, but it is a
+    _simulation_ — it re-runs the splitter on the raw pool and never opens the
+    sealed templates. Only `textual_overlap` inspects the experiment.
   - Sealed into its **own** directory (`experiment/sealed/<id>/`) rather than
     over the collected one. Sealing reuses two fixed filenames
     (`sealing_manifest.json`, `sealed_auto_labels.jsonl.enc`) that do not depend
@@ -26,9 +33,10 @@ here. Format follows [Keep a Changelog](https://keepachangelog.com/).
     a genuinely fresh held-out set needs new raters or newly generated
     responses. This is recorded rather than papered over.
   - Residual: 42 `prompt_id`s appear in both splits under _different_ models
-    (e.g. `SAFE_018` as `gemma3:4b` in calibration, `llama3.1:8b` in held-out).
-    A family split keys on `(model, text)` and permits this; it is a
-    data-quality concern for any "fresh" claim, not a split violation.
+    (e.g. `SAFE_018` as `gemma3:4b` in calibration, `llama3.1:8b` in held-out);
+    116 `(model, text)` cross-model pairs over 36 distinct texts. A family split
+    keys on `(model, text)` and permits this; it is a data-quality concern for
+    any "fresh" claim, not a split violation.
 
 - **The paired comparison is now regenerated and verified by the rerun gate.**
   - `scripts/validate_rerun_pipeline.py` never ran
@@ -42,7 +50,56 @@ here. Format follows [Keep a Changelog](https://keepachangelog.com/).
   - The estimator is deterministic (byte-identical across runs), so the check is
     exact rather than tolerance-based.
 
+- **`docs/report.md` is no longer tracked.**
+  - `.gitignore` already listed it under _"Regenerated reports … do not commit"_,
+    but the file had been force-added earlier, so the ignore never applied. It is
+    now untracked (`git rm --cached`) to match the documented policy; the file
+    remains on disk as a local artifact.
+
+- **`make experiment-agreement` now passes `--auto-labels` and
+  `--inter-rater-calibration`**, so the canonical report includes the
+  display-level, test-retest and calibration blocks that the write-up quotes.
+
+- **Lint gate green again.** Six ruff violations in the restored
+  `report_agreement.py` (missing `Optional` import, ambiguous loop name, unused
+  local, trailing whitespace, placeholder-free f-string) are fixed; `make lint`
+  and the CI `Lint (ruff)` job pass.
+
 ### Fixed
+
+- **The design diagnosis reported an unexamined split as clean.**
+  - `diagnose_textual_overlap` returned `{"ok": True, "note": "no sealed
+templates present"}` when it found no template files. A glob passed where a
+    directory was expected, a typo'd `--templates`, or an unsealed experiment all
+    land in that branch, so `make diagnose-design` printed **"no blockers"** for
+    data it had never opened. This is how the r3 re-seal above was described as
+    clean while its templates leak: the check was pointed at a path that matched
+    nothing, and silence was read as approval.
+  - It now fails **closed** (`ok: False`) and reports the directories it looked
+    in plus the file counts it found, so "not inspected" can never be mistaken
+    for "verified". `tests/test_design_gate.py::test_uninspected_split_is_not_green`
+    pins it — verified to fail against the previous implementation.
+
+- **`docs/appendix.md` described an audit that was never run.**
+  - Sections A.1–A.11 reported a 30-record audit (86.7% agreement, κ = 0.757,
+    100% precision, ~108× cost ratio). Those are not the collected experiment.
+    Every figure now reads from the committed artifacts: n = 49 scored,
+    agreement 0.9388, κ = 0.9164 per-dimension, 7 distinct consistency displays,
+    32-label budget at \$2.17.
+  - Three false validity claims corrected, each checked against the artifacts:
+    - the appendix said `display_model` is blank in consistency templates. It is
+      not — all 64 carry it. `425dcfc` detached the field from the rater-visible
+      files; RATER_A/RATER_B are clean (0/420), but the ADJUDICATOR file still
+      exposes `gemma3:4b` on **1 of 5** calibration records (`K_0084`).
+    - the residual text overlap was described as cross-model only. Decomposed:
+      of 45 held-out `(model, text)` families, **28** reoccur under the _same_
+      model (the L1 leak) and only **8** under the other model.
+    - consistency's κ was described as "1.0, trusted". It is **undefined** (one
+      observed class, `P_e = 1`), and the budget now samples the dimension
+      instead of trusting it.
+  - `docs/appendix.md` is tracked (it is the repository-visible record) and was
+    corrected in place; `docs/report.md` stays untracked by design, so its §8b
+    rewrite is a local change that regenerates from the tracked sources.
 
 - **The keeper passphrase in a re-do experiment would have been committed.**
   - `experiment-seal-content-aware` writes the keeper to
@@ -141,23 +198,6 @@ here. Format follows [Keep a Changelog](https://keepachangelog.com/).
   consistency displays (`internal_key -> display_model`), so removing the field
   from rater-visible files does not also destroy the record of which model was
   shown.
-
-### Changed
-
-- **`docs/report.md` is no longer tracked.**
-  - `.gitignore` already listed it under _"Regenerated reports … do not commit"_,
-    but the file had been force-added earlier, so the ignore never applied. It is
-    now untracked (`git rm --cached`) to match the documented policy; the file
-    remains on disk as a local artifact.
-
-- **`make experiment-agreement` now passes `--auto-labels` and
-  `--inter-rater-calibration`**, so the canonical report includes the
-  display-level, test-retest and calibration blocks that the write-up quotes.
-
-- **Lint gate green again.** Six ruff violations in the restored
-  `report_agreement.py` (missing `Optional` import, ambiguous loop name, unused
-  local, trailing whitespace, placeholder-free f-string) are fixed; `make lint`
-  and the CI `Lint (ruff)` job pass.
 
 ## [2.1.0] - 2026-11-12
 

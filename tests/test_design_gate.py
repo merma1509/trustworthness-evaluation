@@ -61,3 +61,22 @@ def test_leak_is_a_warning_by_default(monkeypatch, capsys):
 def test_leak_fails_closed_under_strict(monkeypatch):
     with pytest.raises(SystemExit):
         _run_gate(monkeypatch, rc=1, strict=True)
+
+
+def test_uninspected_split_is_not_green(tmp_path):
+    """A split that was never inspected must never be reported as clean.
+
+    A glob passed where a directory was expected, a typo'd --templates path, or
+    an unsealed experiment all yield zero template files. The check used to
+    return {"ok": True, "note": "no sealed templates present"}, so `diagnose-design`
+    printed "no blockers" for data it had not opened — including for the r3
+    re-seal, which in fact leaks. An unexamined split is not a verified split.
+    """
+    from scripts.diagnose_design import diagnose_textual_overlap
+
+    res = diagnose_textual_overlap(tmp_path, tmp_path, None)
+
+    assert res["ok"] is False, "missing templates must fail closed"
+    assert res["n_calibration_files"] == 0
+    assert res["n_heldout_files"] == 0
+    assert "NOT inspected" in res["note"]

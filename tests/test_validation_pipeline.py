@@ -19,8 +19,8 @@ from pathlib import Path
 
 import pytest
 
-from src.labels import label_set_for
 from scripts.resolve_disagreements import resolve_disagreements
+from src.labels import label_set_for
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -71,8 +71,8 @@ def prepared_templates(tmp_path):
     )
     if not cal_src or not hold_src:
         pytest.skip("Sealed templates not present; run seal_experiment.py first.")
-    cal = [json.loads(l) for l in cal_src[0].open() if l.strip()]
-    hold = [json.loads(l) for l in hold_src[0].open() if l.strip()]
+    cal = [json.loads(line) for line in cal_src[0].open() if line.strip()]
+    hold = [json.loads(line) for line in hold_src[0].open() if line.strip()]
     return {"calibration": cal, "heldout": hold}
 
 
@@ -150,7 +150,7 @@ def test_resolution_agreement_and_adjudication(tmp_path, prepared_templates):
         with f.open("w") as fh:
             for r in recs:
                 _fill(r, "correct" if f is a_f else
-                      ("correct" if not r["internal_key"] in flip_keys else
+                      ("correct" if r["internal_key"] not in flip_keys else
                        ("correct" if hash(r["internal_key"]) % 2 == 0 else "wrong"))
                       if f is adj else
                       ("correct" if r["internal_key"] not in flip_keys else "wrong"))

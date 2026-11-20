@@ -263,7 +263,7 @@ def test_verify_results_recovers_agree_from_confusion_matrix(tmp_path):
 
 def test_audit_log_append_only_and_hashes_files(tmp_path):
     """audit-log entries are append-only JSONL with input/output file hashes."""
-    from src.audit_log import log_action, load_log, file_sha256
+    from src.audit_log import file_sha256, load_log, log_action
 
     log = tmp_path / "processing_log.jsonl"
     indata = tmp_path / "input.json"

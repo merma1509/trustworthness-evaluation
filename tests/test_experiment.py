@@ -10,8 +10,6 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 
-import pytest
-
 from src.experiment import find_latest_experiment_id, generate_experiment_id
 
 
@@ -101,5 +99,5 @@ def test_find_latest_default_path_type():
     default_path = find_latest_experiment_id()
     # Only asserts the call is safe and returns a str path type, without
     # depending on a real manifest being present.
-    assert isinstance(find_latest_experiment_id(), (str, type(None)))
+    assert isinstance(default_path, (str, type(None)))
     assert Path(".").is_dir()

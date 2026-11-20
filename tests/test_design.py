@@ -68,15 +68,15 @@ def test_display_model_is_per_model_even_for_shared_group_id():
         [{"prompt_text": "G", "response": "g-r1"}],
         group_id="group_1",
     )
-    l = _template_record_from_members(
+    llama = _template_record_from_members(
         "llama3.1:8b",
         [{"prompt_text": "L", "response": "l-r1"}],
         group_id="group_1",
     )
     assert g["metadata"]["display_model"] == "gemma3:4b"
-    assert l["metadata"]["display_model"] == "llama3.1:8b"
+    assert llama["metadata"]["display_model"] == "llama3.1:8b"
     assert g["responses"] == ["g-r1"]
-    assert l["responses"] == ["l-r1"]
+    assert llama["responses"] == ["l-r1"]
     # Visible pairs stay anonymous; only metadata carries the model.
     assert not _has_nonempty_field(g, "model_id")
 
